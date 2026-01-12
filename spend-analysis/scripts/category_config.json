@@ -1,0 +1,59 @@
+{
+  "_instructions": "Edit categories and keywords below. Keywords are case-insensitive and match partial text. First match wins.",
+  "default_category": "Uncategorized",
+  "use_ai_fallback": false,
+  "ai_category_list": [],
+  "categories": {
+    "Aviation & Airport Services": [
+      "airport", "aviation", "airside", "terminal", "o'hare", "midway",
+      "runway", "aircraft", "airline", "flight", "hangar", "tarmac"
+    ],
+    "IT & Technology": [
+      "software", "hardware", "computer", "database", "network",
+      "server", "technology", "cloud", "cyber", "digital",
+      "telecom", "internet", "programming", "data center", "data base"
+    ],
+    "Professional Services": [
+      "consulting", "legal", "accounting", "audit", "architect",
+      "engineering", "design", "planning", "training", "staffing",
+      "advisory", "management services"
+    ],
+    "Facilities & Maintenance": [
+      "custodial", "janitorial", "cleaning", "maintenance", "repair",
+      "hvac", "plumbing", "electrical", "building", "landscaping",
+      "pest control", "elevator", "window cleaning"
+    ],
+    "Construction": [
+      "construction", "paving", "concrete", "asphalt", "demolition",
+      "excavation", "roofing", "masonry", "renovation", "structural"
+    ],
+    "Fleet & Transportation": [
+      "vehicle", "automotive", "truck", "fleet", "fuel", "gasoline",
+      "diesel", "towing", "tire", "transportation", "motor pool"
+    ],
+    "Medical & Health": [
+      "medical", "health", "pharmaceutical", "drug", "hospital",
+      "clinic", "surgical", "dental", "ambulance", "moore medical"
+    ],
+    "Parts & Supplies": [
+      "parts", "supplies", "catalog", "equipment", "tools",
+      "materials", "commodity", "commodities", "office supplies",
+      "grainger", "inventory"
+    ],
+    "Environmental Services": [
+      "remediation", "restoration", "environmental", "hazardous",
+      "waste", "recycling", "mold", "asbestos", "contamination",
+      "fire, smoke", "storm, water"
+    ],
+    "Courier & Delivery": [
+      "courier", "messenger", "delivery", "shipping", "freight"
+    ],
+    "Utilities": [
+      "electric", "water", "utility", "power", "energy", "sewer"
+    ],
+    "Public Safety": [
+      "police", "fire department", "security", "safety", "emergency",
+      "protective", "surveillance"
+    ]
+  }
+}
