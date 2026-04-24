@@ -1,0 +1,124 @@
+
+==============================================================================
+⚠ FLAG FOR LEADERSHIP
+==============================================================================
+• Material variance (72.7%) across three total-spend paths — Current PO Dist vs AP Invoice vs Pay Check Amount.
+• 94.37% of spend has no NIGP Code — category analytics will under-report by that amount.
+• 94.37% of spend has no NIGP Description — category analytics will under-report by that amount.
+• $20,847,568.91 in spend is on Cancelled/Rejected/Voided POs — exclude from run-rate, report as cost avoidance indicator.
+
+
+==============================================================================
+City of Chicago DPS — STEP 1 DATA VALIDATION PROFILE
+==============================================================================
+Source file         : /workspaces/Procurement-ai-tools/spend-analysis/data/raw/ey raw data.xlsx
+Sheet               : Report 1
+Analysis period     : 2021-2026 (EY benchmark extract)
+Defense assumptions : Addressability=85% | Savings rate=10% | Horizon=3 yrs
+
+==============================================================================
+1. SHAPE AND DATE RANGE
+==============================================================================
+Row count    : 784,556
+Column count : 87
+PO Creation Date min : 2002-10-12 00:00:00
+PO Creation Date max : 2025-05-27 11:43:11
+PO Creation Date null count : 0 (0.00%)
+
+==============================================================================
+2. TOTAL SPEND — THREE RECONCILIATION PATHS
+==============================================================================
+Sum of Current PO Dist Amount              :    $141,943,112,475.26   (n= 784,556, null=      0)
+Sum of AP Invoice Amount                   :     $52,955,896,245.73   (n= 784,556, null=      0)
+Sum of Pay Check Amount                    :    $193,730,499,689.06   (n= 784,556, null=      0)
+
+Max - Min variance : $140,774,603,443.33 (72.67% of max)
+
+==============================================================================
+3. UNIQUE ENTITY COUNTS
+==============================================================================
+Unique vendors (by Vendor Number)                       :      9,445
+Unique Vendor Names (raw, pre-normalization)            :      9,445
+Unique NIGP codes                                       :      4,592
+Unique NIGP Descriptions                                :      4,425
+Unique PO Lead Departments                              :         54
+Unique PO Numbers                                       :     94,125
+Unique PO Contract Numbers                              :     62,661
+
+==============================================================================
+4. NULL / BLANK ANALYSIS ON CRITICAL FIELDS
+==============================================================================
+NIGP Code                      : blank rows= 546,019 (69.60%)  spend=$133,948,047,710.18 (94.37%)
+NIGP Description               : blank rows= 546,019 (69.60%)  spend=$133,948,047,710.18 (94.37%)
+PO Contract Number             : blank rows=       0 (0.00%)  spend=             $0.00 (0.00%)
+  → MAVERICK INDICATOR: 0.00% of spend has no PO Contract Number (off-contract candidate pool).
+Vendor Number                  : blank rows=       0 (0.00%)  spend=             $0.00 (0.00%)
+PO Lead Dept                   : blank rows=   4,479 (0.57%)  spend= $1,183,347,805.86 (0.83%)
+Current PO Dist Amount         : blank rows=       0 (0.00%)  spend=             $0.00 (0.00%)
+
+==============================================================================
+5. DPS vs NON-DPS OVERSIGHT
+==============================================================================
+DPS                       txns= 457,595   spend=  $97,294,432,777.39 (68.54%)
+Non-DPS                   txns= 326,961   spend=  $44,648,679,697.87 (31.46%)
+
+==============================================================================
+6. APPROVAL STATUS BREAKDOWN
+==============================================================================
+APPROVED                       txns= 775,104   spend= $139,786,990,911.95 (98.48%)
+IN PROCESS                     txns=   3,159   spend=   $1,315,500,473.00 (0.93%)
+REQUIRES REAPPROVAL            txns=   6,013   spend=     $809,668,152.01 (0.57%)
+REJECTED                       txns=     244   spend=      $20,847,568.91 (0.01%)
+PRE-APPROVED                   txns=      36   spend=      $10,105,369.39 (0.01%)
+
+— AP Invoice Payment Status -----------------------------------------------
+Y                                   :    784,070
+N                                   :        486
+
+==============================================================================
+7. TOP 20 LEADERBOARDS (raw — no analysis yet)
+==============================================================================
+
+— Top 20 Vendors by Spend -------------------------------------------------
+10563047        Favorite Healthcare Staffing, Inc.                        $48,061,246,140.29
+50167025        FH PASCHEN SN NIELSEN & ASSOCIATES LLC                     $4,965,560,816.85
+1062188         INGRAM LIBRARY SERVICES, INC                               $2,797,044,931.65
+10193148        SDI PRESENCE LLC                                           $2,154,852,669.46
+55240023        WALSH CONSTRUCTION COMPANY II,  LLC.                       $1,969,036,448.07
+379620          HIGHWAY SAFETY CORPORATION                                 $1,872,230,626.44
+56034036        CONSTELLATION NEWENERGY INC                                $1,791,085,758.58
+51139031        AT&T CORP                                                  $1,722,684,255.22
+1064061         AMERICAN AIRLINES 01                                       $1,653,583,198.50
+51085022        ALL CHICAGO MAKING HOMELESSNESS HISTORY                    $1,530,797,740.24
+656737          OPEN KITCHENS, INC.                                        $1,493,714,101.29
+1008771         BIGANE PAVING COMPANY                                      $1,432,284,855.14
+55518022        TRANSWESTERN COMMERCIAL SERVICES,  LLC.                    $1,415,947,123.99
+1058216         HERC RENTALS INC                                           $1,246,309,603.72
+102994          BLUE CROSS & BLUE SHIELD                                   $1,207,527,288.97
+1069712         WORLD BUSINESS CHICAGO                                     $1,076,220,391.00
+131288          JOHN BURNS CONSTRUCTION CO                                 $1,069,037,309.98
+191367          COMMONWEALTH EDISON CO                                       $946,046,163.34
+1062872         HNTB CORPORATION                                             $879,669,554.19
+10228495        Rausch Infrastructure LLC                                    $874,291,462.20
+
+— Top 20 NIGP Categories by Spend -----------------------------------------
+nan          nan                                                         $133,948,047,710.18
+9758280140.0 RENTAL OF TRAFFIC CONTROL BARRICADES, TRAFFIC CONES, WARNI    $1,713,066,091.59
+9753460169.0 RENTAL OF RUBBER TIRED LOADER/BACKHOE - 17,000-20,000 LB.       $691,324,879.84
+9758605334.0 TRUCK AND VAN RENTAL - RENTAL OF A THREE AXLE TRUCK, 52,00      $311,018,734.25
+9753459578.0 RENTAL OF ATTACHMENTS FOR RUBBER TIRED LOADER/BACKHOE - 2,      $277,825,562.92
+9758685310.0 RENTAL OF CARGO VANS - FULL SIZE CARGO VAN                      $270,913,209.00
+700312040.0  AMBULANCE - TYPE III AMBULANCE BODY                             $255,938,393.00
+8853846300.0 CHLORINE, LIQUID - LIQUID CHLORINE IN ONE TON CONTAINERS        $245,939,056.40
+6702711215.0 PIPE, WATER - PUSH-ON JOINT, 8 INCH - CLASS 56                  $160,670,180.00
+9753460226.0 RENTAL OF RUBBER TIRED LOADER/BACKHOE - 20,000-23,000 LB.       $132,252,678.26
+7507008302.0 CONCRETE, READY-MIX, CHICAGO - PREFORMED EXPANSION JOINT F      $117,115,380.71
+9758612055.0 RENTAL OF TRUCKS - 1/2 TON. CREW CAB                            $105,897,438.98
+718005030.0  SPORT UTILITY VEHICLE - ALL WHEEL DRIVE POLICE PURSUIT UTI      $104,791,777.18
+7754512121.0 ANTI-ICER AND DE-ICER, RUNWAY (LIQUID) - POTASSIUM ACETATE       $99,505,624.06
+7452176401.0 HOT MIX ASPHALT - HOT MIX ASPHALT SURFACE COURSE, IL-9.5LH       $94,998,732.62
+9758280010.0 RENTAL OF TRAFFIC CONTROL BARRICADES, TRAFFIC CONES, WARNI       $79,657,609.31
+9759001110.0 RENTAL OF TRUCK MOUNTED EQUIPMENT-VACUUM/JET RODDER, FULL        $79,347,194.95
+9629373104.0 SEWER TELEVISING AND RELATED SERVICES - CATCH BASIN CLEANI       $73,964,966.02
+9682510100.0 GROUP A - CORROSION CONTROL SERVICES - BLENDED PHOSPHATES        $69,801,830.98
+7507008301.0 CONCRETE, READY-MIX, CHICAGO - PREFORMED EXPANSION JOINT F       $69,520,501.65

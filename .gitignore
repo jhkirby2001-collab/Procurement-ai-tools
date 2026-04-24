@@ -1,0 +1,19 @@
+# Raw data — organization's source extracts, never committed
+spend-analysis/data/raw/
+
+# Derived / cached data — regenerable, can be large
+spend-analysis/data/processed/
+*.parquet
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local tmp logs
+*.log
