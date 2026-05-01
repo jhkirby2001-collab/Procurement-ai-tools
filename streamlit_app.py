@@ -230,11 +230,37 @@ def render_result_box(d: dict) -> None:
         badge_text = f"{d['Classification_Confidence'].upper()} CONFIDENCE"
         category_display = d["Business_Category"]
 
+    # NIGP code line — shown only when a code was actually assigned
+    nigp_line_html = ""
+    if d["NIGP_Code_Assigned"]:
+        level = d["NIGP_Match_Level"] or ""
+        level_label = {
+            "exact": "5-digit Item",
+            "broad": "3-digit Class",
+            "review": "broader Class (review)",
+        }.get(level, level)
+        nigp_line_html = (
+            f"<div style='color:{CHI_NAVY}; font-size:15px; font-weight:600; "
+            f"margin-top:8px;'>NIGP Code:  "
+            f"<span style='color:{CHI_RED};'>{d['NIGP_Code_Assigned']}</span>"
+            f"  <span style='color:{CHI_GRAY}; font-weight:400; font-size:13px;'>"
+            f"({level_label})</span></div>"
+        )
+    elif d["Business_Category"] == "Grants & Pass-Through Funding":
+        nigp_line_html = (
+            f"<div style='color:{CHI_GRAY}; font-size:13px; font-style:italic; "
+            f"margin-top:8px;'>"
+            f"No NIGP code applies — subgrant disbursements are financial "
+            f"transfers, not commodity purchases."
+            f"</div>"
+        )
+
     st.markdown(
         f"""
         <div class='chi-result-box'>
           <span class='chi-badge' style='background:{badge_color};'>{badge_text}</span>
           <div class='chi-result-category'>{category_display}</div>
+          {nigp_line_html}
         </div>
         """,
         unsafe_allow_html=True,
