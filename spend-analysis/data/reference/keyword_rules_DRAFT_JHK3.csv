@@ -1,0 +1,149 @@
+pattern,match_type,business_category,nigp_class_3digit,nigp_item_5digit,nigp_match_level,notes
+Books,exact,"Office, Print & Marketing",,,broad,
+Library Materials,exact,"Office, Print & Marketing",,,broad,
+Library materials,exact,"Office, Print & Marketing",,,broad,
+Office supplies,exact,"Office, Print & Marketing",310,,broad,
+COURT REPORTER,exact,Professional & Administrative Services,,,review,Legal services
+Consultants or professional services,exact,Professional & Administrative Services,,,broad,
+EXPERT,exact,Professional & Administrative Services,,,review,Expert witness; legal context
+OUTSIDE COUNSEL,exact,Professional & Administrative Services,,,review,
+Office rental,exact,Professional & Administrative Services,,,review,Real-estate lease — not in NIGP working set
+SENIOR INSTRUCTOR,exact,Professional & Administrative Services,,,review,
+SUBPOENA,exact,Professional & Administrative Services,,,review,
+TRANSCRIPT,exact,Professional & Administrative Services,,,review,
+Transcript,exact,Professional & Administrative Services,,,review,
+Utility services,exact,Professional & Administrative Services,,,review,Electric/water/gas utility — no class in working set
+BREAD,exact,"Public Safety, Uniforms & PPE",375,,broad,Police lockup bread (judgment call locked earlier)
+BACP-,starts_with,Grants & Pass-Through Funding,,,broad,BACP = Business Affairs & Consumer Protection subgrants
+CDPH-,starts_with,Grants & Pass-Through Funding,,,broad,"CDPH = Chicago Dept of Public Health subgrants (Ryan White, etc.)"
+DCASE-,starts_with,Grants & Pass-Through Funding,,,broad,DCASE = Dept of Cultural Affairs & Special Events subgrants
+DFSS-,starts_with,Grants & Pass-Through Funding,,,broad,DFSS = Family & Support Services subgrants to CBOs
+DOH-,starts_with,Grants & Pass-Through Funding,,,broad,DOH = Dept of Housing subgrants
+DPD-,starts_with,Grants & Pass-Through Funding,,,broad,DPD = Dept of Planning & Development subgrants
+CANINE PRIMARY CARE VETERINARY,contains,Animal Care & Veterinary,875,,broad,
+VETERINARY,contains,Animal Care & Veterinary,875,,broad,
+ENVIRONMENTAL RESPONSE SERVICES,contains,Chemicals & Water Treatment,175,,broad,Hazmat response
+HAZARDOUS MATERIAL HANDLING,contains,Chemicals & Water Treatment,175,,broad,
+BRIDGE CONSTRUCTION,contains,Construction & Trades Services,913,,broad,
+CONSTRUCTION MANAGEMENT,contains,Construction & Trades Services,,,broad,Construction-mgmt-at-risk; could be Pro Services
+Residential Roadway Lighting Improvement,contains,Construction & Trades Services,,,broad,
+TRADESMEN SERVICES,contains,Construction & Trades Services,914,,broad,
+AGGREGATES,contains,Construction Materials,,,broad,
+"ASPHALT PRIMERS, HOT MIX",contains,Construction Materials,745,,broad,
+CLAY SEWER PIPE,contains,Construction Materials,658,,broad,
+CONSTRUCTION MATERIALS AND SUPPLIES,contains,Construction Materials,,,broad,Generic — broad class only
+HOT MIX ASPHALT,contains,Construction Materials,745,,broad,
+"PIPES, FITTINGS, VALVES",contains,Construction Materials,670,,broad,Generic pipe/fittings — water-side default; could be sewer
+READY MIX CONCRETE,contains,Construction Materials,750,75070,exact,
+READY-MIX CONCRETE,contains,Construction Materials,750,75070,exact,
+REINFORCED CONCRETE SEWER PIPE,contains,Construction Materials,658,,broad,
+REPROCESSABLE MATERIALS FOR CONSTRUCTION,contains,Construction Materials,,,broad,
+THERMOPLASTIC PAVEMENT MARKINGS,contains,Construction Materials,745,,broad,
+LEASE OF COPIER,contains,Equipment Rental & Leasing,985,98527,exact,
+LEASED HIGH VOLUME,contains,Equipment Rental & Leasing,985,,broad,Production copier lease
+LEASING OF AUTOMOBILES,contains,Equipment Rental & Leasing,975,97586,exact,
+RENTAL AND PLACEMENT OF TRAFFIC CONTROL,contains,Equipment Rental & Leasing,975,97534,exact,Traffic control devices rental
+RENTAL OF AUTOMOBILES,contains,Equipment Rental & Leasing,975,97586,exact,Vehicle rental
+RENTAL OF HEAVY EQUIPMENT,contains,Equipment Rental & Leasing,975,,broad,"Heavy equipment rental contracts (loaders, excavators, etc.)"
+RENTAL OF ITEMS FOR CITY FESTIVALS,contains,Equipment Rental & Leasing,855,,broad,Festival/event equipment rentals
+RENTAL OF MOBILE OFFICE TRAILERS,contains,Equipment Rental & Leasing,975,,broad,
+RENTAL OF TENTS,contains,Equipment Rental & Leasing,855,,broad,
+AIR FILTERS,contains,Facilities Operations & Maintenance,031,,broad,HVAC filters
+AIRPORT FACILITY,contains,Facilities Operations & Maintenance,909,,broad,
+AIRPORT MAINTENANCE AND REPAIR,contains,Facilities Operations & Maintenance,909,,broad,
+DOORS AND MOTORS:OVERHEAD,contains,Facilities Operations & Maintenance,450,,broad,
+ELECTRICAL PRODUCTS AND SUPPLIES,contains,Facilities Operations & Maintenance,285,,broad,
+"ELEVATORS, DUMBWAITERS",contains,Facilities Operations & Maintenance,,,broad,No elevator class in working set
+"FENCING, GUARDRAIL",contains,Facilities Operations & Maintenance,,,broad,
+FLAGPOLE,contains,Facilities Operations & Maintenance,350,,broad,
+HVAC,contains,Facilities Operations & Maintenance,031,,broad,
+LOCKSMITH SERVICES,contains,Facilities Operations & Maintenance,450,,broad,
+PLUMBING SUPPLIES,contains,Facilities Operations & Maintenance,720,,broad,
+PLYMOVENT EXHAUST,contains,Facilities Operations & Maintenance,031,,broad,Vehicle exhaust extraction in fire stations
+PURCHASE OF NEW AND REPLACEMENT ELECTRIC MOTORS,contains,Facilities Operations & Maintenance,150,,broad,
+PURCHASE OF PAINT,contains,Facilities Operations & Maintenance,,,broad,Building paint — no clean class
+ROOFING,contains,Facilities Operations & Maintenance,,,broad,No roofing class in working set
+SIGNAGE SYSTEMS FOR O'HARE,contains,Facilities Operations & Maintenance,801,,broad,Wayfinding/signage — facility hardware
+TERRAZZO,contains,Facilities Operations & Maintenance,,,broad,
+VARIOUS DOORS AND MOTORS,contains,Facilities Operations & Maintenance,450,,broad,
+WARRANTY SERVICES FOR THE AIRPORT RESIDENTIAL SOUND INSULATION,contains,Facilities Operations & Maintenance,557,,broad,
+"FURNITURE, ACCESSORIES",contains,Furniture & Furnishings,425,,broad,
+VARIOUS FURNITURE,contains,Furniture & Furnishings,425,,broad,
+HILTI TOOLS,contains,Heavy Equipment & Machinery,550,,broad,
+"INDUSTRIAL EQUIPMENT, TOOLS, ATTACHMENTS",contains,Heavy Equipment & Machinery,550,,broad,
+"MATERIAL HANDLING, SHELVING",contains,Heavy Equipment & Machinery,560,,broad,
+OUTDOOR POWER EQUIPMENT,contains,Heavy Equipment & Machinery,550,,broad,
+AUDIO VISUAL SYSTEMS,contains,"IT, Telecom & Audio/Visual",939,,broad,
+CELLULAR BASED WIRELESS,contains,"IT, Telecom & Audio/Visual",725,,broad,
+COMDIAL/VERTICAL TIER 1 DEALER TELEPHONE,contains,"IT, Telecom & Audio/Visual",725,,broad,
+INFORMATION TECHNOLOGY INFRASTRUCTURE,contains,"IT, Telecom & Audio/Visual",920,,broad,
+ISSOCCS,contains,"IT, Telecom & Audio/Visual",920,,broad,Integrated safety/security/operations command system at airports
+MULTI-FUNCTION DEVICES,contains,"IT, Telecom & Audio/Visual",984,,broad,MFDs/printers
+Printers and copiers,contains,"IT, Telecom & Audio/Visual",984,,broad,
+TELECOMMUNICATION SERVICE,contains,"IT, Telecom & Audio/Visual",920,,broad,
+"Telecommunications, internet",contains,"IT, Telecom & Audio/Visual",920,,broad,
+WIRELESS COMMUNICATION EQUIPMENT,contains,"IT, Telecom & Audio/Visual",725,,broad,
+CUSTODIAL SERVICES,contains,"Janitorial, Sanitation & Waste",485,,broad,
+DISPOSAL SERVICES,contains,"Janitorial, Sanitation & Waste",968,,broad,
+HAULING OF SEWER DEBRIS,contains,"Janitorial, Sanitation & Waste",968,,broad,
+JANITORIAL,contains,"Janitorial, Sanitation & Waste",485,,broad,
+PORTABLE CHEMICAL TOILETS,contains,"Janitorial, Sanitation & Waste",977,,broad,Portable toilet rental + servicing
+STEEL DUMPSTERS,contains,"Janitorial, Sanitation & Waste",968,96871,exact,
+WASTE DISPOSAL,contains,"Janitorial, Sanitation & Waste",968,,broad,
+AIRSIDE SNOW REMOVAL,contains,"Landscaping, Grounds & Irrigation",,,broad,
+COMPREHENSIVE LANDSCAPE,contains,"Landscaping, Grounds & Irrigation",988,,broad,
+INTEGRATED PEST MANAGEMENT,contains,"Landscaping, Grounds & Irrigation",910,,broad,
+LANDSCAPE SERVICES,contains,"Landscaping, Grounds & Irrigation",988,,broad,
+SNOW PLOWING,contains,"Landscaping, Grounds & Irrigation",,,broad,No snow-services class in working set
+COMPREHENSIVE MEDICAL/PHYSICAL EXAMS,contains,Medical & Health Services,948,,broad,
+"INDUSTRIAL, MEDICAL & PROPANE GAS",contains,Medical & Health Services,430,,broad,
+TEMPORARY MEDICAL PERSONNEL,contains,Medical & Health Services,,,broad,Locum/temp medical staffing
+DEMOLITION NOTICE DEFAULT PUBLICATION,contains,"Office, Print & Marketing",915,,broad,Legal-notice publication
+LIBRARY MATERIALS,contains,"Office, Print & Marketing",,,broad,Books/audiobooks — no library-materials class in working set
+OFFICE SUPPLIES,contains,"Office, Print & Marketing",310,,broad,
+PROMOTIONAL WEARABLES,contains,"Office, Print & Marketing",037,,broad,
+Promotional Wearables,contains,"Office, Print & Marketing",037,,broad,
+AVIATION PLANNING CONSULTING,contains,Professional & Administrative Services,,,broad,
+COURT REPORTING,contains,Professional & Administrative Services,,,review,
+FOREIGN LANGUAGE INTERPRETATION,contains,Professional & Administrative Services,,,broad,
+LEAD TUNNEL DESIGN AND ENGINEERING,contains,Professional & Administrative Services,,,broad,
+Municipal Electricity Supply,contains,Professional & Administrative Services,,,review,Electricity supply contract
+OUTSIDE COUNSEL,contains,Professional & Administrative Services,,,review,Legal services — no NIGP class in working set; consider broader class
+PROFESSIONAL ENVIRONMENTAL ASSESSMENT,contains,Professional & Administrative Services,,,broad,
+PROGRAM FINANCE SERVICES,contains,Professional & Administrative Services,958,,broad,
+PROGRAM MANAGEMENT CONSULTANT,contains,Professional & Administrative Services,958,,broad,
+PROGRAM MANAGEMENT SERVICES FOR O'HARE,contains,Professional & Administrative Services,958,,broad,
+PROPERTY MANAGEMENT AND EVENT SUPPORT,contains,Professional & Administrative Services,958,,broad,
+QUALITY ASSURANCE AND MATERIALS TESTING,contains,Professional & Administrative Services,992,,broad,
+QUALITY CONTROL AND QUALITY ASSURANCE CONSTRUCTION INSPECTION,contains,Professional & Administrative Services,,,broad,
+RECORDS STORAGE,contains,Professional & Administrative Services,962,,broad,
+STAFFING FOR MIGRANT,contains,Professional & Administrative Services,,,review,Staffing services
+Security Services,contains,Professional & Administrative Services,964,,broad,
+Small Business Improvement Fund,contains,Professional & Administrative Services,,,review,Grant/financing program — not a commodity
+TITLE SERVICES FOR PROPERTY,contains,Professional & Administrative Services,,,review,Real-estate title work
+UNARMED SECURITY AND SCREENING,contains,Professional & Administrative Services,964,,broad,
+UNARMED SECURITY GUARD,contains,Professional & Administrative Services,964,96400,exact,
+EMERGENCY MEDICAL EQUIPMENT,contains,"Public Safety, Uniforms & PPE",465,,broad,EMS equipment — life-safety
+FIRE EXTINGUISHER SERVICES,contains,"Public Safety, Uniforms & PPE",936,,broad,
+FIRE SUPPRESSION,contains,"Public Safety, Uniforms & PPE",936,,broad,
+"INSPECTION AND CERTIFICATION SERVICES, FIRE EXTINGUISHER",contains,"Public Safety, Uniforms & PPE",936,,broad,
+RESCUE EQUIPMENT SUPPLIES,contains,"Public Safety, Uniforms & PPE",200,,broad,
+SAFETY AND TECHNICAL RESCUE EQUIPMENT,contains,"Public Safety, Uniforms & PPE",200,,broad,
+UNIFORMS AND COMMISSARY,contains,"Public Safety, Uniforms & PPE",200,,broad,
+VARIOUS WORK AND BUSINESS UNIFORMS,contains,"Public Safety, Uniforms & PPE",200,,broad,
+6 X 4 DIESEL POWERED CONVENTIONAL CAB,contains,Vehicles & Fleet,070,,broad,
+BIO-DIESEL,contains,Vehicles & Fleet,405,,broad,
+BODY REPAIRS FOR CITY-OWNED AUTOMOBILES,contains,Vehicles & Fleet,928,,broad,
+E-10 & E-85 ETHANOL,contains,Vehicles & Fleet,405,,broad,
+FUEL SUPPLY,contains,Vehicles & Fleet,405,,broad,Bulk fuel contracts
+GASOLINE,contains,Vehicles & Fleet,405,,broad,
+JET FUEL,contains,Vehicles & Fleet,405,,broad,Aviation fuel
+"MAINTENANCE, REPAIR AND UPFIT FOR CITY-OWNED VEHICLES",contains,Vehicles & Fleet,928,,broad,
+PARTS AND REPAIR SERVICES - MECHANICAL,contains,Vehicles & Fleet,928,,broad,City fleet repair — vehicle body/mech work
+PICK-UP TRUCKS,contains,Vehicles & Fleet,070,,broad,
+POLICE PURSUIT,contains,Vehicles & Fleet,071,,broad,
+REPAIR OF SPRINGS AND SUSPENSION,contains,Vehicles & Fleet,060,,broad,
+RESPONSE VEHICLES,contains,Vehicles & Fleet,071,,broad,Police/emergency vehicles
+TOWING SERVICES,contains,Vehicles & Fleet,928,,broad,
+ULTRA LOW SULFUR DIESEL,contains,Vehicles & Fleet,405,,broad,
+VEHICLE & EQUIPMENT PARTS,contains,Vehicles & Fleet,060,,broad,
