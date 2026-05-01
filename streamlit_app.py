@@ -136,6 +136,17 @@ def apply_css() -> None:
           }}
           [data-testid="stSidebar"] {{ background-color: #F2F8FC; }}
           [data-testid="stSidebar"] h3 {{ color: {CHI_NAVY}; }}
+          [data-testid="stSidebar"] [role="radiogroup"] label {{
+            color: {CHI_NAVY} !important;
+            font-weight: 500;
+            font-size: 15px;
+            padding: 4px 0;
+          }}
+          [data-testid="stSidebar"] [role="radiogroup"] label p {{
+            color: {CHI_NAVY} !important;
+            font-size: 15px !important;
+            margin: 0 !important;
+          }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -684,8 +695,9 @@ def render_sidebar() -> str:
             unsafe_allow_html=True,
         )
         st.markdown("---")
+        st.markdown(f"**Pages**")
         page = st.radio(
-            "Navigation",
+            "Navigate to:",
             [
                 "Classify",
                 "Bulk Classify",
