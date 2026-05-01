@@ -479,326 +479,253 @@ def _render_bulk_result(df: pd.DataFrame, key: str) -> None:
 # PAGE: Methodology
 # =========================================================================
 def page_methodology() -> None:
-    st.title("Methodology")
+    st.title("About & How to Use This Tool")
     st.markdown(
-        "**Project:** NIGP-Aligned Procurement Taxonomy & Classification Engine  \n"
-        "**Document version:** 1.1 — finalized 30 April 2026  \n"
-        "**Prepared for:** City of Chicago Department of Procurement Services Leadership"
+        "*A plain-language guide for procurement staff. "
+        "Skim the section headings, read the parts you need.*"
     )
 
     st.markdown(
         f"""
         <div class='chi-author-card'>
-          <strong style='color:{CHI_NAVY};'>Project Author:</strong> {AUTHOR_NAME}<br>
+          <strong style='color:{CHI_NAVY};'>Created by:</strong> {AUTHOR_NAME}<br>
           <span style='color:{CHI_GRAY}; font-size:13px;'>
-            Department of Procurement Services, City of Chicago.
-            28 years in public-sector procurement. Designed and built the taxonomy,
-            the classification engine, the production rule base, and this web tool.
+            City of Chicago — Department of Procurement Services.
           </span>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # ---- Executive Summary ----
-    st.header("Executive Summary")
+    # ====== HOW TO USE ======
+    st.header("How to Use This Tool")
     st.markdown(
-        "The City of Chicago has not historically maintained its own commodity "
-        "classification system for procurement spend. The EY raw data file analyzed "
-        "here is a consulting deliverable — useful as raw transactional data, but "
-        "**not** an authoritative City of Chicago classification of what the City buys."
-    )
-    st.markdown(
-        "This project delivers Chicago's **first internally-owned commodity taxonomy** "
-        "plus a **reusable, defensible classification engine** that the City can run "
-        "on this historical file and on every future procurement extract. The "
-        "deliverable is fully self-contained: no recurring vendor dependencies, no "
-        "per-classification API calls, no third-party software requirements beyond "
-        "standard open-source Python."
-    )
-    st.markdown(
-        "**Headline outcome (production run, 30 April 2026):** 86.4% of all 784,556 "
-        "rows were auto-classified by deterministic rule. End-to-end runtime on a "
-        "standard workstation was 14 minutes 37 seconds. The remaining 17.8% are "
-        "routed to a procurement-staff review queue rather than being guessed."
+        "**There are 5 menu items in the sidebar on the left. Here's what each one does.**"
     )
 
-    # ---- 1. Project Objective and Scope ----
-    st.header("1.  Project Objective and Scope")
+    st.subheader("Classify (one description at a time)")
     st.markdown(
-        "Build a transparent, defensible, accuracy-first classification engine that:"
-    )
-    st.markdown(
-        "- **Uses the NIGP commodity code framework** as the public-standard backbone "
-        "for inter-agency comparability and audit defensibility.\n"
-        "- **Layers a custom Business Category rollup** on top, designed for "
-        "Chicago's organizational reporting needs and business-friendly leadership review.\n"
-        "- **Operates in two modes:** batch processing of large historical files, and "
-        "single-record classification for live PO and requisition work.\n"
-        "- **Prioritizes accuracy over auto-coding.** Records that cannot be classified "
-        "with sufficient confidence are flagged for human review rather than guessed.\n"
-        "- **Is fully repeatable** on future raw extracts with no code modification — "
-        "the rule files are externalized as CSVs that procurement staff can edit directly."
+        "1. Click **Classify** in the left sidebar.\n"
+        "2. Paste your purchase order or requisition description into the text box.\n"
+        "3. Click **Classify**.\n"
+        "4. The result appears below — Business Category, NIGP Code, and confidence level.\n"
+        "5. The last 10 descriptions you classified appear at the bottom of the page so "
+        "you can compare them."
     )
 
-    # ---- 2. Source Data ----
-    st.header("2.  Source Data")
+    st.subheader("Bulk Classify (many at once)")
     st.markdown(
-        "**File analyzed:** EY raw data extract (`ey raw data.xlsx`, 326 MB).  \n"
-        "**Records:** 784,556 purchase order and invoice line items.  \n"
-        "**Time span:** 2002 – 2025 (23 years of Chicago spend).  \n"
-        "**EY's prior NIGP labels (~30% of rows):** preserved in the raw file but "
-        "**NOT used as classifier input.** Chicago is building its own classification "
-        "independently from description text."
-    )
-    st.markdown(
-        "**Data quality highlights (from profiling):**"
-    )
-    st.markdown(
-        "- Line-level descriptions are populated on virtually all rows. Only 967 of "
-        "784,556 rows (0.1%) have no usable description across any of the four description fields.\n"
-        "- 17.8% of high-level `PO Description` values are uninformative "
-        "(`Misc`, `Per contract`). The classifier falls back to line-level descriptions, "
-        "which carry substantive content.\n"
-        "- Two date fields contained typos or open-ended placeholders. Documented; no "
-        "impact on classification."
+        "Use this when you have a list of descriptions or a CSV file. Two modes:\n\n"
+        "- **Paste mode:** Drop in many descriptions, one per line. Click Classify All. "
+        "Download the result as a CSV.\n"
+        "- **CSV upload mode:** Drag in a spreadsheet (must have a column with descriptions). "
+        "Pick that column. Click Classify All Rows. Download the classified file."
     )
 
-    # ---- 3. Three-Level Taxonomy ----
-    st.header("3.  Three-Level Taxonomy Design")
+    st.subheader("Business Categories")
     st.markdown(
-        "Every classified record carries three taxonomy levels. This serves both "
-        "executive dashboards (Business Category) and sourcing/audit needs (NIGP codes)."
-    )
-    st.markdown("**Level 1 — Business Category (Custom Chicago Rollup, 17 buckets).** "
-                "Mutually exclusive, collectively exhaustive, and immediately recognizable "
-                "to City leadership and audit reviewers. See the **Business Categories** "
-                "page for the full list with definitions.")
-    st.markdown("**Level 2 — NIGP 3-digit Class.** 138 distinct classes appear in the EY "
-                "data, mapped 1:1 to the 17 Business Categories. NIGP is a public, "
-                "inter-agency-compatible commodity framework — aligning to it enables "
-                "peer benchmarking, audit defensibility, and future portability.")
-    st.markdown("**Level 3 — NIGP 5-digit Class-Item.** When a description supports "
-                "specificity, the classifier assigns a 5-digit code (470 distinct items "
-                "in the working catalog). When confidence at 5-digit is insufficient, "
-                "the row carries the broader 3-digit Class only.")
-
-    # ---- 4. Classifier Inputs ----
-    st.header("4.  Inputs to the Classifier")
-    st.markdown(
-        "**Inputs the classifier USES:**"
-    )
-    st.markdown(
-        "- **Transaction description text** — `PO Description`, `PO Item Description`, "
-        "`AP Invoice Line Description`, `Invoice Distribution Description`. The classifier "
-        "selects the first non-blank, substantive description across these four fields.\n"
-        "- **Chicago FMPS account/object/fund codes** — used as supplemental signal "
-        "where description text alone is ambiguous."
-    )
-    st.markdown(
-        "**Inputs explicitly EXCLUDED by design:**"
-    )
-    st.markdown(
-        "- **Vendor name.** The same vendor often sells across many commodity categories. "
-        "Vendor-based inference introduces misclassification risk that descriptions and "
-        "account codes do not.\n"
-        "- **EY-supplied NIGP codes.** These represent EY's prior classification work, "
-        "not Chicago's authoritative judgment. Chicago is building its own classification "
-        "independently."
+        "A reference list of all 17 categories with definitions and example commodities. "
+        "Useful when you need to look up what falls into a category — or remind yourself "
+        "what \"Equipment Rental & Leasing\" actually covers."
     )
 
-    # ---- 5. Decision Pipeline ----
-    st.header("5.  Rule Hierarchy and Order of Operations")
+    st.subheader("Rule Lookup")
     st.markdown(
-        "The classifier evaluates each record through a deterministic three-step pipeline. "
-        "**The first rule that fires assigns the classification — subsequent rules don't "
-        "run for that row.** This produces a clean audit trail: every classified record "
-        "carries the exact rule that drove the decision."
+        "Search the rule catalog by keyword. Type \"HVAC\" or \"DFSS\" or any keyword "
+        "and you'll see every rule that contains it — what category it routes to, what "
+        "NIGP code it assigns, and whether it was hand-curated or AI-mined. Useful for "
+        "answering *\"why did my classification go to that category?\"*"
     )
-    st.markdown("**Pass 1 — Keyword Rules on Description Text.** "
-                "148 hand-curated rules drafted by procurement leadership take priority "
-                "within any given match-type tier, plus 6,766 AI-mined rules harvested "
-                "during the build. Three match types are supported: `exact`, `starts_with`, "
-                "and `contains`. Match priority is `exact > starts_with > contains`.")
-    st.markdown("**Pass 2 — Account-Code Patterns (Chicago FMPS supplemental signal).** "
-                "Maps Chicago FMPS account codes to (Business Category, NIGP Class). "
-                "Most consequential is the 220xxx subgrant series (220005, 220044, "
-                "220100, 220801, 220300, 220999) — empirically 93–100% used for "
-                "subgrant disbursements regardless of description text quality.")
-    st.markdown("**Pass 3 — Human Review.** "
-                "Records that don't match a keyword rule or account pattern are flagged "
-                "with `Classification_Method = human_review` and `Review_Flag = Yes`. "
-                "**The classifier never guesses.**")
 
-    # ---- 6. Human Review Queue ----
-    st.header("6.  The Human Review Queue — Plain-Language Definition")
+    st.markdown("---")
+
+    # ====== UNDERSTANDING RESULTS ======
+    st.header("Understanding Your Results")
+
+    st.subheader("The colored badges (high / medium / review)")
+    st.markdown(
+        "When you classify a description, the result shows one of these badges:"
+    )
+    st.markdown(
+        f"""
+        <ul style='list-style:none; padding-left:0;'>
+          <li style='margin:6px 0;'>
+            <span class='chi-badge' style='background:{CHI_GREEN};'>HIGH CONFIDENCE</span>
+            &nbsp;Strong rule match. Trust it.
+          </li>
+          <li style='margin:6px 0;'>
+            <span class='chi-badge' style='background:{CHI_BLUE};'>MEDIUM CONFIDENCE</span>
+            &nbsp;Rule fired but with caveats. Spot-check periodically.
+          </li>
+          <li style='margin:6px 0;'>
+            <span class='chi-badge' style='background:{CHI_RED};'>REVIEW RECOMMENDED</span>
+            &nbsp;Either no rule fired, or the rule that fired isn't strong. The record
+            is in the human-review queue.
+          </li>
+        </ul>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.subheader("What \"REVIEW RECOMMENDED\" means")
     st.markdown(
         f"""
         <div class='chi-callout'>
-          <div class='chi-callout-label'>What it is and how it works</div>
+          <div class='chi-callout-label'>The Human Review Queue — Plain Language</div>
           <p style='margin-top:8px; margin-bottom:0;'>
             When a description doesn't confidently match any rule, the classifier
-            sets it aside instead of guessing. About <strong>14% of all historical
-            records</strong> — roughly 106,000 rows out of 784,556 — are in this
-            queue today. These are typically thin descriptions like
-            <em>"Misc supplies"</em> or <em>"Per contract"</em>, or department-specific
-            codes that haven't been encoded as rules yet.
+            <strong>does not guess</strong> — it sets the record aside for procurement
+            staff to review. About <strong>14% of all historical records</strong>
+            (roughly 106,000 of 784,556) are in this queue today.
             <br><br>
-            <strong>Triage cadence:</strong> Procurement staff triage the queue on a
-            monthly or quarterly cadence. Each triage decision becomes a new rule
-            in <code>keyword_rules_DRAFT_JHK3.csv</code>, so the queue <strong>shrinks
-            over time</strong> and the classifier's confidence grows.
+            These are usually thin descriptions like <em>"Misc supplies"</em> or
+            <em>"Per contract"</em>, or department-specific codes the rules don't
+            cover yet.
             <br><br>
-            <strong>Why "REVIEW RECOMMENDED" is a feature, not a failure:</strong>
-            The alternative — guessing on weak signal — would produce classification
-            noise that misleads spend reports, sourcing analysis, and audit reviewers.
-            Better to flag and triage than guess and mislead.
+            <strong>What staff do:</strong> Triage the queue on a monthly or quarterly
+            cadence. Each triage decision becomes a new rule, so the queue shrinks
+            over time and the tool gets smarter.
+            <br><br>
+            <strong>Why this is a good thing:</strong> The alternative — guessing on
+            weak signal — would put bad classifications into spend reports and audit
+            reviews. Better to flag and triage than guess and mislead.
           </p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # ---- 7. AI Use ----
-    st.header("7.  Use of Artificial Intelligence — Limited, Transparent, One-Time")
+    st.subheader("What the NIGP code line tells you")
     st.markdown(
-        f"""
-        <div class='chi-callout' style='border-left-color:{CHI_NAVY};'>
-          <div class='chi-callout-label' style='color:{CHI_NAVY};'>Defensibility upfront</div>
-          <p style='margin-top:8px; margin-bottom:0;'>
-            <strong>The production classification system Chicago operates is rules-only.</strong>
-            No AI is in the runtime path. Any City staff member can run the classifier
-            from a workstation with no API key, no internet dependency, no recurring
-            vendor cost, and no per-classification charge.
-          </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        "AI was used **once during the initial taxonomy build** for one bounded purpose: "
-        "to mine recurring patterns from the long tail of descriptions where no "
-        "hand-curated rule applied. The AI's output was harvested into the keyword "
-        "rules file and then frozen."
-    )
-    st.markdown("**Model:** Anthropic Claude Haiku 4.5.")
-    st.markdown("**Invocation:** A single batch run over 30,342 unique long-tail descriptions.")
-    st.markdown(
-        "**Constraints:** The AI's output was constrained by JSON schema with a closed "
-        "enumeration of the 17 Business Categories and 138 NIGP 3-digit Classes. The "
-        "model could not invent codes outside the catalog."
-    )
-    st.markdown(
-        "**Input visibility:** Each AI call sent only the description text plus a system "
-        "prompt containing the controlled vocabulary. Vendor name, EY codes, and Chicago "
-        "account codes were NOT passed to the AI."
-    )
-    st.markdown("**Promotion thresholds:**")
-    st.markdown(
-        "- High-confidence AI proposals (6,419 / 21.2%) → auto-promoted into the rule file.\n"
-        "- Medium-confidence proposals (11,645 / 38.4%) → promoted only if the description "
-        "recurred in 5+ source rows. 1,998 met the bar; 9,647 long-tail singletons were dropped.\n"
-        "- Low-confidence proposals (12,278 / 40.5%) → never promoted. Those descriptions "
-        "remain in the human-review queue.\n"
-        "- **Net:** 6,766 AI-mined rules promoted out of 30,342 candidates (22.3%)."
-    )
-    st.markdown("**Why this AI use is defensible:**")
-    st.markdown(
-        "1. **One-time, not ongoing.** Production runs do not call AI. Once the rules "
-        "are accepted, the AI dependency is severed.\n"
-        "2. **Bounded by Chicago's own taxonomy.** The AI cannot output codes outside "
-        "the 17 categories and 138 classes that Chicago's procurement leadership approved.\n"
-        "3. **Transparent.** Every AI-mined rule is auditable. The source CSV "
-        "(`keyword_rules_from_ai_JHK3.csv`) carries provenance metadata in every row.\n"
-        "4. **Reviewable.** Procurement staff can edit, demote, or remove any AI-mined rule.\n"
-        "5. **Replaceable.** If Chicago later decides to remove all AI-mined content, "
-        "the file can be deleted and the classifier still operates on hand-curated rules alone."
+        "After every classification, you'll see one of four NIGP code messages:\n\n"
+        "- **`NIGP Code: 910-31 (5-digit Item)`** — A specific code was assigned. Use this for "
+        "sourcing analysis or audit.\n"
+        "- **`NIGP Code: does not apply`** — The category is *Grants & Pass-Through Funding*, "
+        "which is a financial transfer (not a commodity purchase), so NIGP doesn't apply.\n"
+        "- **`NIGP Code: not yet mapped for this rule`** — A category was assigned but the "
+        "rule doesn't have a NIGP code yet. You can add one by editing "
+        "`keyword_rules_DRAFT_JHK3.csv`.\n"
+        "- **`NIGP Code: none assigned`** — No rule fired at all. The record went straight "
+        "to the review queue."
     )
 
-    # ---- 8. Confidence ----
-    st.header("8.  Confidence, Match Levels, and Audit Trail")
+    st.markdown("---")
+
+    # ====== HOW IT WORKS (PLAIN LANGUAGE) ======
+    st.header("How the Classifier Works (Plain English)")
+
+    st.subheader("What it looks at")
     st.markdown(
-        "Every classified record carries a confidence triple plus a reason — a complete "
-        "decision record:"
-    )
-    st.markdown(
-        "- **`NIGP_Match_Level`** — `exact` (5-digit Class-Item assignable), `broad` "
-        "(3-digit Class only), `review` (best broader category but flagged), or empty "
-        "(no match — Grants category).\n"
-        "- **`Classification_Confidence`** — `High` / `Medium` / `Low`.\n"
-        "- **`Confidence_Score`** — numeric value from 0.0 to 1.0. Records scoring below "
-        "0.75 are auto-flagged with `Review_Flag = Yes` regardless of method.\n"
-        "- **`Classification_Reason`** — records the exact rule pattern that fired and "
-        "any notes; provides a complete audit trail end-to-end."
+        "Two things only:\n"
+        "1. **The description text** — what the PO or invoice line actually says.\n"
+        "2. **Chicago FMPS account codes** — fund / object / account, when the description alone is unclear."
     )
 
-    # ---- 9. Production Results ----
-    st.header("9.  Production Run Results — 30 April 2026")
+    st.subheader("What it does NOT look at")
     st.markdown(
-        "End-to-end run against all 784,556 rows. Wall-clock runtime: 14 minutes 37 seconds."
-    )
-    st.markdown(
-        "| Outcome | Pre-AI baseline | Final | Change |\n"
-        "|---|---|---|---|\n"
-        "| Auto-classified | 609,541 (77.7%) | **678,085 (86.4%)** | +68,544 / +8.7 pp |\n"
-        "| Sent to human review | 175,015 (22.3%) | 106,471 (13.6%) | −68,544 |\n"
-        "| Review-flag QA queue | 408,037 (52.0%) | **139,868 (17.8%)** | −268,169 / −34.2 pp |"
-    )
-    st.markdown(
-        "- 148 curated rules accounted for 609,889 row-hits (90.2% of classified rows).\n"
-        "- 6,766 AI-mined rules accounted for 66,017 row-hits (9.8%), averaging ~10 rows "
-        "per rule — the long-tail role they were designed for.\n"
-        "- The largest review-flag improvement came from AI exact-match rules superseding "
-        "broader curated `contains` rules (~200,000 rows reclassified out of the QA queue)."
+        "1. **Vendor name** — the same vendor can sell across many categories. We classify "
+        "by what was bought, not who sold it.\n"
+        "2. **EY's prior NIGP labels** — those were the consultant's work product. Chicago is "
+        "building its OWN classification."
     )
 
-    # ---- 10. Limitations ----
-    st.header("10.  Honest Limitations")
+    st.subheader("How it makes a decision")
     st.markdown(
-        "1. **Single-source dataset.** The taxonomy was derived from one consulting "
-        "deliverable. New Chicago extracts may reveal commodity types not represented "
-        "in the EY file.\n"
-        "2. **Time-agnostic by design.** The classifier ignores transaction date. 23 "
-        "years of inflation, contract restructuring, and reorganizations don't affect "
-        "classification consistency.\n"
-        "3. **No vendor signal.** Classification reflects what was bought, not who sold "
-        "it. Vendor-based views can be produced separately from the classified output.\n"
-        "4. **Description-quality dependent.** Thin descriptions (`Misc supplies`) "
-        "cannot be classified from text alone and are correctly routed to human review "
-        "rather than guessed.\n"
-        "5. **NIGP working set is partial.** The 138 classes derived from the EY file "
-        "are a subset of the full ~9,000-code NIGP standard. Future work should consider "
-        "licensing the full Periscope catalog."
+        "Three steps, in order. The first step that fires assigns the classification — "
+        "later steps don't run for that record."
+    )
+    st.markdown(
+        "**Step 1.** Check the description against the keyword rules (148 hand-curated + "
+        "6,766 AI-mined).\n\n"
+        "**Step 2.** If no keyword fired, check the Chicago FMPS account code patterns "
+        "(most importantly the 220xxx subgrant series).\n\n"
+        "**Step 3.** If neither step fired, send the record to the human review queue. "
+        "**The classifier never guesses.**"
     )
 
-    # ---- 11. Governance ----
-    st.header("11.  Governance and Future Maintenance")
+    st.subheader("How AI was used — once, with guardrails")
     st.markdown(
-        "1. **Annual taxonomy review.** Procurement leadership reviews the 17 Business "
-        "Categories annually for continued fit with reporting needs. Edits go directly "
-        "into `business_categories_JHK3.csv`.\n"
-        "2. **Rule-file ownership.** Designate a procurement analyst as owner of "
-        "`keyword_rules_DRAFT_JHK3.csv`. Add new rules as new commodity types appear; "
-        "retire outdated ones.\n"
-        "3. **Review-queue triage cadence.** Triage the review-flagged subset on a "
-        "monthly or quarterly cadence. Triaged decisions become new rules — the queue "
-        "shrinks over time.\n"
-        "4. **Single-record feedback loop.** When DPS workflow integration is built, "
-        "analyst overrides of single-record proposals become candidate rule data.\n"
-        "5. **Periscope NIGP catalog.** Consider a commercial license to expand the "
-        "working catalog from 138 codes to the full ~9,000-code NIGP standard.\n"
-        "6. **Annual independent audit benchmark.** Sample 100 classified rows at random; "
-        "have a procurement analyst independently classify them blind. Track agreement rate."
+        "**The version of this tool you're using right now is rules-only.** No AI is consulted "
+        "when you classify a description. There is no API key, no internet dependency, no "
+        "per-classification cost.\n\n"
+        "AI was used **once during the project build** to find recurring patterns in the long "
+        "tail of descriptions that no hand-curated rule covered. The AI's output was reviewed, "
+        "filtered (low-confidence proposals were dropped), and saved into a rule file that's "
+        "now frozen and editable like any other rule. Every AI-mined rule carries provenance "
+        "notes — model name, confidence, source row count — so any decision is auditable."
     )
 
-    # ---- Where to go for more ----
+    st.markdown("---")
+
+    # ====== FAQ ======
+    st.header("Frequently Asked Questions")
+
+    with st.expander("**Q: Where do the 17 Business Categories come from?**"):
+        st.markdown(
+            "They were designed specifically for Chicago — mutually exclusive (no record "
+            "fits two categories) and collectively exhaustive (every Chicago purchase fits one). "
+            "Click the **Business Categories** menu item in the sidebar for the full list."
+        )
+
+    with st.expander("**Q: What's the difference between Curated and AI-mined rules?**"):
+        st.markdown(
+            "- **Curated rules** were written by hand by procurement leadership. There are 148 "
+            "of them and they cover the highest-volume patterns (DFSS-, RENTAL OF HEAVY EQUIPMENT, "
+            "etc.) — they hit ~90% of all classified records.\n"
+            "- **AI-mined rules** were proposed by Anthropic Claude Haiku 4.5 during the project "
+            "build, reviewed for quality, then promoted into the rule file. There are 6,766 of "
+            "them and they cover the long tail (~10% of records).\n\n"
+            "Both kinds are evaluated together at runtime — they have no special status."
+        )
+
+    with st.expander("**Q: How do I add a new rule?**"):
+        st.markdown(
+            "Edit `spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv` directly. The "
+            "file is a normal CSV — open it in Excel, add a row, save. After editing, re-run "
+            "the bulk classifier (`python spend-analysis/scripts/classifier_JHK3.py --batch`) "
+            "to refresh the full classified output. You don't need a developer."
+        )
+
+    with st.expander("**Q: How accurate is this?**"):
+        st.markdown(
+            "On the 30 April 2026 production run against 784,556 records:\n"
+            "- **86.4%** were auto-classified by deterministic rule.\n"
+            "- **17.8%** were flagged with `Review_Flag = Yes` for staff QA.\n"
+            "- **13.6%** had no rule match at all and went to the human review queue.\n\n"
+            "Accuracy on the auto-classified portion is high because the rules are explicit "
+            "and the matches are deterministic — there's no ML uncertainty at runtime. "
+            "Accuracy on the review queue is, by definition, what staff triage will determine."
+        )
+
+    with st.expander("**Q: Can I trust the AI-mined rules?**"):
+        st.markdown(
+            "Yes — for these reasons:\n"
+            "1. **They're frozen.** No AI runs at classification time. The AI just helped draft the rules; the rules themselves are static text.\n"
+            "2. **They were filtered.** Only high- and medium-confidence proposals (with frequency thresholds) were promoted; low-confidence proposals were dropped.\n"
+            "3. **They're transparent.** Every AI-mined rule's `notes` field shows the model's reasoning, confidence, and how many records it covers.\n"
+            "4. **They're editable.** Procurement staff can change or delete any AI-mined rule like any other rule."
+        )
+
+    with st.expander("**Q: Where is the full technical methodology document?**"):
+        st.markdown(
+            "Two places:\n"
+            "- `spend-analysis/METHODOLOGY_JHK3.md` — the canonical Markdown version (13 sections + decisions appendix).\n"
+            "- `outputs/NIGP_Methodology_for_Leadership_JHK3.docx` — the leadership-formatted Word version with City of Chicago colors.\n\n"
+            "Both contain the full formal methodology — sections 1 through 13, locked decisions appendix, "
+            "and references."
+        )
+
+    with st.expander("**Q: Who do I contact for help?**"):
+        st.markdown(f"**{AUTHOR_NAME}** — Department of Procurement Services. "
+                    f"Project author and tool maintainer.")
+
     st.markdown("---")
     st.markdown(
-        f"**For the canonical, full-detail methodology document** — including the "
-        f"locked-decisions appendix, NIGP catalog references, and technical architecture "
-        f"specs — see `spend-analysis/METHODOLOGY_JHK3.md` in the project repository, or "
-        f"the leadership-formatted Word version at "
-        f"`outputs/NIGP_Methodology_for_Leadership_JHK3.docx`."
+        f"<small style='color:{CHI_GRAY};'>"
+        f"This tool was designed and built by <strong>{AUTHOR_NAME}</strong>. "
+        f"Production run completed 30 April 2026. Methodology version 1.1."
+        f"</small>",
+        unsafe_allow_html=True,
     )
 
 
