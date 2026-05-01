@@ -21,6 +21,9 @@ Thumbs.db
 # Claude Code local settings — may contain API keys, environment overrides
 .claude/settings.local.json
 
+# Streamlit local secrets — production password lives in Streamlit Cloud's secrets manager
+.streamlit/secrets.toml
+
 # Large derived deliverables — regenerable via classifier_JHK3.py --batch
 outputs/NIGP_Mapping_JHK3.csv
 outputs/NIGP_Mapping_Review_Queue_JHK3.csv
