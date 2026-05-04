@@ -479,254 +479,36 @@ def _render_bulk_result(df: pd.DataFrame, key: str) -> None:
 # PAGE: Methodology
 # =========================================================================
 def page_methodology() -> None:
-    st.title("About & How to Use This Tool")
-    st.markdown(
-        "*A plain-language guide for procurement staff. "
-        "Skim the section headings, read the parts you need.*"
-    )
-
-    st.markdown(
-        f"""
-        <div class='chi-author-card'>
-          <strong style='color:{CHI_NAVY};'>Created by:</strong> {AUTHOR_NAME}<br>
-          <span style='color:{CHI_GRAY}; font-size:13px;'>
-            City of Chicago — Department of Procurement Services.
-          </span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # ====== HOW TO USE ======
-    st.header("How to Use This Tool")
-    st.markdown(
-        "**There are 5 menu items in the sidebar on the left. Here's what each one does.**"
-    )
-
-    st.subheader("Classify (one description at a time)")
-    st.markdown(
-        "1. Click **Classify** in the left sidebar.\n"
-        "2. Paste your purchase order or requisition description into the text box.\n"
-        "3. Click **Classify**.\n"
-        "4. The result appears below — Business Category, NIGP Code, and confidence level.\n"
-        "5. The last 10 descriptions you classified appear at the bottom of the page so "
-        "you can compare them."
-    )
-
-    st.subheader("Bulk Classify (many at once)")
-    st.markdown(
-        "Use this when you have a list of descriptions or a CSV file. Two modes:\n\n"
-        "- **Paste mode:** Drop in many descriptions, one per line. Click Classify All. "
-        "Download the result as a CSV.\n"
-        "- **CSV upload mode:** Drag in a spreadsheet (must have a column with descriptions). "
-        "Pick that column. Click Classify All Rows. Download the classified file."
-    )
-
-    st.subheader("Business Categories")
-    st.markdown(
-        "A reference list of all 17 categories with definitions and example commodities. "
-        "Useful when you need to look up what falls into a category — or remind yourself "
-        "what \"Equipment Rental & Leasing\" actually covers."
-    )
-
-    st.subheader("Rule Lookup")
-    st.markdown(
-        "Search the rule catalog by keyword. Type \"HVAC\" or \"DFSS\" or any keyword "
-        "and you'll see every rule that contains it — what category it routes to, what "
-        "NIGP code it assigns, and whether it was hand-curated or AI-mined. Useful for "
-        "answering *\"why did my classification go to that category?\"*"
-    )
-
+    st.title("How to Use This Tool")
+    st.markdown(f"**Created by:** {AUTHOR_NAME}")
     st.markdown("---")
 
-    # ====== UNDERSTANDING RESULTS ======
-    st.header("Understanding Your Results")
-
-    st.subheader("The colored badges (high / medium / review)")
     st.markdown(
-        "When you classify a description, the result shows one of these badges:"
-    )
-    st.markdown(
-        f"""
-        <ul style='list-style:none; padding-left:0;'>
-          <li style='margin:6px 0;'>
-            <span class='chi-badge' style='background:{CHI_GREEN};'>HIGH CONFIDENCE</span>
-            &nbsp;Strong rule match. Trust it.
-          </li>
-          <li style='margin:6px 0;'>
-            <span class='chi-badge' style='background:{CHI_BLUE};'>MEDIUM CONFIDENCE</span>
-            &nbsp;Rule fired but with caveats. Spot-check periodically.
-          </li>
-          <li style='margin:6px 0;'>
-            <span class='chi-badge' style='background:{CHI_RED};'>REVIEW RECOMMENDED</span>
-            &nbsp;Either no rule fired, or the rule that fired isn't strong. The record
-            is in the human-review queue.
-          </li>
-        </ul>
-        """,
-        unsafe_allow_html=True,
+        "This tool classifies procurement descriptions into one of **17 Business Categories** "
+        "and assigns an **NIGP code** when one applies. It uses deterministic rules — no AI "
+        "runs at classification time."
     )
 
-    st.subheader("What \"REVIEW RECOMMENDED\" means")
+    st.subheader("The five sidebar pages")
     st.markdown(
-        f"""
-        <div class='chi-callout'>
-          <div class='chi-callout-label'>The Human Review Queue — Plain Language</div>
-          <p style='margin-top:8px; margin-bottom:0;'>
-            When a description doesn't confidently match any rule, the classifier
-            <strong>does not guess</strong> — it sets the record aside for procurement
-            staff to review. About <strong>14% of all historical records</strong>
-            (roughly 106,000 of 784,556) are in this queue today.
-            <br><br>
-            These are usually thin descriptions like <em>"Misc supplies"</em> or
-            <em>"Per contract"</em>, or department-specific codes the rules don't
-            cover yet.
-            <br><br>
-            <strong>What staff do:</strong> Triage the queue on a monthly or quarterly
-            cadence. Each triage decision becomes a new rule, so the queue shrinks
-            over time and the tool gets smarter.
-            <br><br>
-            <strong>Why this is a good thing:</strong> The alternative — guessing on
-            weak signal — would put bad classifications into spend reports and audit
-            reviews. Better to flag and triage than guess and mislead.
-          </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
+        "- **Classify** — paste a single description, get a category and NIGP code.\n"
+        "- **Bulk Classify** — paste many descriptions or upload a CSV; download the classified file.\n"
+        "- **Methodology** — this page.\n"
+        "- **Business Categories** — reference list of all 17 categories with definitions.\n"
+        "- **Rule Lookup** — search the rule catalog by keyword to see why a description routed where it did."
     )
 
-    st.subheader("What the NIGP code line tells you")
+    st.subheader("Reading a result")
     st.markdown(
-        "After every classification, you'll see one of four NIGP code messages:\n\n"
-        "- **`NIGP Code: 910-31 (5-digit Item)`** — A specific code was assigned. Use this for "
-        "sourcing analysis or audit.\n"
-        "- **`NIGP Code: does not apply`** — The category is *Grants & Pass-Through Funding*, "
-        "which is a financial transfer (not a commodity purchase), so NIGP doesn't apply.\n"
-        "- **`NIGP Code: not yet mapped for this rule`** — A category was assigned but the "
-        "rule doesn't have a NIGP code yet. You can add one by editing "
-        "`keyword_rules_DRAFT_JHK3.csv`.\n"
-        "- **`NIGP Code: none assigned`** — No rule fired at all. The record went straight "
-        "to the review queue."
+        "Each classification shows a confidence badge:\n"
+        "- **HIGH** — strong rule match, trust it.\n"
+        "- **MEDIUM** — rule fired with caveats, spot-check.\n"
+        "- **REVIEW RECOMMENDED** — no confident match; the record is in the human-review queue. "
+        "The classifier never guesses."
     )
 
-    st.markdown("---")
-
-    # ====== HOW IT WORKS (PLAIN LANGUAGE) ======
-    st.header("How the Classifier Works (Plain English)")
-
-    st.subheader("What it looks at")
-    st.markdown(
-        "Two things only:\n"
-        "1. **The description text** — what the PO or invoice line actually says.\n"
-        "2. **Chicago FMPS account codes** — fund / object / account, when the description alone is unclear."
-    )
-
-    st.subheader("What it does NOT look at")
-    st.markdown(
-        "1. **Vendor name** — the same vendor can sell across many categories. We classify "
-        "by what was bought, not who sold it.\n"
-        "2. **EY's prior NIGP labels** — those were the consultant's work product. Chicago is "
-        "building its OWN classification."
-    )
-
-    st.subheader("How it makes a decision")
-    st.markdown(
-        "Three steps, in order. The first step that fires assigns the classification — "
-        "later steps don't run for that record."
-    )
-    st.markdown(
-        "**Step 1.** Check the description against the keyword rules (148 hand-curated + "
-        "6,766 AI-mined).\n\n"
-        "**Step 2.** If no keyword fired, check the Chicago FMPS account code patterns "
-        "(most importantly the 220xxx subgrant series).\n\n"
-        "**Step 3.** If neither step fired, send the record to the human review queue. "
-        "**The classifier never guesses.**"
-    )
-
-    st.subheader("How AI was used — once, with guardrails")
-    st.markdown(
-        "**The version of this tool you're using right now is rules-only.** No AI is consulted "
-        "when you classify a description. There is no API key, no internet dependency, no "
-        "per-classification cost.\n\n"
-        "AI was used **once during the project build** to find recurring patterns in the long "
-        "tail of descriptions that no hand-curated rule covered. The AI's output was reviewed, "
-        "filtered (low-confidence proposals were dropped), and saved into a rule file that's "
-        "now frozen and editable like any other rule. Every AI-mined rule carries provenance "
-        "notes — model name, confidence, source row count — so any decision is auditable."
-    )
-
-    st.markdown("---")
-
-    # ====== FAQ ======
-    st.header("Frequently Asked Questions")
-
-    with st.expander("**Q: Where do the 17 Business Categories come from?**"):
-        st.markdown(
-            "They were designed specifically for Chicago — mutually exclusive (no record "
-            "fits two categories) and collectively exhaustive (every Chicago purchase fits one). "
-            "Click the **Business Categories** menu item in the sidebar for the full list."
-        )
-
-    with st.expander("**Q: What's the difference between Curated and AI-mined rules?**"):
-        st.markdown(
-            "- **Curated rules** were written by hand by procurement leadership. There are 148 "
-            "of them and they cover the highest-volume patterns (DFSS-, RENTAL OF HEAVY EQUIPMENT, "
-            "etc.) — they hit ~90% of all classified records.\n"
-            "- **AI-mined rules** were proposed by Anthropic Claude Haiku 4.5 during the project "
-            "build, reviewed for quality, then promoted into the rule file. There are 6,766 of "
-            "them and they cover the long tail (~10% of records).\n\n"
-            "Both kinds are evaluated together at runtime — they have no special status."
-        )
-
-    with st.expander("**Q: How do I add a new rule?**"):
-        st.markdown(
-            "Edit `spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv` directly. The "
-            "file is a normal CSV — open it in Excel, add a row, save. After editing, re-run "
-            "the bulk classifier (`python spend-analysis/scripts/classifier_JHK3.py --batch`) "
-            "to refresh the full classified output. You don't need a developer."
-        )
-
-    with st.expander("**Q: How accurate is this?**"):
-        st.markdown(
-            "On the 30 April 2026 production run against 784,556 records:\n"
-            "- **86.4%** were auto-classified by deterministic rule.\n"
-            "- **17.8%** were flagged with `Review_Flag = Yes` for staff QA.\n"
-            "- **13.6%** had no rule match at all and went to the human review queue.\n\n"
-            "Accuracy on the auto-classified portion is high because the rules are explicit "
-            "and the matches are deterministic — there's no ML uncertainty at runtime. "
-            "Accuracy on the review queue is, by definition, what staff triage will determine."
-        )
-
-    with st.expander("**Q: Can I trust the AI-mined rules?**"):
-        st.markdown(
-            "Yes — for these reasons:\n"
-            "1. **They're frozen.** No AI runs at classification time. The AI just helped draft the rules; the rules themselves are static text.\n"
-            "2. **They were filtered.** Only high- and medium-confidence proposals (with frequency thresholds) were promoted; low-confidence proposals were dropped.\n"
-            "3. **They're transparent.** Every AI-mined rule's `notes` field shows the model's reasoning, confidence, and how many records it covers.\n"
-            "4. **They're editable.** Procurement staff can change or delete any AI-mined rule like any other rule."
-        )
-
-    with st.expander("**Q: Where is the full technical methodology document?**"):
-        st.markdown(
-            "Two places:\n"
-            "- `spend-analysis/METHODOLOGY_JHK3.md` — the canonical Markdown version (13 sections + decisions appendix).\n"
-            "- `outputs/NIGP_Methodology_for_Leadership_JHK3.docx` — the leadership-formatted Word version with City of Chicago colors.\n\n"
-            "Both contain the full formal methodology — sections 1 through 13, locked decisions appendix, "
-            "and references."
-        )
-
-    with st.expander("**Q: Who do I contact for help?**"):
-        st.markdown(f"**{AUTHOR_NAME}** — Department of Procurement Services. "
-                    f"Project author and tool maintainer.")
-
-    st.markdown("---")
-    st.markdown(
-        f"<small style='color:{CHI_GRAY};'>"
-        f"This tool was designed and built by <strong>{AUTHOR_NAME}</strong>. "
-        f"Production run completed 30 April 2026. Methodology version 1.1."
-        f"</small>",
-        unsafe_allow_html=True,
-    )
+    st.subheader("Need help?")
+    st.markdown(f"Contact **{AUTHOR_NAME.split(',')[0]}**.")
 
 
 # =========================================================================
