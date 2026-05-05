@@ -1,7 +1,7 @@
 """
-Streamlit web app — Chicago NIGP Procurement Classifier.
+Streamlit web app — NIGP-Sourced Procurement Category Mapper.
 
-Multi-page browser app wrapping classifier_JHK3.py. Authorized DPS staff
+Multi-page browser app wrapping classifier_JHK3.py. Authorized users
 sign in once, then navigate via the sidebar between:
   - Classify (single description + recent-history list)
   - Bulk Classify (paste-many or CSV upload, downloadable result)
@@ -10,7 +10,6 @@ sign in once, then navigate via the sidebar between:
   - Rule Lookup (search the curated + AI-mined rule catalog)
 
 Author: James H. Kirby III, CSCP, MS-SCM
-Department of Procurement Services, City of Chicago
 
 DEPLOYMENT (Streamlit Community Cloud):
   1. Visit https://share.streamlit.io and sign in with GitHub.
@@ -41,11 +40,11 @@ CHI_GREEN = "#0E7C3A"
 CHI_GRAY = "#595959"
 
 AUTHOR_NAME = "James H. Kirby III, CSCP, MS-SCM"
-AUTHOR_TITLE_LINE = "City of Chicago — Department of Procurement Services"
+AUTHOR_TITLE_LINE = "Independent Public-Sector Procurement Tool"
 
 # -- Page config -----------------------------------------------------------
 st.set_page_config(
-    page_title="Chicago DPS — NIGP Classifier",
+    page_title="NIGP-Sourced Procurement Category Mapper",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -158,9 +157,9 @@ def check_password() -> bool:
     if st.session_state.get("password_correct"):
         return True
 
-    st.title("Chicago DPS — NIGP Classifier")
+    st.title("NIGP-Sourced Procurement Category Mapper")
     st.markdown(
-        f"**Authorized Department of Procurement Services use only.**  "
+        f"**Authorized access only.**  "
         f"Enter the access password to continue."
     )
     pw = st.text_input("Password", type="password", key="pw_input")
@@ -519,7 +518,7 @@ def page_categories() -> None:
     st.markdown(
         "Every record is assigned to exactly one of these 17 categories. The categories "
         "are designed to be **mutually exclusive** (no record fits two) and **collectively "
-        "exhaustive** (every Chicago purchase fits one)."
+        "exhaustive** (every public-sector purchase fits one)."
     )
 
     cats = get_categories_summary()
@@ -597,8 +596,8 @@ def page_rule_lookup() -> None:
 # =========================================================================
 def render_sidebar() -> str:
     with st.sidebar:
-        st.markdown(f"### Chicago DPS")
-        st.markdown(f"**NIGP Classifier**")
+        st.markdown(f"### NIGP-Sourced")
+        st.markdown(f"**Procurement Category Mapper**")
         st.markdown(
             f"<div style='color:{CHI_GRAY}; font-size:11px; margin-top:-6px;'>"
             f"Created by<br><strong>{AUTHOR_NAME}</strong></div>",
