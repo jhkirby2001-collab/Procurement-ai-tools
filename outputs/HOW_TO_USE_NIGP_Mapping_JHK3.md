@@ -2,15 +2,15 @@
 
 **Prepared by:** James H. Kirby III, CSCP, MS-SCM
 **File version:** 2026-04-30
-**Project:** City of Chicago NIGP-Aligned Procurement Taxonomy
+**Project:** NIGP-Sourced Procurement Category Mapper
 
 ---
 
 ## What this file is
 
-`NIGP_Mapping_JHK3.csv` contains every City of Chicago purchase order and invoice line from October 2002 through May 2025 — **784,556 transactions in total** — with a Business Category and NIGP code assigned to each one.
+`NIGP_Mapping_JHK3.csv` contains every purchase order and invoice line from a 23-year public-sector procurement dataset (October 2002 through May 2025) — **784,556 transactions in total** — with a Business Category and NIGP code assigned to each one.
 
-This is Chicago's first internally-owned commodity classification of its own procurement spend. It supersedes external consultant labels and is fully auditable.
+This is an internally-owned commodity classification of historical procurement spend. It is fully auditable and independent of any external consultant labels.
 
 ---
 
@@ -95,7 +95,7 @@ If you don't have access to the codespace, send the description to James Kirby a
 
 ### Workflow C — "Process a whole new spend extract" (re-run the classifier on a new file)
 
-When DPS produces a new procurement extract (next quarter, next year):
+When a new procurement extract is produced (next quarter, next year):
 
 1. Save the new file to `spend-analysis/data/raw/`.
 2. Update the `SRC_PARQUET` line at the top of `classifier_JHK3.py` to point at the new file.

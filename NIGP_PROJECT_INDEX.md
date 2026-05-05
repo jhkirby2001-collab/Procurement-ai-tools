@@ -4,7 +4,7 @@ A clickable map of every file in this project. Click any filename below to jump 
 
 **Project status:** COMPLETE (production run finalized 30 April 2026). Methodology version 1.1.
 
-**One-line summary:** Chicago's first internally-owned commodity taxonomy and a reusable classification engine that classified 784,556 historical procurement records — 86.4% auto-classified by deterministic rule, 17.8% routed to a human review queue, end-to-end runtime 14 minutes 37 seconds.
+**One-line summary:** A reusable, NIGP-sourced commodity taxonomy and classification engine — validated on a 784,556-row 23-year public-sector procurement dataset, with 86.4% auto-classified by deterministic rule, 17.8% routed to a human review queue, end-to-end runtime 14 minutes 37 seconds.
 
 ---
 
@@ -16,7 +16,7 @@ The four files a non-technical reader should look at first.
 |---|---|
 | [outputs/NIGP_Executive_Brief_JHK3.docx](outputs/NIGP_Executive_Brief_JHK3.docx) | Two-page Word brief for senior leadership. The shortest possible read. |
 | [outputs/NIGP_Summary_for_Leadership_JHK3.xlsx](outputs/NIGP_Summary_for_Leadership_JHK3.xlsx) | Single-tab Excel summary — 17 categories with row counts, headline metric tiles, methodology footnotes. |
-| [outputs/NIGP_Methodology_for_Leadership_JHK3.docx](outputs/NIGP_Methodology_for_Leadership_JHK3.docx) | The full methodology re-rendered for leadership: subheadings, bullet points, callout boxes, City of Chicago colors. |
+| [outputs/NIGP_Methodology_for_Leadership_JHK3.docx](outputs/NIGP_Methodology_for_Leadership_JHK3.docx) | The full methodology re-rendered for leadership: subheadings, bullet points, callout boxes. |
 | [outputs/HOW_TO_USE_NIGP_Mapping_JHK3.md](outputs/HOW_TO_USE_NIGP_Mapping_JHK3.md) | Plain-language guide for procurement staff using the classified output in Excel. |
 
 ---
@@ -54,7 +54,7 @@ These CSVs are the source-of-truth for every classification decision. Edit them 
 |---|---|
 | [spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv](spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv) | 148 hand-curated keyword rules. The highest-volume hitters. |
 | [spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv](spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv) | 6,766 AI-mined long-tail rules with full provenance metadata in each row. Frozen — not consulted at runtime. |
-| [spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv](spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv) | Six Chicago FMPS account-code patterns (the 220xxx subgrant series). |
+| [spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv](spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv) | Six FMPS account-code patterns (the 220xxx subgrant series). |
 | [spend-analysis/data/reference/business_categories_JHK3.csv](spend-analysis/data/reference/business_categories_JHK3.csv) | Mapping from NIGP 3-digit Class to one of the 17 Business Categories — with judgment notes. |
 | [spend-analysis/data/reference/business_categories_summary_JHK3.csv](spend-analysis/data/reference/business_categories_summary_JHK3.csv) | 17-row summary of the Business Category structure with definitions. |
 

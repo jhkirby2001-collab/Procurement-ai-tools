@@ -1,117 +1,89 @@
-Procurement AI Tools
-AI-powered automation tools for the City of Chicago Department of Procurement Services
+# Procurement AI Tools
 
-Overview
-This repository contains a suite of AI-powered tools designed to automate manual procurement processes, increase efficiency, and provide deeper analytical insights for strategic decision-making.
-Goal: Transform time-consuming manual tasks into automated, consistent, and scalable solutions that free up procurement analysts to focus on high-value strategic work.
+Independent, AI-assisted automation tools for public-sector procurement work.
 
-Current Projects
-✅ Spend Analysis & Categorization
-Status: Operational
-Location: /spend-analysis/
-Automated system for categorizing unstructured procurement spend data using AI-powered natural language processing.
-Key Features:
+## Overview
 
-Automatically categorizes thousands of line items from unstructured descriptions
-Normalizes vendor names across inconsistent data entry
-Generates executive-ready analysis reports with visualizations
-Identifies problem areas and opportunities for consolidation
+This repository contains a suite of tools that automate manual procurement processes, increase efficiency, and provide analytical insights for strategic decision-making. The work is independent and not affiliated with or endorsed by any specific government agency.
 
-Business Impact:
+**Goal:** Transform time-consuming manual tasks into automated, consistent, and scalable solutions that free procurement analysts to focus on high-value strategic work.
 
-Time Savings: Reduces 8+ hours of manual categorization to minutes
-Consistency: Eliminates subjective human categorization variance
-Scalability: Can process entire fiscal year spend in one run
-Insights: Uncovers patterns invisible in manual review
+## Current Projects
 
-Technical Details:
+### NIGP-Sourced Procurement Category Mapper — Operational
 
-Python-based categorization engine
-Configurable category taxonomy
-Handles Excel and CSV inputs
-Outputs categorized data + analysis reports (Excel, Word, Markdown)
+**Location:** `/spend-analysis/` and `/streamlit_app.py`
 
-View detailed documentation →
+A reusable rules-based classification engine that maps unstructured procurement descriptions to:
 
-Upcoming Projects
-🔨 Vendor Research Agent
-Status: In Development
-Location: /vendor-research/
-Automated research agent that investigates vendors, analyzes market data, and generates comprehensive research reports.
-Planned Features:
+- One of 17 Business Categories (mutually exclusive, collectively exhaustive)
+- A standard NIGP 3-digit Class
+- A standard NIGP 5-digit Class-Item (when specific enough)
 
-Web search and data extraction
-Automated vendor background research
-Contract analysis and comparison
-Risk assessment reporting
+**Headline performance** (validated on a 784,556-row 23-year public-sector procurement dataset):
 
-Expected Impact:
+- 86.4% auto-classified by deterministic rule
+- 17.8% flagged for human review
+- End-to-end runtime: 14 minutes 37 seconds
+- 148 hand-curated rules + 6,766 AI-mined rules + 6 account-code patterns
+- No AI is called at runtime — the classifier is fully deterministic and auditable
 
-Accelerate vendor due diligence
-Ensure consistent research standards
-Support better negotiation positioning
+A live web interface (Streamlit) is deployed for single-record and bulk classification.
 
+### Vendor Research Agent — In Development
 
-🔨 Team Dashboard
-Status: Planned
-Location: /dashboard/
-Web-based interface for the procurement team to access AI-powered analysis tools without coding knowledge.
-Planned Features:
+**Location:** `/vendor-research/`
 
-File upload for spend data analysis
-Interactive data exploration
-Natural language queries about procurement data
-Automated report generation
+Automated research agent that investigates vendors, analyzes market data, and generates research reports.
 
-Expected Impact:
+### Team Dashboard — Planned
 
-Democratize AI tools across the team
-Self-service analytics for all team members
-Reduced bottlenecks on analyst time
+**Location:** `/dashboard/`
 
+Web-based interface for procurement teams to access AI-powered analysis tools without coding knowledge.
 
-Technology Stack
+## Technology Stack
 
-Language: Python 3.x
-AI Platform: Claude (Anthropic)
-Development Environment: GitHub Codespaces
-Key Libraries: pandas, openpyxl, python-docx
-MCP Tools: Brave Search, Puppeteer (planned)
+- **Language:** Python 3.x
+- **AI Platform:** Claude (Anthropic) — used during build, not at runtime
+- **Web Framework:** Streamlit
+- **Key Libraries:** pandas, openpyxl, python-docx
+- **Development Environment:** GitHub Codespaces
 
+## Repository Structure
 
-Repository Structure
+```
 procurement-ai-tools/
-├── spend-analysis/          # Completed: AI-powered spend categorization
-│   ├── scripts/            # Python categorization engine
-│   ├── data/               # Sample data (raw and processed)
-│   ├── outputs/            # Generated reports and analysis
-│   └── docs/               # Project documentation
-├── vendor-research/         # In Progress: Automated vendor research
-├── dashboard/               # Planned: Team-facing web interface
-└── README.md               # This file
+├── spend-analysis/          NIGP classifier engine, rules, methodology
+│   ├── scripts/             Python classification engine
+│   ├── data/                Reference data (rules, NIGP catalog)
+│   └── outputs/             Generated reports and analysis
+├── outputs/                 Leadership deliverables and final classified data
+├── streamlit_app.py         Web interface (NIGP-Sourced Procurement Category Mapper)
+├── vendor-research/         In progress
+├── dashboard/               Planned
+└── README.md                This file
+```
 
-Getting Started
+## Getting Started
+
 Each project folder contains its own README with specific setup and usage instructions.
-Prerequisites
 
-Python 3.8+
-Anthropic API key
-Required Python packages (see requirements.txt in each project)
+**Prerequisites:**
 
+- Python 3.8+
+- Anthropic API key (only required for the one-time AI rule-mining step, not for runtime classification)
+- Required Python packages (see `requirements.txt`)
 
-Innovation & Impact
-This work demonstrates the City of Chicago's commitment to:
-✅ Digital Transformation - Leveraging AI for operational efficiency
-✅ Data-Driven Decision Making - Moving from gut instinct to evidence-based procurement
-✅ Process Innovation - Reimagining workflows for the modern era
-✅ Strategic Resource Allocation - Freeing analysts from manual tasks to focus on strategy
+## Author
 
-Contact
-James Kirby
-Senior Buyer and Procurement Research Analyst
-City of Chicago - Department of Procurement Services
+**James H. Kirby III, CSCP, MS-SCM**
+Independent public-sector procurement practitioner — 28 years of experience.
 
-License
-Internal use - City of Chicago Department of Procurement Services
+## License
 
-Last Updated: January 2026
+Personal project. Provided as-is for review and educational reference.
+
+---
+
+*Last updated: May 2026*
