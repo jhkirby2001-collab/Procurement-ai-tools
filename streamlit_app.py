@@ -599,13 +599,6 @@ def page_taxonomy_logic() -> None:
         "transparent and defensible — no black-box decisions."
     )
 
-    st.markdown("---")
-    st.info(
-        "**Coming soon:** Interactive drill-down — click a Business Category to see its "
-        "NIGP classes, click a class to see its individual transactions. Currently in "
-        "development."
-    )
-
 
 # =========================================================================
 # PAGE: Business Categories
