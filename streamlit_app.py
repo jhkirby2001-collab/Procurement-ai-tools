@@ -569,7 +569,7 @@ def page_taxonomy_logic() -> None:
             <div style="font-size:12px; letter-spacing:1px;">TIER 3</div>
             <div style="font-size:20px; font-weight:700; margin-top:4px;">Audit View</div>
             <div style="font-size:14px; margin-top:6px;">784,556 Individual Transactions</div>
-            <div style="font-size:11px; font-style:italic; margin-top:4px; padding:0 6px;">PO/invoice line records in the historical dataset the classifier was validated against (October 2002 – May 2025).</div>
+            <div style="font-size:11px; font-style:italic; color:#E57373; margin-top:4px; padding:0 6px;">PO/invoice line records in the historical dataset the classifier was validated against (October 2002 – May 2025).</div>
             <div style="font-size:12px; margin-top:6px;">Audience: Auditors, Analysts &amp; Anyone Asking "Why?"</div>
           </div>
         </div>
