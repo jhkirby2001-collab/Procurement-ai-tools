@@ -488,10 +488,11 @@ def page_methodology() -> None:
         "runs at classification time."
     )
 
-    st.subheader("The five sidebar pages")
+    st.subheader("The six sidebar pages")
     st.markdown(
         "- **Classify** — paste a single description, get a category and NIGP code.\n"
         "- **Bulk Classify** — paste many descriptions or upload a CSV; download the classified file.\n"
+        "- **Procurement Taxonomy Logic** — three-tier explainer of how spend rolls up.\n"
         "- **Methodology** — this page.\n"
         "- **Business Categories** — reference list of all 17 categories with definitions.\n"
         "- **Rule Lookup** — search the rule catalog by keyword to see why a description routed where it did."
@@ -504,6 +505,31 @@ def page_methodology() -> None:
         "- **MEDIUM** — rule fired with caveats, spot-check.\n"
         "- **REVIEW RECOMMENDED** — no confident match; the record is in the human-review queue. "
         "The classifier never guesses."
+    )
+
+    st.subheader("How the confidence badge is calculated")
+    st.markdown(
+        "Every NIGP code assigned by the classifier carries a confidence badge. The badge "
+        "reflects how specific the evidence was — not how the classifier \"felt.\" It is set "
+        "by the rule that fired, not invented after the fact."
+    )
+    st.markdown(
+        "- **HIGH** — The description matched a specific rule that maps directly to a precise "
+        "NIGP 5-digit Item code (e.g., \"BULK ROAD SALT\" → NIGP 285-83). The NIGP assignment "
+        "is exact, defensible, and traceable to a single rule.\n"
+        "- **MEDIUM** — The description matched a broader rule that resolves to an NIGP 3-digit "
+        "Class but not a specific 5-digit Item (e.g., generic \"PIPE FITTINGS\" lands in the "
+        "plumbing class without pinning the exact item). The Business Category and 3-digit "
+        "Class are reliable; the 5-digit Item is best-effort. Spot-check recommended for "
+        "high-dollar transactions.\n"
+        "- **REVIEW RECOMMENDED** — No rule fired with sufficient specificity, OR the matching "
+        "rule is itself flagged for review. The classifier does **not** assign a guess. The row "
+        "is routed to the human-review queue and any NIGP code shown is provisional. This is "
+        "by design — the system never invents a code."
+    )
+    st.markdown(
+        "Every classification is auditable. The exact rule that fired is recorded on every row, "
+        "so any NIGP code can be traced back to the rule that produced it."
     )
 
     st.subheader("Need help?")
