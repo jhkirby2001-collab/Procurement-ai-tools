@@ -511,6 +511,77 @@ def page_methodology() -> None:
 
 
 # =========================================================================
+# PAGE: Procurement Taxonomy Logic
+# =========================================================================
+def page_taxonomy_logic() -> None:
+    st.title("Procurement Taxonomy Logic")
+    st.markdown(
+        "This procurement taxonomy organizes spend data into three hierarchical levels. "
+        "Each level serves a different audience and answers a different question."
+    )
+    st.markdown("---")
+
+    st.subheader("How the three tiers fit together")
+    st.markdown(
+        f"""
+        <div style="max-width: 520px; margin: 24px auto;">
+          <div style="background:{CHI_NAVY}; color:white; padding:18px 20px; border-radius:8px; text-align:center;">
+            <div style="font-size:12px; letter-spacing:1px; opacity:0.85;">TIER 1</div>
+            <div style="font-size:20px; font-weight:700; margin-top:4px;">Executive View</div>
+            <div style="font-size:14px; margin-top:6px;">17 Business Categories</div>
+            <div style="font-size:12px; opacity:0.85; margin-top:4px;">Audience: Leadership &amp; Budget Decisions</div>
+          </div>
+          <div style="text-align:center; color:{CHI_GRAY}; font-size:24px; line-height:1; margin:6px 0;">▼</div>
+          <div style="background:{CHI_BLUE}; color:{CHI_NAVY}; padding:18px 20px; border-radius:8px; text-align:center;">
+            <div style="font-size:12px; letter-spacing:1px; opacity:0.9;">TIER 2</div>
+            <div style="font-size:20px; font-weight:700; margin-top:4px;">Sourcing View</div>
+            <div style="font-size:14px; margin-top:6px;">138 NIGP 3-digit Classes</div>
+            <div style="font-size:12px; opacity:0.9; margin-top:4px;">Audience: Category Managers &amp; Sourcing Teams</div>
+          </div>
+          <div style="text-align:center; color:{CHI_GRAY}; font-size:24px; line-height:1; margin:6px 0;">▼</div>
+          <div style="background:{CHI_LT_BLUE}; color:{CHI_NAVY}; padding:18px 20px; border-radius:8px; text-align:center; border:1px solid {CHI_BLUE};">
+            <div style="font-size:12px; letter-spacing:1px;">TIER 3</div>
+            <div style="font-size:20px; font-weight:700; margin-top:4px;">Audit View</div>
+            <div style="font-size:14px; margin-top:6px;">784,556 Individual Transactions</div>
+            <div style="font-size:12px; margin-top:4px;">Audience: Auditors, Analysts &amp; Anyone Asking "Why?"</div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.subheader("Tier 1 — Executive View")
+    st.markdown(
+        "**17 Business Categories** that show where procurement dollars go. This is the "
+        "strategic level for leadership attention and budget decisions. Categories are "
+        "**mutually exclusive** (no record fits two) and **collectively exhaustive** "
+        "(every record fits one)."
+    )
+
+    st.subheader("Tier 2 — Sourcing View")
+    st.markdown(
+        "**Subcategories within each Business Category**, aligned to NIGP 3-digit "
+        "commodity classes. This is where consolidation opportunities become visible — "
+        "when the same commodity is purchased across multiple departments from multiple "
+        "vendors without coordination."
+    )
+
+    st.subheader("Tier 3 — Audit View")
+    st.markdown(
+        "**Individual transactions** with full classification detail including the NIGP "
+        "code, confidence level, and the exact rule that fired. Every classification is "
+        "transparent and defensible — no black-box decisions."
+    )
+
+    st.markdown("---")
+    st.info(
+        "**Coming soon:** Interactive drill-down — click a Business Category to see its "
+        "NIGP classes, click a class to see its individual transactions. Currently in "
+        "development."
+    )
+
+
+# =========================================================================
 # PAGE: Business Categories
 # =========================================================================
 def page_categories() -> None:
@@ -610,6 +681,7 @@ def render_sidebar() -> str:
             [
                 "Classify",
                 "Bulk Classify",
+                "Procurement Taxonomy Logic",
                 "Methodology",
                 "Business Categories",
                 "Rule Lookup",
@@ -649,6 +721,8 @@ def main() -> None:
         page_classify()
     elif page == "Bulk Classify":
         page_bulk()
+    elif page == "Procurement Taxonomy Logic":
+        page_taxonomy_logic()
     elif page == "Methodology":
         page_methodology()
     elif page == "Business Categories":
