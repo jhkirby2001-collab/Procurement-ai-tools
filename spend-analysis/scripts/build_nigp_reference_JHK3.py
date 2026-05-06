@@ -17,7 +17,7 @@ SRC = ROOT / "data" / "processed" / "ey_raw_cache.parquet"
 OUT_DIR = ROOT / "data" / "reference"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-SOURCE_LABEL = "EY raw data file (City of Chicago purchasing extract, 2002-2025)"
+SOURCE_LABEL = "EY raw data file (City of Chicago purchasing extract, AP activity years 2017, 2020, 2021, 2023)"
 
 
 def canonical_description(series: pd.Series) -> str:

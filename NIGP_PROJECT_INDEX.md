@@ -4,7 +4,7 @@ A clickable map of every file in this project. Click any filename below to jump 
 
 **Project status:** COMPLETE (production run finalized 30 April 2026). Methodology version 1.1.
 
-**One-line summary:** A reusable, NIGP-sourced commodity taxonomy and classification engine — validated on a 784,556-row 23-year public-sector procurement dataset, with 86.4% auto-classified by deterministic rule, 17.8% routed to a human review queue, end-to-end runtime 14 minutes 37 seconds.
+**One-line summary:** A reusable, NIGP-sourced commodity taxonomy and classification engine — validated on a 784,556-row public-sector procurement dataset (AP activity years 2017, 2020, 2021, 2023), with 86.4% auto-classified by deterministic rule, 17.8% routed to a human review queue, end-to-end runtime 14 minutes 37 seconds.
 
 ---
 

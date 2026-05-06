@@ -15,7 +15,7 @@ The City of Chicago has not historically maintained its own commodity classifica
 
 This project delivers Chicago's **first internally-owned commodity taxonomy** plus a **reusable, defensible classification engine** that the City can run on this historical file and on every future procurement extract. The deliverable is fully self-contained: no recurring vendor dependencies, no per-classification API calls, no third-party software requirements beyond standard open-source Python.
 
-The engine classifies 784,556 historical PO and invoice line records across 23 years of City of Chicago spend (2002-2025). Each record is assigned a three-level classification — Business Category, NIGP Class, and NIGP Item — along with a confidence score, audit trail, and human-review flag.
+The engine classifies 784,556 historical PO and invoice line records of City of Chicago spend (AP activity years 2017, 2020, 2021, 2023). Each record is assigned a three-level classification — Business Category, NIGP Class, and NIGP Item — along with a confidence score, audit trail, and human-review flag.
 
 **Headline outcome (production run, 2026-04-30):** 86.4% of all 784,556 rows were auto-classified by deterministic rule. The high-confidence (Review_Flag=No) classification covers 82.2% of rows, leaving a 17.8% review queue for procurement-staff triage. End-to-end runtime on a standard workstation was 14 minutes.
 
@@ -290,7 +290,7 @@ This is the foundation for future integration with Chicago's DPS PO-creation wor
 **Limitations:**
 
 1. **Single-source dataset.** The taxonomy was derived from one consulting deliverable. New Chicago extracts may reveal commodity types not represented in the EY file.
-2. **Time-agnostic by design.** The classifier does not consider transaction date when classifying. Spend changes over 23 years (commodity inflation, contract restructuring, departmental reorganizations) do not affect classification consistency.
+2. **Time-agnostic by design.** The classifier does not consider transaction date when classifying. Year-over-year spend changes (commodity inflation, contract restructuring, departmental reorganizations) do not affect classification consistency.
 3. **No vendor signal.** Per the locked design decision, vendor name is not used as a classification input. This is by choice — the classification should reflect what was bought, not who sold it. Procurement staff who want vendor-based views can produce those separately from the classified output.
 4. **Description quality dependent.** The classifier's accuracy is bounded by description quality. Thin descriptions ("Misc supplies") legitimately cannot be classified from text alone and are correctly routed to human review rather than guessed.
 5. **NIGP working set is partial.** The 138 classes derived from the EY file are a subset of the full NIGP catalog (which covers thousands of codes). Future work should consider licensing a full NIGP catalog from Periscope Holdings or sourcing a comparable public alternative.

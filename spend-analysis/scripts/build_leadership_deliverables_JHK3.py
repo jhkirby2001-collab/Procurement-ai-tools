@@ -311,7 +311,7 @@ def build_excel():
     ws.row_dimensions[foot_start].height = 22
 
     footnotes = [
-        f"Source file:  EY raw data extract — {HEADLINE['rows_total']:,} purchase-order and invoice line records covering 2002 – 2025 (23 years).",
+        f"Source file:  EY raw data extract — {HEADLINE['rows_total']:,} purchase-order and invoice line records covering AP activity years 2017, 2020, 2021, 2023.",
         "Classifier inputs:  description text + Chicago FMPS account/object/fund codes only.  Vendor name and EY-supplied NIGP codes are NOT used.",
         f"Rule base:  {HEADLINE['rules_total']:,} rules total — {HEADLINE['rules_curated']} hand-curated by procurement leadership and {HEADLINE['rules_ai']:,} AI-mined long-tail patterns.",
         "AI use:  one-time, build-time only.  Production runtime is rules-only — no API key, no internet, no recurring cost, no per-classification charge.",
@@ -575,7 +575,7 @@ def build_executive_brief():
         doc,
         label="HEADLINE OUTCOME — Production Run, 30 April 2026",
         body_text=(
-            f"784,556 records classified across 23 years of City spend  •  "
+            f"784,556 records classified across City spend (AP activity years 2017, 2020, 2021, 2023)  •  "
             f"86.4% auto-classified by deterministic rule  •  "
             f"17.8% routed to procurement-staff review queue  •  "
             f"End-to-end runtime: 14 min 37 sec on a standard workstation."
@@ -696,7 +696,7 @@ def build_methodology():
         doc,
         label="HEADLINE OUTCOME",
         body_text=(
-            "784,556 records classified across 23 years of City spend  •  "
+            "784,556 records classified across City spend (AP activity years 2017, 2020, 2021, 2023)  •  "
             "86.4% auto-classified by deterministic rule  •  "
             "17.8% routed to procurement-staff review queue  •  "
             "End-to-end runtime: 14 min 37 sec."
@@ -722,7 +722,7 @@ def build_methodology():
     add_h2(doc, "What was analyzed")
     add_bullet(doc, "EY raw data extract (`ey raw data.xlsx`, 326 MB).", bold_lead="File:")
     add_bullet(doc, "784,556 purchase-order and invoice line records.", bold_lead="Records:")
-    add_bullet(doc, "PO Creation Date 2002 – 2025 (23 years, all rows).", bold_lead="Time span:")
+    add_bullet(doc, "AP activity years 2017, 2020, 2021, 2023 (all rows).", bold_lead="Time span:")
     add_bullet(doc, "EY's prior NIGP classification (~30% of rows). The classifier does NOT use these labels — Chicago is building its own.", bold_lead="EY-supplied labels:")
     add_h2(doc, "Data quality checks")
     add_bullet(doc, "Line-level descriptions are populated on virtually all rows. Only 967 of 784,556 (0.1%) have no usable description anywhere.")
@@ -926,7 +926,7 @@ def build_methodology():
     # ---- 11. Limitations ----
     add_h1(doc, "11.  Honest Limitations")
     add_bullet(doc, "Taxonomy was derived from one consulting deliverable. New extracts may reveal commodity types not represented in the EY file.", bold_lead="Single-source dataset.")
-    add_bullet(doc, "The classifier ignores transaction date. 23 years of inflation, contract restructuring, and reorganizations don't affect classification consistency.", bold_lead="Time-agnostic by design.")
+    add_bullet(doc, "The classifier ignores transaction date. Year-over-year inflation, contract restructuring, and reorganizations don't affect classification consistency.", bold_lead="Time-agnostic by design.")
     add_bullet(doc, "Classification reflects what was bought, not who sold it. Vendor-based views can be produced separately from the classified output.", bold_lead="No vendor signal.")
     add_bullet(doc, "Thin descriptions (\"Misc supplies\") cannot be classified from text alone and are correctly routed to human review rather than guessed.", bold_lead="Description quality dependent.")
     add_bullet(doc, "The 138 NIGP classes derived from the EY file are a subset of the full ~9,000-code NIGP standard. Future work should consider licensing the full catalog from Periscope Holdings.", bold_lead="Working NIGP catalog is partial.")

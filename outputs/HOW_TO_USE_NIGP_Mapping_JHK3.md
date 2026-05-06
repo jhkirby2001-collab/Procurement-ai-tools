@@ -8,7 +8,7 @@
 
 ## What this file is
 
-`NIGP_Mapping_JHK3.csv` contains every purchase order and invoice line from a 23-year public-sector procurement dataset (October 2002 through May 2025) — **784,556 transactions in total** — with a Business Category and NIGP code assigned to each one.
+`NIGP_Mapping_JHK3.csv` contains every purchase order and invoice line from a public-sector procurement dataset (AP activity years 2017, 2020, 2021, 2023) — **784,556 transactions in total** — with a Business Category and NIGP code assigned to each one.
 
 This is an internally-owned commodity classification of historical procurement spend. It is fully auditable and independent of any external consultant labels.
 
@@ -67,7 +67,7 @@ The full mapping of which NIGP 3-digit Classes roll up to each Business Category
 
 ### Workflow A — "How was this categorized before?" (open in Excel, search)
 
-The fastest answer for any description that's already happened in the last 23 years.
+The fastest answer for any description that's already in the dataset.
 
 1. Open `NIGP_Mapping_JHK3.csv` in Excel. (File is ~225 MB and ~785K rows — give Excel 30-60 seconds to load.)
 2. Click anywhere in row 1, then **Data → Filter**.
@@ -75,7 +75,7 @@ The fastest answer for any description that's already happened in the last 23 ye
 4. In the filter search box, type a keyword from your description (e.g., "GENERATOR" or "BULK SALT").
 5. Excel shows only rows matching that keyword. Look at the **Business_Category** column — that tells you how similar items have been categorized.
 
-This works for the majority of common purchases because the file already has 784K examples spanning 23 years.
+This works for the majority of common purchases because the file already has 784K examples across AP activity years 2017, 2020, 2021, 2023.
 
 ### Workflow B — "Classify this brand-new description" (run the classifier)
 

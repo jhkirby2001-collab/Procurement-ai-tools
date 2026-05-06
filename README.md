@@ -20,7 +20,7 @@ A reusable rules-based classification engine that maps unstructured procurement 
 - A standard NIGP 3-digit Class
 - A standard NIGP 5-digit Class-Item (when specific enough)
 
-**Headline performance** (validated on a 784,556-row 23-year public-sector procurement dataset):
+**Headline performance** (validated on a 784,556-row public-sector procurement dataset, AP activity years 2017, 2020, 2021, 2023):
 
 - 86.4% auto-classified by deterministic rule
 - 17.8% flagged for human review
