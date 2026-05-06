@@ -147,3 +147,75 @@ RESPONSE VEHICLES,contains,Vehicles & Fleet,071,,broad,Police/emergency vehicles
 TOWING SERVICES,contains,Vehicles & Fleet,928,,broad,
 ULTRA LOW SULFUR DIESEL,contains,Vehicles & Fleet,405,,broad,
 VEHICLE & EQUIPMENT PARTS,contains,Vehicles & Fleet,060,,broad,
+MARKETING SERVICES,contains,"Office, Print & Marketing",915,,broad,Marketing/PR services — added 2026-05-06 to close plain-English gap
+MEDIA SERVICES,contains,"Office, Print & Marketing",915,,broad,Media placement/buy services — added 2026-05-06
+PUBLIC RELATIONS,contains,"Office, Print & Marketing",915,,broad,PR consulting and services — added 2026-05-06
+ADVERTISING,contains,"Office, Print & Marketing",915,,broad,Advertising services (generalizes existing exact-match rule)
+MARKETING CAMPAIGN,contains,"Office, Print & Marketing",915,,broad,Marketing campaign execution — added 2026-05-06
+ADVERTISING SERVICES,exact,"Office, Print & Marketing",915,,broad,Hand-curated override — added 2026-05-06
+CYBERSECURITY,starts_with,"IT, Telecom & Audio/Visual",920,,broad,Fires before generic Security Services contains rule — added 2026-05-06
+ELEVATOR,contains,Facilities Operations & Maintenance,,,broad,Elevator maintenance/service — added 2026-05-06
+BOILER,contains,Facilities Operations & Maintenance,031,,broad,Boiler service/repair — added 2026-05-06
+PLUMBING,contains,Facilities Operations & Maintenance,,,broad,Plumbing services — added 2026-05-06
+PEST CONTROL,contains,Facilities Operations & Maintenance,,,broad,Pest control services — added 2026-05-06
+LOCKSMITH,contains,Facilities Operations & Maintenance,,,broad,Locksmith services — added 2026-05-06
+POLICE UNIFORM,contains,"Public Safety, Uniforms & PPE",,,broad,Police uniforms — added 2026-05-06
+BALLISTIC VEST,contains,"Public Safety, Uniforms & PPE",,,broad,Ballistic vests — added 2026-05-06
+TACTICAL GEAR,contains,"Public Safety, Uniforms & PPE",,,broad,Tactical gear — added 2026-05-06
+RESPIRATOR,contains,"Public Safety, Uniforms & PPE",,,broad,Respirators — added 2026-05-06
+PPE,contains,"Public Safety, Uniforms & PPE",,,broad,Personal protective equipment — added 2026-05-06
+SAFETY GLASSES,contains,"Public Safety, Uniforms & PPE",,,broad,Safety glasses — added 2026-05-06
+ASPHALT,contains,Construction Materials,745,,broad,Asphalt — added 2026-05-06
+CONCRETE,contains,Construction Materials,745,,broad,Concrete — added 2026-05-06
+REBAR,contains,Construction Materials,,,broad,Rebar — added 2026-05-06
+LUMBER,contains,Construction Materials,,,broad,Lumber — added 2026-05-06
+AGGREGATE,contains,Construction Materials,,,broad,Aggregate — added 2026-05-06
+GRAVEL,contains,Construction Materials,,,broad,Gravel — added 2026-05-06
+TIRES,contains,Vehicles & Fleet,060,,broad,Tires — added 2026-05-06
+VEHICLE PARTS,contains,Vehicles & Fleet,060,,broad,Vehicle parts — added 2026-05-06
+AUTO REPAIR,contains,Vehicles & Fleet,,,broad,Auto repair services — added 2026-05-06
+DIESEL FUEL,contains,Vehicles & Fleet,405,,broad,Diesel fuel — added 2026-05-06
+CONSULTING SERVICES,contains,Professional & Administrative Services,,,broad,Consulting services — added 2026-05-06
+LEGAL SERVICES,contains,Professional & Administrative Services,961,,broad,Legal services — added 2026-05-06
+TRAINING SERVICES,contains,Professional & Administrative Services,,,broad,Training services — added 2026-05-06
+BACKGROUND CHECK,contains,Professional & Administrative Services,,,broad,Background check services — added 2026-05-06
+AUDITING SERVICES,contains,Professional & Administrative Services,946,,broad,Auditing services — added 2026-05-06
+ACCOUNTING SERVICES,contains,Professional & Administrative Services,946,,broad,Accounting services — added 2026-05-06
+PRINTING SERVICES,contains,"Office, Print & Marketing",966,,broad,Printing services — added 2026-05-06
+GRAPHIC DESIGN,contains,"Office, Print & Marketing",,,broad,Graphic design services — added 2026-05-06
+EQUIPMENT RENTAL,contains,Equipment Rental & Leasing,985,,broad,Equipment rental — added 2026-05-06
+SCAFFOLD RENTAL,contains,Equipment Rental & Leasing,985,,broad,Scaffold rental — added 2026-05-06
+GENERATOR RENTAL,contains,Equipment Rental & Leasing,985,,broad,Generator rental — added 2026-05-06
+LIFT RENTAL,contains,Equipment Rental & Leasing,985,,broad,Lift rental — added 2026-05-06
+TRASH COLLECTION,contains,"Janitorial, Sanitation & Waste",,,broad,Trash collection — added 2026-05-06
+WASTE DISPOSAL,contains,"Janitorial, Sanitation & Waste",,,broad,Waste disposal — added 2026-05-06
+DUMPSTER,contains,"Janitorial, Sanitation & Waste",,,broad,Dumpster services — added 2026-05-06
+CLEANING SUPPLIES,contains,"Janitorial, Sanitation & Waste",,,broad,Cleaning supplies — added 2026-05-06
+BULLDOZER,contains,Heavy Equipment & Machinery,,,broad,Bulldozer — added 2026-05-06
+BACKHOE,contains,Heavy Equipment & Machinery,,,broad,Backhoe — added 2026-05-06
+EXCAVATOR,contains,Heavy Equipment & Machinery,,,broad,Excavator — added 2026-05-06
+SKID STEER,contains,Heavy Equipment & Machinery,,,broad,Skid steer loader — added 2026-05-06
+IT SERVICES,contains,"IT, Telecom & Audio/Visual",,,broad,IT services — added 2026-05-06
+SOFTWARE LICENSE,contains,"IT, Telecom & Audio/Visual",208,,broad,Software license — added 2026-05-06
+COMPUTER HARDWARE,contains,"IT, Telecom & Audio/Visual",,,broad,Computer hardware — added 2026-05-06
+TELEPHONE SERVICE,contains,"IT, Telecom & Audio/Visual",725,,broad,Telephone service — added 2026-05-06
+LAPTOP,contains,"IT, Telecom & Audio/Visual",,,broad,Laptops — added 2026-05-06
+LANDSCAPING,contains,"Landscaping, Grounds & Irrigation",988,,broad,Landscaping — added 2026-05-06
+TREE TRIMMING,contains,"Landscaping, Grounds & Irrigation",988,,broad,Tree trimming — added 2026-05-06
+LAWN CARE,contains,"Landscaping, Grounds & Irrigation",988,,broad,Lawn care — added 2026-05-06
+IRRIGATION,contains,"Landscaping, Grounds & Irrigation",988,,broad,Irrigation — added 2026-05-06
+WATER TREATMENT,contains,Chemicals & Water Treatment,390,,broad,Water treatment — added 2026-05-06
+CHLORINE,contains,Chemicals & Water Treatment,390,,broad,Chlorine — added 2026-05-06
+DEICER,contains,Chemicals & Water Treatment,,,broad,Deicer — added 2026-05-06
+MEDICAL SUPPLIES,contains,Medical & Health Services,,,broad,Medical supplies — added 2026-05-06
+NURSING SERVICES,contains,Medical & Health Services,,,broad,Nursing services — added 2026-05-06
+CLINICAL LAB,contains,Medical & Health Services,,,broad,Clinical lab services — added 2026-05-06
+ANIMAL FEED,contains,Animal Care & Veterinary,,,broad,Animal feed — added 2026-05-06
+OFFICE FURNITURE,contains,Furniture & Furnishings,,,broad,Office furniture — added 2026-05-06
+OFFICE CHAIR,contains,Furniture & Furnishings,,,broad,Office chairs — added 2026-05-06
+CONFERENCE ROOM DESK,contains,Furniture & Furnishings,,,broad,Conference room desks — added 2026-05-06
+ELECTRICAL WORK,contains,Construction & Trades Services,,,broad,Electrical work — added 2026-05-06
+CARPENTRY,contains,Construction & Trades Services,,,broad,Carpentry — added 2026-05-06
+GENERAL CONTRACTOR,contains,Construction & Trades Services,,,broad,General contractor — added 2026-05-06
+SUBGRANT,contains,Grants & Pass-Through Funding,,,broad,Subgrant — added 2026-05-06
+COMMUNITY-BASED ORGANIZATION,contains,Grants & Pass-Through Funding,,,broad,Community-based organization grant — added 2026-05-06
