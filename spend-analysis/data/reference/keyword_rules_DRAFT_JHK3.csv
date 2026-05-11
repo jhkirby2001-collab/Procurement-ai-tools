@@ -183,6 +183,7 @@ AUDITING SERVICES,contains,Professional & Administrative Services,946,,broad,Aud
 ACCOUNTING SERVICES,contains,Professional & Administrative Services,946,,broad,Accounting services — added 2026-05-06
 PRINTING SERVICES,contains,"Office, Print & Marketing",966,,broad,Printing services — added 2026-05-06
 GRAPHIC DESIGN,contains,"Office, Print & Marketing",,,broad,Graphic design services — added 2026-05-06
+HEAVY EQUIPMENT RENTAL,contains,Equipment Rental & Leasing,975,,broad,Reverse-order mirror of RENTAL OF HEAVY EQUIPMENT — added 2026-05-11 (must precede EQUIPMENT RENTAL)
 EQUIPMENT RENTAL,contains,Equipment Rental & Leasing,985,,broad,Equipment rental — added 2026-05-06
 SCAFFOLD RENTAL,contains,Equipment Rental & Leasing,985,,broad,Scaffold rental — added 2026-05-06
 GENERATOR RENTAL,contains,Equipment Rental & Leasing,985,,broad,Generator rental — added 2026-05-06
@@ -219,3 +220,10 @@ CARPENTRY,contains,Construction & Trades Services,,,broad,Carpentry — added 20
 GENERAL CONTRACTOR,contains,Construction & Trades Services,,,broad,General contractor — added 2026-05-06
 SUBGRANT,contains,Grants & Pass-Through Funding,,,broad,Subgrant — added 2026-05-06
 COMMUNITY-BASED ORGANIZATION,contains,Grants & Pass-Through Funding,,,broad,Community-based organization grant — added 2026-05-06
+RENTAL EQUIPMENT,contains,Equipment Rental & Leasing,985,,broad,Reverse-order mirror of EQUIPMENT RENTAL — added 2026-05-11
+VEHICLE RENTAL,contains,Equipment Rental & Leasing,975,,broad,Reverse-order mirror of RENTAL OF AUTOMOBILES — added 2026-05-11
+AUTOMOBILE RENTAL,contains,Equipment Rental & Leasing,975,,broad,Reverse-order mirror of RENTAL OF AUTOMOBILES — added 2026-05-11
+CAR RENTAL,contains,Equipment Rental & Leasing,975,,broad,Reverse-order mirror of RENTAL OF AUTOMOBILES — added 2026-05-11
+AUTOMOBILE LEASING,contains,Equipment Rental & Leasing,975,,broad,Reverse-order mirror of LEASING OF AUTOMOBILES — added 2026-05-11
+TENT RENTAL,contains,Equipment Rental & Leasing,855,,broad,Reverse-order mirror of RENTAL OF TENTS — added 2026-05-11
+COPIER LEASE,contains,Equipment Rental & Leasing,985,,broad,Reverse-order mirror of LEASE OF COPIER — added 2026-05-11
