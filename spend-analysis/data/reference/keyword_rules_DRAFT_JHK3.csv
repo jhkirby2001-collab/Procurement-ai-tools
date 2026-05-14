@@ -3,16 +3,16 @@ Books,exact,"Office, Print & Marketing",,,broad,
 Library Materials,exact,"Office, Print & Marketing",,,broad,
 Library materials,exact,"Office, Print & Marketing",,,broad,
 Office supplies,exact,"Office, Print & Marketing",310,,broad,
-COURT REPORTER,exact,Professional & Administrative Services,,,review,Legal services
+COURT REPORTER,exact,Professional & Administrative Services,,,broad,Legal services — flipped review→broad 2026-05-14 (everything-mapped pass)
 Consultants or professional services,exact,Professional & Administrative Services,,,broad,
-EXPERT,exact,Professional & Administrative Services,,,review,Expert witness; legal context
-OUTSIDE COUNSEL,exact,Professional & Administrative Services,,,review,
-Office rental,exact,Professional & Administrative Services,,,review,Real-estate lease — not in NIGP working set
-SENIOR INSTRUCTOR,exact,Professional & Administrative Services,,,review,
-SUBPOENA,exact,Professional & Administrative Services,,,review,
-TRANSCRIPT,exact,Professional & Administrative Services,,,review,
-Transcript,exact,Professional & Administrative Services,,,review,
-Utility services,exact,Professional & Administrative Services,,,review,Electric/water/gas utility — no class in working set
+EXPERT,exact,Professional & Administrative Services,,,broad,Expert witness; legal context — flipped review→broad 2026-05-14
+OUTSIDE COUNSEL,exact,Professional & Administrative Services,,,broad,Legal services — flipped review→broad 2026-05-14
+Office rental,exact,Equipment Rental & Leasing,,,broad,Real-estate office lease — re-routed Professional&Admin→Equipment Rental 2026-05-14 (rental contract structure); no NIGP class fits
+SENIOR INSTRUCTOR,exact,Professional & Administrative Services,,,broad,Training/instruction services — flipped review→broad 2026-05-14
+SUBPOENA,exact,Professional & Administrative Services,,,broad,Legal services — flipped review→broad 2026-05-14
+TRANSCRIPT,exact,Professional & Administrative Services,,,broad,Court transcripts — flipped review→broad 2026-05-14
+Transcript,exact,Professional & Administrative Services,,,broad,Court transcripts (case variant) — flipped review→broad 2026-05-14
+Utility services,exact,Facilities Operations & Maintenance,,,broad,Electric/water/gas utility — re-routed Professional&Admin→Facilities 2026-05-14 (operating cost of facilities); no NIGP class fits
 BREAD,exact,"Public Safety, Uniforms & PPE",375,,broad,Police lockup bread (judgment call locked earlier)
 BACP-,starts_with,Grants & Pass-Through Funding,,,broad,BACP = Business Affairs & Consumer Protection subgrants
 CDPH-,starts_with,Grants & Pass-Through Funding,,,broad,"CDPH = Chicago Dept of Public Health subgrants (Ryan White, etc.)"
@@ -104,11 +104,11 @@ OFFICE SUPPLIES,contains,"Office, Print & Marketing",310,,broad,
 PROMOTIONAL WEARABLES,contains,"Office, Print & Marketing",037,,broad,
 Promotional Wearables,contains,"Office, Print & Marketing",037,,broad,
 AVIATION PLANNING CONSULTING,contains,Professional & Administrative Services,,,broad,
-COURT REPORTING,contains,Professional & Administrative Services,,,review,
+COURT REPORTING,contains,Professional & Administrative Services,,,broad,Court reporting & transcription contracts — flipped review→broad 2026-05-14
 FOREIGN LANGUAGE INTERPRETATION,contains,Professional & Administrative Services,,,broad,
 LEAD TUNNEL DESIGN AND ENGINEERING,contains,Professional & Administrative Services,,,broad,
-Municipal Electricity Supply,contains,Professional & Administrative Services,,,review,Electricity supply contract
-OUTSIDE COUNSEL,contains,Professional & Administrative Services,,,review,Legal services — no NIGP class in working set; consider broader class
+Municipal Electricity Supply,contains,Facilities Operations & Maintenance,,,broad,Electricity supply contract — re-routed Professional&Admin→Facilities 2026-05-14
+OUTSIDE COUNSEL,contains,Professional & Administrative Services,,,broad,Legal services — flipped review→broad 2026-05-14
 PROFESSIONAL ENVIRONMENTAL ASSESSMENT,contains,Professional & Administrative Services,,,broad,
 PROGRAM FINANCE SERVICES,contains,Professional & Administrative Services,958,,broad,
 PROGRAM MANAGEMENT CONSULTANT,contains,Professional & Administrative Services,958,,broad,
@@ -117,10 +117,10 @@ PROPERTY MANAGEMENT AND EVENT SUPPORT,contains,Professional & Administrative Ser
 QUALITY ASSURANCE AND MATERIALS TESTING,contains,Professional & Administrative Services,992,,broad,
 QUALITY CONTROL AND QUALITY ASSURANCE CONSTRUCTION INSPECTION,contains,Professional & Administrative Services,,,broad,
 RECORDS STORAGE,contains,Professional & Administrative Services,962,,broad,
-STAFFING FOR MIGRANT,contains,Professional & Administrative Services,,,review,Staffing services
+STAFFING FOR MIGRANT,contains,Professional & Administrative Services,,,broad,Staffing services — flipped review→broad 2026-05-14
 Security Services,contains,Professional & Administrative Services,964,,broad,
-Small Business Improvement Fund,contains,Professional & Administrative Services,,,review,Grant/financing program — not a commodity
-TITLE SERVICES FOR PROPERTY,contains,Professional & Administrative Services,,,review,Real-estate title work
+Small Business Improvement Fund,contains,Grants & Pass-Through Funding,,,broad,"SBIF grant/financing program — re-routed Professional&Admin→Grants 2026-05-14 (pass-through funding per rule comment)"
+TITLE SERVICES FOR PROPERTY,contains,Professional & Administrative Services,,,broad,Real-estate title work — flipped review→broad 2026-05-14
 UNARMED SECURITY AND SCREENING,contains,Professional & Administrative Services,964,,broad,
 UNARMED SECURITY GUARD,contains,Professional & Administrative Services,964,96400,exact,
 EMERGENCY MEDICAL EQUIPMENT,contains,"Public Safety, Uniforms & PPE",465,,broad,EMS equipment — life-safety
@@ -231,3 +231,17 @@ CAR RENTAL,contains,Equipment Rental & Leasing,975,,broad,Reverse-order mirror o
 AUTOMOBILE LEASING,contains,Equipment Rental & Leasing,975,,broad,Reverse-order mirror of LEASING OF AUTOMOBILES — added 2026-05-11
 TENT RENTAL,contains,Equipment Rental & Leasing,855,,broad,Reverse-order mirror of RENTAL OF TENTS — added 2026-05-11
 COPIER LEASE,contains,Equipment Rental & Leasing,985,,broad,Reverse-order mirror of LEASE OF COPIER — added 2026-05-11
+SERIALS,exact,"Office, Print & Marketing",,,broad,Periodicals/journal subscriptions (library) — added 2026-05-14 (top-30 review-queue pass)
+TECHNICAL AND PROTECTIVE GEAR,contains,"Public Safety, Uniforms & PPE",200,,broad,Protective gear contracts — added 2026-05-14
+OFFICE MAINTENANCE,contains,Facilities Operations & Maintenance,,,broad,Office maintenance expenses — added 2026-05-14
+OUTSDE COUNSEL,contains,Professional & Administrative Services,,,broad,Legal services (typo variant of OUTSIDE COUNSEL) — added 2026-05-14
+CONSTRUCTION ENGINEERING,contains,Professional & Administrative Services,,,broad,Architectural/engineering services for construction — added 2026-05-14
+PROCESS SERVER,contains,Professional & Administrative Services,,,broad,Legal process server — added 2026-05-14
+IMPOUND,contains,Vehicles & Fleet,,,broad,Vehicle impound / boot release / towing — added 2026-05-14
+FUEL SITE MAINTENANCE,contains,Facilities Operations & Maintenance,,,broad,Fuel site infrastructure maintenance — added 2026-05-14
+NATURAL GAS SUPPLY,contains,Facilities Operations & Maintenance,,,broad,Natural gas utility supply — added 2026-05-14 (utilities → Facilities)
+MISC. ELECTRICAL EQUIPMENT,contains,Facilities Operations & Maintenance,285,,broad,Miscellaneous electrical supplies — added 2026-05-14
+GENERAL CHEMICAL & BIOLOGICAL LAB,contains,Chemicals & Water Treatment,175,,broad,General chemical & biological lab supplies — added 2026-05-14
+FLEET WASHING,contains,Vehicles & Fleet,928,,broad,Fleet vehicle washing service — added 2026-05-14
+SUMMONS,contains,Professional & Administrative Services,,,broad,Legal summons (variant of SUBPOENA contexts) — added 2026-05-14
+END TO END RECRUITMENT,contains,Professional & Administrative Services,,,broad,Recruitment-process services — added 2026-05-14
