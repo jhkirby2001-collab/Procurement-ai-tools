@@ -203,6 +203,10 @@ TELEPHONE SERVICE,contains,"IT, Telecom & Audio/Visual",725,,broad,Telephone ser
 LAPTOP,contains,"IT, Telecom & Audio/Visual",,,broad,Laptops — added 2026-05-06
 LANDSCAPING,contains,"Landscaping, Grounds & Irrigation",988,,broad,Landscaping — added 2026-05-06
 TREE TRIMMING,contains,"Landscaping, Grounds & Irrigation",988,,broad,Tree trimming — added 2026-05-06
+TREE STUMP REMOVAL,contains,"Landscaping, Grounds & Irrigation",988,,broad,Tree stump removal — service not equipment; added 2026-05-13
+STUMP REMOVAL,contains,"Landscaping, Grounds & Irrigation",988,,broad,Stump removal (generic) — added 2026-05-13
+STUMP GRINDING SERVICES,contains,"Landscaping, Grounds & Irrigation",988,,broad,Stump grinding services (service variant) — added 2026-05-13
+TREE REMOVAL,contains,"Landscaping, Grounds & Irrigation",988,,broad,Tree removal — added 2026-05-13
 LAWN CARE,contains,"Landscaping, Grounds & Irrigation",988,,broad,Lawn care — added 2026-05-06
 IRRIGATION,contains,"Landscaping, Grounds & Irrigation",988,,broad,Irrigation — added 2026-05-06
 WATER TREATMENT,contains,Chemicals & Water Treatment,390,,broad,Water treatment — added 2026-05-06
