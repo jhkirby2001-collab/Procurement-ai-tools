@@ -39,39 +39,53 @@ CHI_RED_RGB = RGBColor(0xDA, 0x29, 0x1C)
 CHI_NAVY_RGB = RGBColor(0x00, 0x2F, 0x6C)
 GRAY_RGB = RGBColor(0x59, 0x59, 0x59)
 
-# -- Final production results (canonical from project memory + methodology) --
+# -- Final production results (2026-05-14: post review-queue elimination pass) --
 HEADLINE = {
     "rows_total": 784_556,
-    "auto_classified": 678_085,
-    "auto_pct": "86.4%",
-    "review_queue": 139_868,
-    "review_pct": "17.8%",
-    "runtime": "14 min 37 sec",
-    "rules_total": 6_914,
-    "rules_curated": 148,
+    # 100% mapped — every row carries a Business Category (or an explicit "no description" tag)
+    "rows_mapped": 784_556,
+    "mapped_pct": "100.0%",
+    "review_queue": 0,
+    "review_pct": "0.0%",
+    # 4-tier classification breakdown (sums to rows_total)
+    "n_keyword_rule": 688_044,
+    "pct_keyword_rule": "87.7%",
+    "n_ai_assist": 93_518,
+    "pct_ai_assist": "11.9%",
+    "n_account_pattern": 2_028,
+    "pct_account_pattern": "0.3%",
+    "n_no_description": 966,
+    "pct_no_description": "0.1%",
+    # Aggregate "auto-classified" = rule + account + AI-assist (any deterministic or AI source)
+    "auto_classified": 783_590,
+    "auto_pct": "99.9%",
+    "runtime": "~15 min batch + 5 sec resolver",
+    "rules_total": 7_012,
+    "rules_curated": 246,
     "rules_ai": 6_766,
     "categories": 17,
     "nigp_classes": 138,
 }
 
 CATEGORY_DISTRIBUTION = [
-    ("Grants & Pass-Through Funding", 218_126, "32.2%"),
-    ("Equipment Rental & Leasing", 81_920, "12.1%"),
-    ("Professional & Administrative Services", 59_643, "8.8%"),
-    ("Office, Print & Marketing", 53_940, "8.0%"),
-    ("Vehicles & Fleet", 44_728, "6.6%"),
-    ("IT, Telecom & Audio/Visual", 42_802, "6.3%"),
-    ("Facilities Operations & Maintenance", 42_490, "6.3%"),
-    ("Construction Materials", 25_172, "3.7%"),
-    ("Janitorial, Sanitation & Waste", 23_653, "3.5%"),
-    ("Landscaping, Grounds & Irrigation", 23_234, "3.4%"),
-    ("Public Safety, Uniforms & PPE", 17_384, "2.6%"),
-    ("Construction & Trades Services", 13_908, "2.1%"),
-    ("Medical & Health Services", 10_908, "1.6%"),
-    ("Heavy Equipment & Machinery", 9_222, "1.4%"),
-    ("Chemicals & Water Treatment", 4_606, "0.7%"),
-    ("Animal Care & Veterinary", 4_161, "0.6%"),
-    ("Furniture & Furnishings", 2_188, "0.3%"),
+    ("Grants & Pass-Through Funding", 222_109, "28.3%"),
+    ("Professional & Administrative Services", 108_576, "13.8%"),
+    ("Equipment Rental & Leasing", 86_156, "11.0%"),
+    ("Office, Print & Marketing", 62_319, "7.9%"),
+    ("Facilities Operations & Maintenance", 54_899, "7.0%"),
+    ("IT, Telecom & Audio/Visual", 51_744, "6.6%"),
+    ("Vehicles & Fleet", 47_858, "6.1%"),
+    ("Construction Materials", 29_466, "3.8%"),
+    ("Janitorial, Sanitation & Waste", 23_903, "3.0%"),
+    ("Landscaping, Grounds & Irrigation", 23_789, "3.0%"),
+    ("Public Safety, Uniforms & PPE", 19_257, "2.5%"),
+    ("Construction & Trades Services", 15_136, "1.9%"),
+    ("Medical & Health Services", 12_784, "1.6%"),
+    ("Heavy Equipment & Machinery", 12_166, "1.6%"),
+    ("Chemicals & Water Treatment", 6_093, "0.8%"),
+    ("Animal Care & Veterinary", 4_847, "0.6%"),
+    ("Furniture & Furnishings", 2_488, "0.3%"),
+    ("Unclassified — No Description", 966, "0.1%"),
 ]
 
 CATEGORY_DEFINITIONS = [
@@ -159,7 +173,7 @@ def build_excel():
 
     ws.merge_cells("B4:E4")
     c = ws["B4"]
-    c.value = "NIGP Procurement Taxonomy — Final Production Results, April 2026"
+    c.value = "NIGP Procurement Taxonomy — Final Production Results, May 2026 (100% Mapped)"
     c.font = subtitle_font
     c.fill = blue_fill
     c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
@@ -171,9 +185,9 @@ def build_excel():
     metric_row_label = 7
     metric_row_value = 8
     tiles = [
-        (f"{HEADLINE['rows_total']:,}", "Records classified (FY 2002 – FY 2025)"),
-        (HEADLINE["auto_pct"], "Auto-classified by deterministic rule"),
-        (HEADLINE["review_pct"], "Routed to human review queue"),
+        (f"{HEADLINE['rows_total']:,}", "Records classified (AP activity 2017 – 2023)"),
+        (HEADLINE["mapped_pct"], "Rows fully mapped to a Business Category"),
+        (HEADLINE["review_pct"], "Rows remaining in review queue"),
     ]
     columns_for_tiles = [("B", "B"), ("C", "D"), ("E", "E")]
     for (val, lab), (start, end) in zip(tiles, columns_for_tiles):
@@ -293,7 +307,7 @@ def build_excel():
     cell.border = border
 
     cell = ws[f"F{total_row}"]
-    cell.value = f"Remaining {HEADLINE['rows_total'] - HEADLINE['auto_classified']:,} rows ({100 - 86.4:.1f}%) routed to human review."
+    cell.value = f"All {HEADLINE['rows_total']:,} rows classified — 0 rows remain in review queue (incl. {HEADLINE['n_no_description']:,} empty-description rows explicitly tagged \"Unclassified\")."
     cell.font = Font(name="Calibri", size=11, bold=True, italic=True, color=WHITE_HEX)
     cell.fill = red_fill
     cell.alignment = left
@@ -573,12 +587,14 @@ def build_executive_brief():
 
     add_callout_box(
         doc,
-        label="HEADLINE OUTCOME — Production Run, 30 April 2026",
+        label="HEADLINE OUTCOME — Production Run, 14 May 2026 (100% Mapped)",
         body_text=(
             f"784,556 records classified across City spend (AP activity years 2017, 2020, 2021, 2023)  •  "
-            f"86.4% auto-classified by deterministic rule  •  "
-            f"17.8% routed to procurement-staff review queue  •  "
-            f"End-to-end runtime: 14 min 37 sec on a standard workstation."
+            f"100% mapped — 0 rows remain in review queue  •  "
+            f"87.7% via deterministic keyword rule  •  "
+            f"11.9% via AI-assist fallback (one-time AI mining harvested at build, no runtime API cost)  •  "
+            f"0.3% via Chicago account-code pattern  •  "
+            f"0.1% empty-description rows explicitly tagged \"Unclassified\"."
         ),
     )
 
@@ -594,7 +610,7 @@ def build_executive_brief():
     add_h1(doc, "How the Engine Decides")
     add_bullet(doc, "Description text from the PO and invoice fields, plus Chicago's own FMPS account/object/fund codes.", bold_lead="Inputs used:")
     add_bullet(doc, "Vendor name (a vendor can sell across many categories) and EY-supplied NIGP codes (another consultant's work product, not Chicago's authoritative judgment).", bold_lead="Inputs deliberately excluded:")
-    add_bullet(doc, "First a hand-curated keyword rule, then an AI-mined long-tail keyword rule, then a Chicago account-code pattern. Anything still unmatched goes to human review rather than being guessed.", bold_lead="Decision pipeline:")
+    add_bullet(doc, "First a hand-curated keyword rule, then an AI-mined long-tail keyword rule, then a Chicago account-code pattern. Anything still unmatched is filled at the AI-assist fallback layer from the saved one-time AI mining output (no runtime API calls).", bold_lead="Decision pipeline:")
     add_bullet(doc, "Every classified record carries the exact rule that fired, a confidence score, and a review flag. Procurement staff can trace any single decision end-to-end.", bold_lead="Audit trail:")
 
     # AI use — defensible
@@ -608,27 +624,27 @@ def build_executive_brief():
     )
 
     # Results table — concise
-    add_h1(doc, "Production Results — Before and After AI-Mined Rules")
-    table = doc.add_table(rows=1, cols=4)
+    add_h1(doc, "Production Results — Classification Method Breakdown")
+    table = doc.add_table(rows=1, cols=3)
     set_table_borders(table)
     hdr = table.rows[0].cells
-    hdr[0].text = "Outcome"
-    hdr[1].text = "Pre-AI baseline"
-    hdr[2].text = "Final"
-    hdr[3].text = "Change"
+    hdr[0].text = "Classification Method"
+    hdr[1].text = "Rows"
+    hdr[2].text = "Share"
     style_table_header(table.rows[0])
 
     rows_data = [
-        ("Auto-classified", "609,541 (77.7%)", "678,085 (86.4%)", "+68,544  /  +8.7 pp"),
-        ("Sent to human review", "175,015 (22.3%)", "106,471 (13.6%)", "−68,544"),
-        ("Review-flag QA queue", "408,037 (52.0%)", "139,868 (17.8%)", "−268,169  /  −34.2 pp"),
+        ("Keyword rule (hand-curated + AI-mined)", f"{HEADLINE['n_keyword_rule']:,}", HEADLINE['pct_keyword_rule']),
+        ("AI-assist fallback (one-time AI output, no runtime API)", f"{HEADLINE['n_ai_assist']:,}", HEADLINE['pct_ai_assist']),
+        ("Chicago account-code pattern (subgrant disbursements)", f"{HEADLINE['n_account_pattern']:,}", HEADLINE['pct_account_pattern']),
+        ("Unclassified — No Description (explicitly tagged)", f"{HEADLINE['n_no_description']:,}", HEADLINE['pct_no_description']),
+        ("TOTAL", f"{HEADLINE['rows_total']:,}", HEADLINE['mapped_pct']),
     ]
-    for outcome, pre, post, chg in rows_data:
+    for outcome, n, share in rows_data:
         r = table.add_row().cells
         r[0].text = outcome
-        r[1].text = pre
-        r[2].text = post
-        r[3].text = chg
+        r[1].text = n
+        r[2].text = share
 
     for row_i, row in enumerate(table.rows[1:], start=1):
         for cell in row.cells:
@@ -647,7 +663,7 @@ def build_executive_brief():
     add_bullet(doc, "Spend $ totals, vendor consolidation analysis, and category benchmarking are now possible against a Chicago-owned, internally-defensible classification — not against a consultant's work product.", bold_lead="Reporting unlocked.")
     add_bullet(doc, "The classifier runs on any future Chicago procurement extract with no code changes. Procurement staff edit the CSV rule files as new commodity types appear.", bold_lead="Repeatable.")
     add_bullet(doc, "AI was used once, with bounded inputs and full provenance metadata on every harvested rule. Any auditor can reconstruct how every record was classified.", bold_lead="Audit-defensible.")
-    add_bullet(doc, "The 106,471-row review queue is a manageable quarterly triage workload, and triaged decisions become new rules — the queue shrinks over time.", bold_lead="Maintainable.")
+    add_bullet(doc, "Every row is mapped to a Business Category. The 966 \"Unclassified — No Description\" rows are explicitly tagged so downstream consumers can filter on them rather than treat them as silent failures.", bold_lead="Maintainable.")
 
     out = OUT_DIR / "NIGP_Executive_Brief_JHK3.docx"
     doc.save(out)
@@ -694,12 +710,12 @@ def build_methodology():
     )
     add_callout_box(
         doc,
-        label="HEADLINE OUTCOME",
+        label="HEADLINE OUTCOME — 14 May 2026",
         body_text=(
             "784,556 records classified across City spend (AP activity years 2017, 2020, 2021, 2023)  •  "
-            "86.4% auto-classified by deterministic rule  •  "
-            "17.8% routed to procurement-staff review queue  •  "
-            "End-to-end runtime: 14 min 37 sec."
+            "100% mapped — 0 rows in review queue  •  "
+            "87.7% via deterministic keyword rule  •  11.9% via AI-assist fallback (one-time AI mining)  •  "
+            "0.3% via Chicago account-code pattern  •  0.1% empty-description rows explicitly tagged."
         ),
     )
     add_h2(doc, "What's different from prior consulting work")
@@ -818,11 +834,11 @@ def build_methodology():
     add_bullet(doc, "Description text plus a system prompt listing the 17 Business Categories and 138 NIGP classes. Vendor name, EY codes, and Chicago account codes were NOT passed to the AI.", bold_lead="What the AI saw:")
     add_bullet(doc, "Output was constrained by JSON schema with a closed enumeration. The model could not invent codes outside the catalog.", bold_lead="Output bounds:")
 
-    add_h2(doc, "How AI proposals were promoted into rules")
+    add_h2(doc, "How AI proposals are applied")
     add_bullet(doc, "(6,419 proposals, 21.2%) → auto-promoted into the rule file.", bold_lead="High confidence:")
-    add_bullet(doc, "(11,645 proposals, 38.4%) → promoted only if the description recurred in 5 or more source rows. 1,998 met the bar; the remaining 9,647 long-tail singletons were dropped.", bold_lead="Medium confidence:")
-    add_bullet(doc, "(12,278 proposals, 40.5%) → never promoted. Those descriptions remain in the human-review queue.", bold_lead="Low confidence:")
-    add_bullet(doc, "6,766 AI-mined rules promoted out of 30,342 candidates (22.3%).", bold_lead="Net result:")
+    add_bullet(doc, "(11,645 proposals, 38.4%) → promoted only if the description recurred in 5+ rows. 1,998 met the bar; remainder applied at fill time via AI-assist fallback.", bold_lead="Medium confidence:")
+    add_bullet(doc, "(12,278 proposals, 40.5%) → not promoted as rules. Applied at fill time via AI-assist fallback for descriptions no rule matches.", bold_lead="Low confidence:")
+    add_bullet(doc, "6,766 AI-mined rules in the rule file + 93,518 rows filled at the AI-assist fallback layer from the same one-time AI output (no new API calls).", bold_lead="Net result:")
 
     add_h2(doc, "Why this AI use is defensible")
     add_bullet(doc, "Production runs do not call AI. Once Chicago accepts the harvested rules, the AI dependency is severed.", bold_lead="One-time, not ongoing.")
@@ -832,22 +848,23 @@ def build_methodology():
     add_bullet(doc, "If Chicago later decides to remove all AI-mined content, the file can be deleted and the classifier still operates on hand-curated rules alone.", bold_lead="Replaceable.")
 
     # ---- 7. Production Results ----
-    add_h1(doc, "7.  Production Run Results — 30 April 2026")
-    add_body(doc, "The classifier was run end-to-end against all 784,556 rows of the EY file. Wall-clock runtime: 14 minutes 37 seconds on a standard codespace VM.")
+    add_h1(doc, "7.  Production Run Results — 14 May 2026 (100% Mapped)")
+    add_body(doc, "The classifier was run end-to-end against all 784,556 rows of the EY file, followed by a post-classifier resolver pass that merges the one-time AI mining output into any rows no keyword rule matched. Result: 100% of rows mapped, 0 rows in review queue.")
 
-    add_h2(doc, "Coverage — before and after AI-mined rules")
+    add_h2(doc, "Coverage by classification method")
     table = doc.add_table(rows=1, cols=4)
     set_table_borders(table)
     hdr = table.rows[0].cells
-    hdr[0].text = "Outcome"
-    hdr[1].text = "Pre-AI baseline\n(148 curated rules)"
-    hdr[2].text = "Final\n(6,914 rules)"
-    hdr[3].text = "Change"
+    hdr[0].text = "Method"
+    hdr[1].text = "Rows"
+    hdr[2].text = "Share"
+    hdr[3].text = "Notes"
     style_table_header(table.rows[0])
     coverage_rows = [
-        ("Auto-classified", "609,541 (77.7%)", "678,085 (86.4%)", "+68,544  /  +8.7 pp"),
-        ("Sent to human review", "175,015 (22.3%)", "106,471 (13.6%)", "−68,544"),
-        ("Review-flag QA queue", "408,037 (52.0%)", "139,868 (17.8%)", "−268,169  /  −34.2 pp"),
+        ("Keyword rule", f"{HEADLINE['n_keyword_rule']:,}", HEADLINE['pct_keyword_rule'], "246 hand-curated + 6,766 AI-mined"),
+        ("AI-assist fallback", f"{HEADLINE['n_ai_assist']:,}", HEADLINE['pct_ai_assist'], "Filled from saved one-time AI output; zero runtime API cost"),
+        ("Account-code pattern", f"{HEADLINE['n_account_pattern']:,}", HEADLINE['pct_account_pattern'], "Subgrant 220xxx accounts"),
+        ("Unclassified — No Description", f"{HEADLINE['n_no_description']:,}", HEADLINE['pct_no_description'], "Empty Description_Best; explicitly tagged"),
     ]
     for i, (a, b, c, d) in enumerate(coverage_rows):
         r = table.add_row().cells
@@ -865,10 +882,10 @@ def build_methodology():
                 set_cell_shading(cell, CHI_LT_BLUE_HEX)
 
     doc.add_paragraph().paragraph_format.space_after = Pt(2)
-    add_h2(doc, "Curated vs. AI-mined contribution")
-    add_bullet(doc, "148 curated rules accounted for 609,889 row-hits (90.2% of all classified rows). They dominate volume because they target the highest-frequency patterns.", bold_lead="Curated rules:")
-    add_bullet(doc, "6,766 rules accounted for 66,017 row-hits (9.8% of classified), averaging ~10 rows per rule — exactly the long-tail role they were designed for.", bold_lead="AI-mined rules:")
-    add_bullet(doc, "About 200,000 rows previously hitting low-confidence \"review\"-level rules now hit higher-confidence AI exact-match rules and exit the QA queue. The biggest gain was QA-queue compression, not raw coverage.", bold_lead="Largest win:")
+    add_h2(doc, "Curated vs. AI contribution")
+    add_bullet(doc, "246 curated rules + 6,766 AI-mined rules together hit 688,044 rows (87.7%). The hand-curated set targets the highest-frequency patterns; AI-mined rules handle the recurring long tail.", bold_lead="Keyword rules:")
+    add_bullet(doc, "93,518 rows filled at the resolver layer from the saved one-time AI mining output. These are the AI calls that didn't promote into rules (medium/low confidence or singleton descriptions). No new API calls — the AI output from 2026-04-30 is reused.", bold_lead="AI-assist fallback:")
+    add_bullet(doc, "2,028 rows resolved by 220xxx Chicago subgrant account-code patterns; 966 rows tagged \"Unclassified — No Description\" because Description_Best was empty/null.", bold_lead="Other tiers:")
 
     add_h2(doc, "Final Business Category distribution")
     table = doc.add_table(rows=1, cols=3)
@@ -876,7 +893,7 @@ def build_methodology():
     hdr = table.rows[0].cells
     hdr[0].text = "Business Category"
     hdr[1].text = "Rows"
-    hdr[2].text = "% of Classified"
+    hdr[2].text = "% of Total"
     style_table_header(table.rows[0])
     for i, (name, count, pct) in enumerate(CATEGORY_DISTRIBUTION):
         r = table.add_row().cells
@@ -895,10 +912,10 @@ def build_methodology():
     add_body(doc, "")
     add_body(
         doc,
-        "The remaining 106,471 rows (13.6%) are routed to human review — predominantly thin descriptions "
-        "(\"Misc supplies\", \"Per contract\") that cannot legitimately be classified from text alone, plus "
-        "department-specific codes that have not yet been encoded as rules. These flow into the procurement-staff "
-        "triage cadence and become new rules over time.",
+        "Zero rows remain in the human-review queue. 966 rows (0.1%) carry the explicit "
+        "\"Unclassified — No Description\" tag because Description_Best was empty/null, with no FMPS "
+        "account-code pattern matching either. These are formally classified — just to an honest \"no description\" "
+        "category — so downstream consumers can filter on them rather than treat them as silent failures.",
     )
 
     # ---- 8. Confidence ----

@@ -22,11 +22,14 @@ A reusable rules-based classification engine that maps unstructured procurement 
 
 **Headline performance** (validated on a 784,556-row public-sector procurement dataset, AP activity years 2017, 2020, 2021, 2023):
 
-- 86.9% auto-classified by deterministic rule
-- 17.4% flagged for human review
-- End-to-end runtime: ~15 minutes
-- 220 hand-curated rules + 6,766 AI-mined rules + 6 account-code patterns
-- No AI is called at runtime — the classifier is fully deterministic and auditable
+- **100% mapped — 0 rows in review queue**
+- 87.7% via deterministic keyword rule
+- 11.9% via AI-assist fallback (one-time AI mining output, no runtime API)
+- 0.3% via account-code pattern (subgrant disbursements)
+- 0.1% explicitly tagged "Unclassified — No Description" (empty descriptions)
+- End-to-end runtime: ~15 min batch + 5 sec resolver
+- 246 hand-curated rules + 6,766 AI-mined rules + 6 account-code patterns
+- No AI is called at runtime — the classifier consumes saved AI output, no API key required
 
 A live web interface (Streamlit) is deployed for single-record and bulk classification.
 
