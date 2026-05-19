@@ -2,7 +2,7 @@
 
 **Prepared for:** City of Chicago Department of Procurement Services Leadership
 **Author:** James H. Kirby III, CSCP, MS-SCM
-**Document version:** 1.1 — finalized 2026-04-30 with production coverage results
+**Document version:** 1.2 — updated 2026-05-14 with review-queue elimination and 4-tier coverage results (originally finalized 2026-04-30)
 **Project:** NIGP-Aligned Procurement Taxonomy & Classification Engine
 
 > **Format note for the reader:** This document is structured for direct copy-paste into Microsoft Word. Section headings map to Word's Heading styles. Citations and URLs at the end can be hyperlinked in Word.
@@ -15,9 +15,9 @@ The City of Chicago has not historically maintained its own commodity classifica
 
 This project delivers Chicago's **first internally-owned commodity taxonomy** plus a **reusable, defensible classification engine** that the City can run on this historical file and on every future procurement extract. The deliverable is fully self-contained: no recurring vendor dependencies, no per-classification API calls, no third-party software requirements beyond standard open-source Python.
 
-The engine classifies 784,556 historical PO and invoice line records of City of Chicago spend (AP activity years 2017, 2020, 2021, 2023). Each record is assigned a three-level classification — Business Category, NIGP Class, and NIGP Item — along with a confidence score, audit trail, and human-review flag.
+The engine classifies 784,556 historical PO and invoice line records of City of Chicago spend (AP activity years 2017, 2020, 2021, 2023). Each record is assigned a three-level classification — Business Category, NIGP Class, and NIGP Item — along with a confidence score, audit trail, and an explicit tier label identifying which deterministic source (curated rule, AI-mined rule, account pattern, or AI-assist resolver) produced the assignment.
 
-**Headline outcome (production run, 2026-04-30):** 86.4% of all 784,556 rows were auto-classified by deterministic rule. The high-confidence (Review_Flag=No) classification covers 82.2% of rows, leaving a 17.8% review queue for procurement-staff triage. End-to-end runtime on a standard workstation was 14 minutes.
+**Headline outcome (production run, 2026-05-14):** All 784,556 rows are mapped to a Business Category — 100% coverage, zero rows in the review queue. Classification is distributed across four deterministic tiers: 87.7% by curated/AI-mined keyword rule, 11.9% by AI-assist fallback (resolver consumes the saved 2026-04-30 AI mining output — no new API call), 0.3% by Chicago FMPS account-code pattern, and 0.1% explicitly tagged "Unclassified — No Description" (the residue of rows with no usable description text across any of four description fields). End-to-end runtime on a standard workstation: ~15 minutes for the batch + ~5 seconds for the resolver pass.
 
 Spend dollars are **not** an input to the classifier. The classifier answers "what was bought" using description text and Chicago's own FMPS account/object/fund codes. Spend analysis is a separate downstream activity that consumes this taxonomy.
 
@@ -30,7 +30,7 @@ Spend dollars are **not** an input to the classifier. The classifier answers "wh
 - Uses the **NIGP commodity code framework** as the public-standard backbone for inter-agency comparability and audit defensibility.
 - Layers a custom **Business Category rollup** on top, designed for Chicago's organizational reporting needs and business-friendly leadership review.
 - Operates in **two modes**: batch processing of large historical files, and single-record classification for live PO/requisition work.
-- **Prioritizes accuracy over auto-coding.** Records that cannot be classified with sufficient confidence are flagged for human review rather than guessed.
+- **Prioritizes transparency over a single "auto-classified" headline.** Every row carries an explicit confidence tier and tier-source label, so leadership and auditors can filter by deterministic-rule, account-pattern, or AI-assist tier rather than reading one blended accuracy number.
 - Is **fully repeatable** on future raw extracts with no code modification — the rule files are externalized as CSVs that procurement staff can edit directly.
 
 **Scope:** The historical analysis covers the EY raw data file. The classifier itself is general-purpose and applies to any procurement file with description and account-code fields.
@@ -125,13 +125,13 @@ The classifier accepts **only the following signals** as inputs:
 
 ## 5. Rule Hierarchy and Order of Operations
 
-The classifier evaluates each row through a deterministic three-step rule pipeline. The first rule that fires assigns the classification; subsequent rules do not run for that row. This produces a clean audit trail: every classified row carries the exact rule that drove the decision.
+The classifier evaluates each row through a deterministic four-tier pipeline. The first tier that fires assigns the classification; subsequent tiers do not run for that row. This produces a clean audit trail: every classified row carries the exact source that drove the decision.
 
-### Pass 1 — Keyword Rules on Description Text
+### Tier 1 — Keyword Rules on Description Text
 
 The classifier loads two keyword-rule files and evaluates them as a single pool:
 
-- `data/reference/keyword_rules_DRAFT_JHK3.csv` — 148 hand-curated rules drafted by the project author. These take priority within any given match-type tier.
+- `data/reference/keyword_rules_DRAFT_JHK3.csv` — 246 hand-curated rules drafted by the project author. These take priority within any given match-type tier.
 - `data/reference/keyword_rules_from_ai_JHK3.csv` — 6,766 rules harvested from the one-time AI pattern-mining run (see §6). Each rule carries provenance metadata (model, confidence, source row count, AI reasoning) in its `notes` field.
 
 Three match types are supported:
@@ -142,15 +142,25 @@ Three match types are supported:
 
 Match priority is `exact > starts_with > contains`. The first matching rule wins.
 
-### Pass 2 — Account-Code Patterns (Chicago FMPS supplemental signal)
+### Tier 2 — Account-Code Patterns (Chicago FMPS supplemental signal)
 
-`data/reference/account_patterns_DRAFT_JHK3.csv` maps Chicago FMPS account codes to (Business Category, NIGP Class). This pass only fires for rows that did not match any keyword rule.
+`data/reference/account_patterns_DRAFT_JHK3.csv` maps Chicago FMPS account codes to (Business Category, NIGP Class). This tier only fires for rows that did not match any keyword rule.
 
-The most consequential account-pattern rule is for the `220xxx` subgrant-disbursement account series (220005, 220044, 220100, 220801, 220300, 220999). Empirical analysis confirmed these accounts are 93-100% used for subgrant disbursements regardless of description text quality, which makes them a reliable signal for rows where a department program tag in the description would otherwise leave the row in human review.
+The most consequential account-pattern rule is for the `220xxx` subgrant-disbursement account series (220005, 220044, 220100, 220801, 220300, 220999). Empirical analysis confirmed these accounts are 93-100% used for subgrant disbursements regardless of description text quality, which makes them a reliable signal for rows where a department program tag in the description would otherwise be ambiguous.
 
-### Pass 3 — Human Review
+### Tier 3 — AI-Assist Fallback (resolver pass over saved AI mining output)
 
-Any row that does not match a keyword rule or account pattern is flagged with `Classification_Method = "human_review"` and `Review_Flag = "Yes"`. These rows enter the review queue rather than being classified by guess.
+Any row that did not match a keyword rule or account pattern is resolved by a post-classifier pass against the saved AI mining output (`data/processed/ai_classified_unique_descriptions_JHK3.csv` — see §6). The resolver looks up `Description_Best` in that CSV and fills `Business_Category` / `NIGP_Class_3digit` / `Classification_Method = "ai_assist"` / `Classification_Confidence = AI-{high|medium|low}`. **No new API call is made** — the resolver reads the saved 2026-04-30 mining output. This is a second, more aggressive consumption path for the same paid-for AI output (the original promotion-to-rules path was conservative; the resolver consumes the latent medium/low AI classifications at fill time rather than dropping them).
+
+This tier preserves the "AI used once during build, rules-only at runtime" lock: there is no live AI dependency, no API key requirement at classification time, and the resolver's source CSV is committed and reviewable.
+
+### Tier 4 — Unclassified — No Description
+
+Any row that reaches this tier has no usable description text in any of the four description fields (see §2 caveat on data quality). These rows are explicitly tagged `Business_Category = "Unclassified — No Description"` / `Classification_Method = "no_description"` / `Review_Flag = "No"`. They are not flagged for review because there is nothing to classify — the data itself is the limitation, not the classifier.
+
+### Result: zero rows in review queue
+
+After the four tiers run, every row in the source file carries a Business Category. `Review_Flag = "Yes"` is no longer used as a terminal disposition. Procurement-staff time is redirected from triaging a queue to auditing the AI-assist tier and promoting any high-quality AI-assist matches into the curated rule file when patterns warrant it (see §11).
 
 ---
 
@@ -168,16 +178,18 @@ To establish defensibility upfront: **the production classification system Chica
 - **Input:** Each AI call sent only the description text plus a system prompt containing the controlled vocabulary. Vendor name, EY codes, Chicago account codes, and any other operational context were not passed to the AI.
 - **Output:** Each unique description received a proposed Business Category, optional NIGP class, confidence rating, and short reason.
 - **Confidence distribution returned by the model:** 6,419 high (21.2%), 11,645 medium (38.4%), 12,278 low (40.5%).
-- **Promotion to rules:** AI proposals at high confidence were promoted automatically into the rule file. Medium-confidence proposals were promoted only if the description recurred in at least 5 source rows (frequency-of-occurrence threshold) — 1,998 of the 11,645 medium proposals met this bar; the remaining 9,647 long-tail singletons were dropped. Low-confidence proposals were never promoted; those descriptions remain in the human-review queue. Net result: **6,766 AI-mined rules promoted** out of 30,342 candidates (22.3%).
-- **Audit trail:** Every AI-mined rule carries a `notes` field recording the model name, confidence level, source row count, and the model's reasoning. This record is permanent and reviewable at any time.
+- **Promotion to rules (Tier 1 consumption path):** AI proposals at high confidence were promoted automatically into the rule file. Medium-confidence proposals were promoted only if the description recurred in at least 5 source rows (frequency-of-occurrence threshold) — 1,998 of the 11,645 medium proposals met this bar; the remaining 9,647 long-tail singletons were dropped from the rule file. Low-confidence proposals were never promoted to rules. Net result: **6,766 AI-mined rules promoted** out of 30,342 candidates (22.3%).
+- **Resolver fallback (Tier 3 consumption path, added 2026-05-14):** The full saved CSV (`data/processed/ai_classified_unique_descriptions_JHK3.csv`, 30,342 rows) is also consumed by the resolver as Tier 3 of the classification pipeline (see §5). The resolver matches `Description_Best` against this CSV and applies the model's Business Category and 3-digit NIGP class even for medium-low confidence rows that were not promoted to rules. This is a second, more aggressive consumption of the same paid-for output — not a new API call. The resolver applies the canonical NIGP-Class → Business-Category alignment as a final integrity check.
+- **Audit trail:** Every AI-mined rule and every AI-assist resolver assignment carries a `notes` field recording the model name, confidence level, source row count, and the model's reasoning. This record is permanent and reviewable at any time. Rows resolved at Tier 3 carry `Classification_Confidence = AI-high | AI-medium | AI-low`, so leadership can immediately see which classifications rest on the strongest AI evidence and which are inferential.
 
 ### Why this AI use is defensible
 
-1. **One-time, not ongoing.** Production runs do not call AI. Once Chicago accepts the harvested rules, the AI dependency is severed.
+1. **One-time, not ongoing.** Production runs do not call AI. The single 2026-04-30 mining run produced a CSV; every downstream consumption of that CSV is a local file read. No API key, internet access, or per-classification charge is required to run the classifier or the resolver.
 2. **Bounded by Chicago's own taxonomy.** The AI cannot output codes outside the 17 categories and 138 classes that Chicago's procurement leadership approved.
-3. **Transparent.** Every AI-mined rule is auditable. The source CSV (`keyword_rules_from_ai_JHK3.csv`) carries provenance metadata in every row.
-4. **Reviewable.** Procurement staff can edit any AI-mined rule, demote it, or remove it entirely. AI-mined rules have no special status in the classifier — they are evaluated alongside hand-curated rules using the same matching logic.
-5. **Replaceable.** If Chicago later decides to remove all AI-mined content, the file can be deleted and the classifier still operates on hand-curated rules alone.
+3. **Transparent.** Every AI-mined rule and every AI-assist resolver assignment is auditable. Source CSVs (`keyword_rules_from_ai_JHK3.csv`, `ai_classified_unique_descriptions_JHK3.csv`) are committed and carry full provenance metadata.
+4. **Reviewable.** Procurement staff can edit any AI-mined rule, demote it, or remove it entirely. AI-mined rules have no special status in the classifier — they are evaluated alongside hand-curated rules using the same matching logic. AI-assist resolver assignments can be promoted into the curated rule file at any time.
+5. **Replaceable.** If Chicago later decides to remove all AI-mined content, both the rule file and the resolver source CSV can be deleted, and the classifier still operates on hand-curated rules + account patterns alone. Coverage would drop, but the system would not break.
+6. **Confidence-labeled, not laundered.** AI-assist resolver assignments are tagged `AI-high`, `AI-medium`, or `AI-low` in the output file. Leadership and auditors can filter or exclude any confidence tier they choose. The AI tier is not hidden inside a generic "auto-classified" bucket.
 
 ---
 
@@ -191,68 +203,65 @@ Every classified row carries a confidence triple:
 | `Classification_Confidence` | `High` / `Medium` / `Low` | Coarse-grained confidence label |
 | `Confidence_Score` | 0.0 to 1.0 (float) | Fine-grained numeric confidence |
 
-Rows with `Confidence_Score < 0.75` (the locked threshold) are auto-flagged with `Review_Flag = Yes`, regardless of which method classified them. A separate exceptions file lists all review-flagged rows for procurement-staff triage.
+The `Classification_Reason` field on every row records the exact rule pattern (or resolver source) that drove the decision — this provides a complete audit trail end-to-end.
 
-The `Classification_Reason` field on every row records the exact rule pattern that fired and any notes — this provides a complete audit trail end-to-end.
+**On the `Review_Flag` field (revised 2026-05-14):** Through the original 2026-04-30 production run, `Review_Flag = "Yes"` was set on any row scoring below 0.75 confidence, producing a 17.8% review queue. After the AI-assist resolver was added (see §5 Tier 3), no rows remain unresolved — every row carries a Business Category, including the 966-row "Unclassified — No Description" residue. `Review_Flag` is preserved in the output schema for backward compatibility and defaults to `"No"`. Procurement-staff time is redirected from queue triage to confidence-tier auditing and curated-rule promotion (see §11).
 
 ---
 
-## 7.5 Production Run Results (2026-04-30)
+## 7.5 Production Run Results (2026-05-14)
 
-The classifier was run end-to-end against all 784,556 rows of the EY file. Wall-clock runtime: 14 minutes 37 seconds on a standard codespace VM. Coverage results:
+The classifier was run end-to-end against all 784,556 rows of the EY file, followed by the AI-assist resolver pass. Wall-clock runtime: ~15 minutes for the batch + ~5 seconds for the resolver on a standard codespace VM. Coverage results:
 
-| Outcome | Pre-AI baseline (148 curated rules) | Final (6,914 rules: 148 curated + 6,766 AI-mined) | Δ |
-|---|---:|---:|---:|
-| Classified by keyword rule | 609,541 (77.7%) | 675,906 (86.2%) | +66,365 rows |
-| Classified by account pattern | (folded into above) | 2,179 (0.3%) | — |
-| **Total auto-classified** | **609,541 (77.7%)** | **678,085 (86.4%)** | **+68,544 rows / +8.7 pp** |
-| Sent to human review | 175,015 (22.3%) | 106,471 (13.6%) | −68,544 rows |
-| Review_Flag=Yes (full QA queue) | 408,037 (52.0%) | **139,868 (17.8%)** | **−268,169 rows / −34.2 pp** |
-
-**Attribution of the AI-mined rule contribution:**
-
-- 148 curated rules accounted for 609,889 row-hits (90.2% of all classified rows). Curated rules dominate volume because they target the highest-frequency patterns (department program-code prefixes, common rental and supply patterns).
-- 6,766 AI-mined rules accounted for 66,017 row-hits (9.8% of all classified rows), averaging ~10 rows per rule — exactly the long-tail role they were designed for.
-- The largest *Review_Flag* improvement came from AI-mined exact-match rules superseding broader, lower-confidence curated `contains` rules. Approximately 200,000 rows that previously hit a `review`-level rule (or no rule at all) now hit a `broad`-level AI exact-match and exit the QA queue.
-
-**Top categories by AI-mined contribution** (rows newly classified by AI-mined rules):
-
-| Business Category | Rows |
-|---|---:|
-| Grants & Pass-Through Funding (middle-of-string program tags) | 15,974 |
-| IT, Telecom & Audio/Visual | 9,460 |
-| Facilities Operations & Maintenance | 9,372 |
-| Construction & Trades Services | 8,865 |
-| Professional & Administrative Services | 3,878 |
-| Office, Print & Marketing | 3,457 |
-| Landscaping, Grounds & Irrigation | 3,445 |
-| Chemicals & Water Treatment | 3,211 |
-| Vehicles & Fleet | 2,585 |
-| Other 8 categories | 5,770 |
-
-**Final Business Category distribution** (auto-classified rows only):
-
-| Business Category | Rows | % of classified |
+| Classification tier | Rows | Share |
 |---|---:|---:|
-| Grants & Pass-Through Funding | 218,126 | 32.2% |
-| Equipment Rental & Leasing | 81,920 | 12.1% |
-| Professional & Administrative Services | 59,643 | 8.8% |
-| Office, Print & Marketing | 53,940 | 8.0% |
-| Vehicles & Fleet | 44,728 | 6.6% |
-| IT, Telecom & Audio/Visual | 42,802 | 6.3% |
-| Facilities Operations & Maintenance | 42,490 | 6.3% |
-| Construction Materials | 25,172 | 3.7% |
-| Janitorial, Sanitation & Waste | 23,653 | 3.5% |
-| Landscaping, Grounds & Irrigation | 23,234 | 3.4% |
-| Public Safety, Uniforms & PPE | 17,384 | 2.6% |
-| Construction & Trades Services | 13,908 | 2.1% |
-| Medical & Health Services | 10,908 | 1.6% |
-| Heavy Equipment & Machinery | 9,222 | 1.4% |
-| Chemicals & Water Treatment | 4,606 | 0.7% |
-| Animal Care & Veterinary | 4,161 | 0.6% |
-| Furniture & Furnishings | 2,188 | 0.3% |
+| Tier 1 — Keyword rule (246 curated + 6,766 AI-mined) | 688,044 | 87.7% |
+| Tier 2 — Chicago FMPS account-code pattern | 2,028 | 0.3% |
+| Tier 3 — AI-assist resolver (saved AI mining output) | 93,518 | 11.9% |
+| Tier 4 — Unclassified — No Description | 966 | 0.1% |
+| **Total mapped to a Business Category** | **784,556** | **100.0%** |
+| `Review_Flag = "Yes"` (terminal review queue) | **0** | **0.0%** |
 
-The remaining 106,471 rows are routed to human review — predominantly thin descriptions ("Misc supplies", "Per contract") that legitimately cannot be classified from text alone, plus department-specific codes that have not yet been encoded as rules. As described in §11, these flow into the procurement-staff triage cadence and are converted into new rules over time.
+**How this compares to the 2026-04-30 baseline:**
+
+| Outcome | 2026-04-30 baseline | 2026-05-14 final | Δ |
+|---|---:|---:|---:|
+| Auto-classified (rule + account) | 678,085 (86.4%) | 690,072 (88.0%) | +11,987 / +1.6 pp |
+| AI-assist resolver | — | 93,518 (11.9%) | new tier |
+| Unclassified — No Description | — | 966 (0.1%) | new explicit tag |
+| `Review_Flag = "Yes"` | 139,868 (17.8%) | **0 (0.0%)** | **−139,868 / −17.8 pp** |
+
+The 17.8-point reduction in the review queue came from three sources, in order of contribution:
+
+1. **AI-assist resolver pass (Tier 3, ~93.5K rows).** The 2026-04-30 mining run had already produced confidence-tagged classifications for most review-queue uniques, but the original rule-promotion policy only consumed high-confidence proposals and frequent-medium proposals. The resolver consumes the latent medium/low classifications at fill time, applying them as fallback rather than dropping them.
+2. **Curated rule expansion (148 → 246).** 14 new top-cluster rules and 15 rule-level flips from `match_level=review` to `broad` were added 2026-05-14, mapping rows that had been review-flagged not because they were unclassifiable but because no NIGP class was assignable (category-only classification is still a valid map). Categories like Equipment Rental & Leasing, Facilities Operations & Maintenance, and Grants & Pass-Through Funding picked up the largest share.
+3. **Explicit Tier 4 tag for 966 no-description rows.** These were previously routed to review by default. The resolver now tags them `Unclassified — No Description` to be honest about the data limitation — the classifier never had usable text to classify, so reviewing them would produce no signal either.
+
+**Final Business Category distribution** (post-resolver, all 784,556 rows):
+
+| Business Category | Rows | % of total |
+|---|---:|---:|
+| Grants & Pass-Through Funding | 222,109 | 28.3% |
+| Professional & Administrative Services | 108,576 | 13.8% |
+| Equipment Rental & Leasing | 86,156 | 11.0% |
+| Office, Print & Marketing | 62,319 | 7.9% |
+| Facilities Operations & Maintenance | 54,899 | 7.0% |
+| IT, Telecom & Audio/Visual | 51,744 | 6.6% |
+| Vehicles & Fleet | 47,858 | 6.1% |
+| Construction Materials | 29,466 | 3.8% |
+| Janitorial, Sanitation & Waste | 23,903 | 3.0% |
+| Landscaping, Grounds & Irrigation | 23,789 | 3.0% |
+| Public Safety, Uniforms & PPE | 19,257 | 2.5% |
+| Construction & Trades Services | 15,136 | 1.9% |
+| Medical & Health Services | 12,784 | 1.6% |
+| Heavy Equipment & Machinery | 12,166 | 1.6% |
+| Chemicals & Water Treatment | 6,093 | 0.8% |
+| Animal Care & Veterinary | 4,847 | 0.6% |
+| Furniture & Furnishings | 2,488 | 0.3% |
+| Unclassified — No Description | 966 | 0.1% |
+| **Total** | **784,556** | **100.0%** |
+
+**On the trade-off implicit in this state:** The 0.0% review queue is not the same statement as 0.0% misclassification risk. Tier 3 rows carry an `AI-medium` or `AI-low` confidence tag and were classified by AI proposal rather than deterministic rule. The `Classification_Confidence` field on every row exposes this transparently, so leadership and auditors can filter by tier when accuracy concerns warrant it. The choice to fill rather than queue was an explicit leadership directive to prefer 100% mapping with confidence tagging over a queue that would never realistically be triaged at 140,000-row volume.
 
 ---
 
@@ -262,11 +271,11 @@ The classified dataset is delivered as a **lean ~16-column file** rather than pr
 
 Output columns: `Transaction_ID`, `Date`, `Department`, `Vendor` (preserved for human readability only — not a classifier input), `Description_Best`, `Amount`, `Business_Category`, `NIGP_Class_3digit`, `NIGP_Item_5digit`, `NIGP_Code_Assigned`, `NIGP_Match_Level`, `Classification_Confidence`, `Confidence_Score`, `Classification_Method`, `Review_Flag`, `Classification_Reason`.
 
-Three artifact files are produced on every batch run:
+Two primary artifact files are produced on every batch run plus one diagnostic:
 
-1. **`classified_full_JHK3.csv`** — every row with its full classification.
-2. **`classified_review_JHK3.csv`** — review-flagged subset for staff triage.
-3. **`classifier_coverage_report_JHK3.csv`** — diagnostic report of which rules fired how many times, used to identify rule gaps.
+1. **`outputs/NIGP_Mapping_JHK3.csv`** — the deliverable. Every row with its full classification, post-resolver. ~225 MB; gitignored.
+2. **`outputs/NIGP_Mapping_Review_Queue_JHK3.csv`** — subset of `Review_Flag = "Yes"` rows. As of 2026-05-14 this file is effectively empty (0 rows); retained in the output schema for forward compatibility if future rule changes reintroduce a review tier.
+3. **`spend-analysis/data/processed/classifier_coverage_report_JHK3.csv`** — diagnostic report of which rules fired how many times, used to identify rule gaps.
 
 ---
 
@@ -292,7 +301,7 @@ This is the foundation for future integration with Chicago's DPS PO-creation wor
 1. **Single-source dataset.** The taxonomy was derived from one consulting deliverable. New Chicago extracts may reveal commodity types not represented in the EY file.
 2. **Time-agnostic by design.** The classifier does not consider transaction date when classifying. Year-over-year spend changes (commodity inflation, contract restructuring, departmental reorganizations) do not affect classification consistency.
 3. **No vendor signal.** Per the locked design decision, vendor name is not used as a classification input. This is by choice — the classification should reflect what was bought, not who sold it. Procurement staff who want vendor-based views can produce those separately from the classified output.
-4. **Description quality dependent.** The classifier's accuracy is bounded by description quality. Thin descriptions ("Misc supplies") legitimately cannot be classified from text alone and are correctly routed to human review rather than guessed.
+4. **Description quality dependent.** The classifier's accuracy is bounded by description quality. Thin but non-empty descriptions ("Misc supplies", "Per contract") that recurred in the source file received an AI proposal during the 2026-04-30 mining run and are now resolved at Tier 3 with an explicit `AI-low` or `AI-medium` confidence tag — leadership and auditors can filter on that tag where accuracy concerns warrant it. Rows with no usable description across any of the four description fields are tagged `Unclassified — No Description` (Tier 4) rather than being assigned a category, because the data itself provides nothing to classify.
 5. **NIGP working set is partial.** The 138 classes derived from the EY file are a subset of the full NIGP catalog (which covers thousands of codes). Future work should consider licensing a full NIGP catalog from Periscope Holdings or sourcing a comparable public alternative.
 
 ---
@@ -300,11 +309,11 @@ This is the foundation for future integration with Chicago's DPS PO-creation wor
 ## 11. Governance and Future Maintenance Recommendations
 
 1. **Annual taxonomy review.** Procurement leadership should review the 17 Business Categories annually for continued fitness with reporting needs. Edits are made directly in `business_categories_JHK3.csv`.
-2. **Rule-file ownership.** Designate a procurement analyst as owner of `keyword_rules_DRAFT_JHK3.csv`. New rules can be added as new commodity types appear; outdated rules can be retired.
-3. **Review queue triage cadence.** The review-flagged subset should be triaged on a monthly or quarterly cadence. Triaged decisions are converted into new rules, shrinking the review queue over time.
+2. **Rule-file ownership.** Designate a procurement analyst as owner of `keyword_rules_DRAFT_JHK3.csv`. New rules can be added as new commodity types appear; outdated rules can be retired. Curated-rule count has grown from 148 (2026-04-30) to 246 (2026-05-14) on this principle.
+3. **AI-assist tier audit cadence (replaces review-queue triage).** With zero rows in the terminal review queue, staff time is redirected to confidence-tier auditing. On a monthly or quarterly cadence, sample rows where `Classification_Method = "ai_assist"` and `Classification_Confidence = AI-medium | AI-low`. For descriptions that recur in volume and the AI tier got right, promote the pattern into the curated rule file (Tier 1) so the next batch run no longer depends on AI-assist. This is the new mechanism by which the rule base grows.
 4. **Single-record feedback loop.** When the planned DPS integration is built, analyst overrides of the classifier's single-record proposals become candidate rule data. Over time, the rule base grows and the classifier gets more accurate without re-running AI.
 5. **NIGP catalog expansion.** Consider procuring a Periscope NIGP license or comparable subscription. This expands the working catalog from ~138 codes to the full ~9,000-code NIGP standard.
-6. **Independent audit benchmark.** Once each year, sample 100 classified rows at random and have a procurement analyst independently classify them blind. Compare against the classifier's output. Track the agreement rate over time.
+6. **Independent audit benchmark.** Once each year, sample 100 classified rows at random and have a procurement analyst independently classify them blind. Compare against the classifier's output. Track the agreement rate over time. Stratify the sample across tiers (e.g., 25 keyword-rule rows, 25 account-pattern rows, 25 AI-medium, 25 AI-low) so the audit reads agreement separately by tier rather than as a single blended number.
 
 ---
 
@@ -313,25 +322,38 @@ This is the foundation for future integration with Chicago's DPS PO-creation wor
 **Repository layout:**
 
 ```
-spend-analysis/
-├── data/
-│   ├── raw/ey raw data.xlsx                     # untouched source
-│   ├── reference/                               # editable rule files
-│   │   ├── nigp_codes_3digit_JHK3.csv
-│   │   ├── nigp_codes_5digit_JHK3.csv
-│   │   ├── nigp_codes_10digit_JHK3.csv
-│   │   ├── business_categories_JHK3.csv
-│   │   ├── keyword_rules_DRAFT_JHK3.csv         # hand-curated
-│   │   ├── keyword_rules_from_ai_JHK3.csv       # AI-mined (auditable)
-│   │   └── account_patterns_DRAFT_JHK3.csv
-│   └── processed/
-│       ├── classified_full_JHK3.csv             # the deliverable
-│       ├── classified_review_JHK3.csv
-│       └── classifier_coverage_report_JHK3.csv
-└── scripts/
-    ├── classifier_JHK3.py                       # production classifier
-    ├── build_*.py                               # rule and reference builders
-    └── ai_classify_JHK3.py                      # one-time AI mining (not run in production)
+Procurement-ai-tools/
+├── outputs/                                         # leadership-facing deliverables
+│   ├── NIGP_Mapping_JHK3.csv                        # full classified file, post-resolver (gitignored)
+│   ├── NIGP_Mapping_Review_Queue_JHK3.csv           # 0 rows after 2026-05-14 (gitignored)
+│   ├── NIGP_Summary_for_Leadership_JHK3.xlsx
+│   ├── NIGP_Executive_Brief_JHK3.docx
+│   ├── NIGP_Methodology_for_Leadership_JHK3.docx
+│   └── NIGP_SOP_JHK3.docx
+└── spend-analysis/
+    ├── data/
+    │   ├── raw/ey raw data.xlsx                     # untouched source
+    │   ├── reference/                               # editable rule files
+    │   │   ├── nigp_codes_3digit_JHK3.csv
+    │   │   ├── nigp_codes_5digit_JHK3.csv
+    │   │   ├── nigp_codes_10digit_JHK3.csv
+    │   │   ├── business_categories_JHK3.csv
+    │   │   ├── keyword_rules_DRAFT_JHK3.csv         # 246 hand-curated
+    │   │   ├── keyword_rules_from_ai_JHK3.csv       # 6,766 AI-mined (auditable)
+    │   │   └── account_patterns_DRAFT_JHK3.csv
+    │   └── processed/
+    │       ├── ai_classified_unique_descriptions_JHK3.csv   # 30,342-row saved AI mining output (resolver source)
+    │       └── classifier_coverage_report_JHK3.csv
+    └── scripts/
+        ├── classifier_JHK3.py                       # production classifier (rules + account patterns)
+        ├── resolve_review_queue_JHK3.py             # AI-assist resolver (Tier 3, no API call)
+        ├── ai_topup_uncovered_JHK3.py               # targeted AI top-up (held in reserve, requires API key)
+        ├── audit_classifier_coverage_JHK3.py        # 63-phrase plain-English regression test
+        ├── fix_ai_rule_category_mismatches_JHK3.py  # idempotent integrity fix
+        ├── build_leadership_deliverables_JHK3.py    # regenerates .docx / .xlsx artifacts
+        ├── build_sop_JHK3.py                        # regenerates the SOP .docx
+        ├── build_*.py                               # rule and reference builders
+        └── ai_classify_JHK3.py                      # one-time AI mining (not run in production)
 ```
 
 **Runtime dependencies:** Python 3.x, pandas, pyarrow. Standard open-source. Runs on any laptop or City workstation with no special hardware or network access.
@@ -369,7 +391,7 @@ For audit traceability, the following design decisions were made during taxonomy
 | # | Decision | Rationale |
 |---|----------|-----------|
 | 1 | Three-level taxonomy on every row: Business Category → NIGP Class → NIGP Item | Serves both executive dashboards (Business Category) and sourcing/audit needs (NIGP codes) |
-| 2 | AI assist allowed once during build, with strict guardrails | Rules-only would leave a 20-40% review pile; bounded one-time AI use shrinks it while remaining defensible |
+| 2 | AI assist allowed once during build, with strict guardrails. The single 2026-04-30 mining output is consumed in two paths at build/fill time: (a) high-confidence proposals promoted into the rule file, (b) saved CSV consulted by the post-classifier resolver for any row that no rule or account pattern caught. No runtime API call in either path. | Rules-only alone left a 17.8% review pile that would never be triaged at 140K-row volume; the resolver consumes more of the same paid-for AI output as a fallback layer. Lock preserved: production is rules-only at runtime, no API key required to classify. |
 | 3 | Classifier inputs: description text + Chicago FMPS account/object/fund codes only. Vendor and EY-supplied NIGP codes are NOT inputs | Chicago must own its own classification; vendor isn't a reliable signal; EY codes are another consultant's work product |
 | 4 | Lean ~16-column output instead of preserving all 87 raw columns | Raw file preserved separately; downstream analysis doesn't need 87 columns |
 | 5 | Dual-mode classifier (batch + single-record), same core function | Future-state: procurement analysts paste PO descriptions into a tool, get instant category + confidence |

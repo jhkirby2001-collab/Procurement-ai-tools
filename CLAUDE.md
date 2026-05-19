@@ -4,7 +4,7 @@ This repo is the home of the **NIGP-Sourced Procurement Category Mapper**, an in
 
 **Owner:** James H. Kirby III, CSCP, MS-SCM (jhkirby2001@yahoo.com)
 **Output naming convention:** `_JHK3` suffix on every deliverable file
-**Status:** Production. Latest commit `c2f2140` on `origin/main`. Repo is PUBLIC.
+**Status:** Production. Latest commit `1cd1940` on `origin/main`. Repo is PUBLIC.
 
 ---
 
@@ -16,17 +16,19 @@ Classifies 784,556 historical public-sector procurement rows into a three-level 
 
 Inputs to the classifier: description text + Chicago FMPS account/object/fund codes ONLY. Vendor names and any EY-supplied NIGP codes are NOT inputs.
 
-**Production batch metrics (post-fix, 2026-05-06):**
-- Auto-classified: 681,804 (86.9%)
-- Review_Flag=Yes: 136,149 (17.4%)
-- ~14,200 rows reassigned vs prior batch after the 569 AI-rule category fix
+**Production batch metrics (post-resolver, 2026-05-14):** 100% mapped, 0 rows in review queue. Coverage breakdown:
+- Tier 1 — Keyword rule (246 curated + 6,766 AI-mined): 688,044 (87.7%)
+- Tier 2 — Chicago FMPS account-code pattern: 2,028 (0.3%)
+- Tier 3 — AI-assist resolver (saved one-time AI output, no new API call): 93,518 (11.9%)
+- Tier 4 — Unclassified — No Description (no usable text in any of 4 fields): 966 (0.1%)
+- Review_Flag=Yes (terminal review queue): 0 (0.0%)
 
 ---
 
 ## Key paths
 
 **Rule files (procurement-staff editable, version-controlled):**
-- `spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv` — 148 hand-curated rules (edit these freely)
+- `spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv` — 246 hand-curated rules (edit these freely)
 - `spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv` — 6,766 AI-mined rules (frozen — do not regenerate)
 - `spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv` — 6 subgrant account patterns
 - `spend-analysis/data/reference/business_categories_JHK3.csv` — canonical 138-row NIGP-class → Business-Category map
@@ -34,22 +36,27 @@ Inputs to the classifier: description text + Chicago FMPS account/object/fund co
 - `spend-analysis/data/reference/nigp_codes_{3,5,10}digit_JHK3.csv` — NIGP code reference tables
 
 **Production scripts:**
-- `spend-analysis/scripts/classifier_JHK3.py` — production classifier, dual-mode (batch + single-record)
+- `spend-analysis/scripts/classifier_JHK3.py` — production classifier, dual-mode (batch + single-record), runs Tier 1 + Tier 2
+- `spend-analysis/scripts/resolve_review_queue_JHK3.py` — Tier 3 AI-assist resolver (reads saved AI output, no new API call)
 - `spend-analysis/scripts/build_leadership_deliverables_JHK3.py` — regenerates Word/Excel summaries
+- `spend-analysis/scripts/build_sop_JHK3.py` — regenerates the SOP .docx
 - `spend-analysis/scripts/audit_classifier_coverage_JHK3.py` — 63-phrase plain-English regression test
 - `spend-analysis/scripts/fix_ai_rule_category_mismatches_JHK3.py` — idempotent integrity fix
+- `spend-analysis/scripts/ai_topup_uncovered_JHK3.py` — targeted AI top-up (held in reserve, requires API key — not part of standard runtime)
 - `spend-analysis/scripts/ai_classify_JHK3.py` — AI mining (BUILD-TIME ONLY — do not re-run, see below)
 
 **Deliverables:**
-- `outputs/NIGP_Mapping_JHK3.csv` — full 784,556-row classified file (~225 MB, GITIGNORED)
-- `outputs/NIGP_Mapping_Review_Queue_JHK3.csv` — review queue subset (GITIGNORED)
+- `outputs/NIGP_Mapping_JHK3.csv` — full 784,556-row classified file, post-resolver (~225 MB, GITIGNORED)
+- `outputs/NIGP_Mapping_Review_Queue_JHK3.csv` — empty since 2026-05-14 resolver pass (0 rows); retained for schema-forward-compat (GITIGNORED)
 - `outputs/NIGP_Summary_for_Leadership_JHK3.xlsx` — single-tab Excel summary
 - `outputs/NIGP_Executive_Brief_JHK3.docx` — 2-page Word brief
 - `outputs/NIGP_Methodology_for_Leadership_JHK3.docx` — full methodology, leadership-formatted
+- `outputs/NIGP_SOP_JHK3.docx` — Standard Operating Procedure (Operations / Data Processing / Taxonomy Governance)
 - `outputs/HOW_TO_USE_NIGP_Mapping_JHK3.md` — staff-facing usage guide
+- `outputs/NIGP_Web_App_Factsheet_JHK3.md` — short Layer-1 factual brief about the web app
 
 **Documentation:**
-- `spend-analysis/METHODOLOGY_JHK3.md` v1.1 — canonical methodology narrative (read before debating rationale or AI defensibility)
+- `spend-analysis/METHODOLOGY_JHK3.md` v1.2 — canonical methodology narrative (read before debating rationale or AI defensibility)
 - `NIGP_PROJECT_INDEX.md` — repo index
 - `README.md` — public-facing readme
 

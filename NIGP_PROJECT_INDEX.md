@@ -2,9 +2,9 @@
 
 A clickable map of every file in this project. Click any filename below to jump directly to that file. Files are grouped by purpose, not by folder location.
 
-**Project status:** COMPLETE (production run finalized 30 April 2026). Methodology version 1.1.
+**Project status:** COMPLETE (production run finalized 30 April 2026, refreshed 14 May 2026 with 4-tier coverage). Methodology version 1.2.
 
-**One-line summary:** A reusable, NIGP-sourced commodity taxonomy and classification engine — validated on a 784,556-row public-sector procurement dataset (AP activity years 2017, 2020, 2021, 2023), with 86.4% auto-classified by deterministic rule, 17.8% routed to a human review queue, end-to-end runtime 14 minutes 37 seconds.
+**One-line summary:** A reusable, NIGP-sourced commodity taxonomy and classification engine — validated on a 784,556-row public-sector procurement dataset (AP activity years 2017, 2020, 2021, 2023). All rows mapped to a Business Category across four deterministic tiers: 87.7% by curated/AI-mined keyword rule, 11.9% by AI-assist resolver (saved one-time AI output — no new API call), 0.3% by Chicago FMPS account-code pattern, 0.1% explicitly tagged "Unclassified — No Description." Zero rows in the review queue. End-to-end runtime ~15 minutes + ~5 seconds for the resolver pass.
 
 ---
 
@@ -36,13 +36,15 @@ These two files are produced by running the classifier. They are NOT in git (too
 
 | File | What it is | Status |
 |---|---|---|
-| `outputs/NIGP_Mapping_JHK3.csv` | 784,556 rows, every record with its three-level classification, confidence score, and reason. **225 MB.** | On disk — regenerable |
-| `outputs/NIGP_Mapping_Review_Queue_JHK3.csv` | 139,868 review-flagged rows for procurement-staff triage. **30 MB.** | On disk — regenerable |
+| `outputs/NIGP_Mapping_JHK3.csv` | 784,556 rows, every record with its three-level classification, confidence score, tier label, and reason. Post-resolver, 100% mapped. **225 MB.** | On disk — regenerable |
+| `outputs/NIGP_Mapping_Review_Queue_JHK3.csv` | Subset of `Review_Flag=Yes` rows. **0 rows since the 2026-05-14 resolver pass.** Retained in schema for forward-compatibility. | On disk — regenerable |
 
 If either is ever lost, regenerate by running:
 ```
 python spend-analysis/scripts/classifier_JHK3.py --batch
+python spend-analysis/scripts/resolve_review_queue_JHK3.py
 ```
+(The second step is the Tier 3 AI-assist resolver — no new API call, reads the saved 2026-04-30 AI mining output.)
 
 ---
 
@@ -52,8 +54,8 @@ These CSVs are the source-of-truth for every classification decision. Edit them 
 
 | File | What it is |
 |---|---|
-| [spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv](spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv) | 148 hand-curated keyword rules. The highest-volume hitters. |
-| [spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv](spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv) | 6,766 AI-mined long-tail rules with full provenance metadata in each row. Frozen — not consulted at runtime. |
+| [spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv](spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv) | 246 hand-curated keyword rules. The highest-volume hitters. |
+| [spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv](spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv) | 6,766 AI-mined long-tail rules with full provenance metadata in each row. Frozen. Consulted at Tier 1 of the classifier alongside the curated rules. |
 | [spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv](spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv) | Six FMPS account-code patterns (the 220xxx subgrant series). |
 | [spend-analysis/data/reference/business_categories_JHK3.csv](spend-analysis/data/reference/business_categories_JHK3.csv) | Mapping from NIGP 3-digit Class to one of the 17 Business Categories — with judgment notes. |
 | [spend-analysis/data/reference/business_categories_summary_JHK3.csv](spend-analysis/data/reference/business_categories_summary_JHK3.csv) | 17-row summary of the Business Category structure with definitions. |
@@ -76,9 +78,10 @@ The NIGP commodity-code lookup tables. These rarely change.
 
 | File | What it is |
 |---|---|
-| [spend-analysis/scripts/classifier_JHK3.py](spend-analysis/scripts/classifier_JHK3.py) | The production classifier. Rules-only at runtime — no API key needed. Supports two modes: `--batch` (whole file) and `--describe "text"` (single record). |
+| [spend-analysis/scripts/classifier_JHK3.py](spend-analysis/scripts/classifier_JHK3.py) | The production classifier (Tier 1 keyword rules + Tier 2 account patterns). Rules-only at runtime — no API key needed. Supports two modes: `--batch` (whole file) and `--describe "text"` (single record). |
+| [spend-analysis/scripts/resolve_review_queue_JHK3.py](spend-analysis/scripts/resolve_review_queue_JHK3.py) | The Tier 3 AI-assist resolver. Runs after `--batch` and fills any unmatched rows from the saved 2026-04-30 AI mining output. No new API call. Also tags the 0.1% of rows with no usable description as Tier 4 "Unclassified — No Description." |
 
-**To run a full batch:** `python spend-analysis/scripts/classifier_JHK3.py --batch`
+**To run a full batch:** `python spend-analysis/scripts/classifier_JHK3.py --batch` (then optionally `python spend-analysis/scripts/resolve_review_queue_JHK3.py` for Tier 3 + Tier 4 fill)
 **To classify one description:** `python spend-analysis/scripts/classifier_JHK3.py --describe "your description here"`
 
 ---
@@ -141,4 +144,4 @@ For clarity — these files exist in this repo but are unrelated to the NIGP pro
 
 ---
 
-*Index maintained by James H. Kirby III, CSCP, MS-SCM. Last updated 1 May 2026.*
+*Index maintained by James H. Kirby III, CSCP, MS-SCM. Last updated 19 May 2026 with 4-tier coverage results.*

@@ -5,7 +5,8 @@ Multi-page browser app wrapping classifier_JHK3.py. Authorized users
 sign in once, then navigate via the sidebar between:
   - Classify (single description + recent-history list)
   - Bulk Classify (paste-many or CSV upload, downloadable result)
-  - Methodology (plain-language overview + "human review queue" explainer)
+  - Procurement Taxonomy Logic (three-tier hierarchy explainer)
+  - Methodology (4-tier classifier model + confidence-badge teaching)
   - Business Categories (the 17-category reference)
   - Rule Lookup (search the curated + AI-mined rule catalog)
 
@@ -225,8 +226,8 @@ def classify_with_history(description: str) -> dict:
 def render_result_box(d: dict) -> None:
     if d["Review_Flag"] == "Yes" and d["Business_Category"] == "":
         badge_color = CHI_RED
-        badge_text = "NO MATCH — HUMAN REVIEW"
-        category_display = "Sent to human-review queue"
+        badge_text = "NO RULE MATCHED"
+        category_display = "Add a rule for this description"
     elif d["Review_Flag"] == "Yes":
         badge_color = CHI_RED
         badge_text = "REVIEW RECOMMENDED"
@@ -277,8 +278,9 @@ def render_result_box(d: dict) -> None:
         nigp_line_html = (
             f"<div style='color:{CHI_GRAY}; font-size:13px; font-style:italic; "
             f"margin-top:8px;'>"
-            f"NIGP Code:  <em>none assigned</em> — no rule fired, sent to "
-            f"human-review queue for triage."
+            f"NIGP Code:  <em>none assigned</em> — no curated or AI-mined rule fired. "
+            f"Add a rule for this description in <code>keyword_rules_DRAFT_JHK3.csv</code> "
+            f"to teach the classifier."
             f"</div>"
         )
 
@@ -498,13 +500,96 @@ def page_methodology() -> None:
         "- **Rule Lookup** — search the rule catalog by keyword to see why a description routed where it did."
     )
 
+    st.subheader("How the 4-tier classifier model works")
+    st.markdown(
+        "The classifier validated against the 784,556-row historical dataset achieves **100% "
+        "coverage — every row carries a Business Category, zero rows in a review queue.** It "
+        "gets there through four deterministic tiers. Each row is resolved by exactly one tier, "
+        "and the tier is recorded on the row so any classification can be filtered, audited, "
+        "or traced back to its source."
+    )
+    st.markdown(
+        f"""
+        <div style="margin: 18px 0;">
+          <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="background:{CHI_NAVY}; color:white;">
+                <th style="padding:8px 10px; text-align:left;">Tier</th>
+                <th style="padding:8px 10px; text-align:left;">Method</th>
+                <th style="padding:8px 10px; text-align:right;">Rows</th>
+                <th style="padding:8px 10px; text-align:right;">Share</th>
+                <th style="padding:8px 10px; text-align:left;">What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="background:{CHI_LT_BLUE};">
+                <td style="padding:8px 10px;"><strong>1</strong></td>
+                <td style="padding:8px 10px;">Keyword rule</td>
+                <td style="padding:8px 10px; text-align:right;">688,044</td>
+                <td style="padding:8px 10px; text-align:right;"><strong>87.7%</strong></td>
+                <td style="padding:8px 10px;">246 curated + 6,766 AI-mined rules match the description text. Strongest evidence.</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 10px;"><strong>2</strong></td>
+                <td style="padding:8px 10px;">Account-code pattern</td>
+                <td style="padding:8px 10px; text-align:right;">2,028</td>
+                <td style="padding:8px 10px; text-align:right;"><strong>0.3%</strong></td>
+                <td style="padding:8px 10px;">No keyword rule fired. Chicago FMPS account code (e.g., the 220xxx subgrant accounts) resolves it.</td>
+              </tr>
+              <tr style="background:{CHI_LT_BLUE};">
+                <td style="padding:8px 10px;"><strong>3</strong></td>
+                <td style="padding:8px 10px;">AI-assist resolver</td>
+                <td style="padding:8px 10px; text-align:right;">93,518</td>
+                <td style="padding:8px 10px; text-align:right;"><strong>11.9%</strong></td>
+                <td style="padding:8px 10px;">No rule or account match. Resolver looks up the description in the saved 2026-04-30 AI mining output and applies the model's category. <strong>No new API call.</strong> Tagged <code>AI-high</code>, <code>AI-medium</code>, or <code>AI-low</code>.</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 10px;"><strong>4</strong></td>
+                <td style="padding:8px 10px;">Unclassified — No Description</td>
+                <td style="padding:8px 10px; text-align:right;">966</td>
+                <td style="padding:8px 10px; text-align:right;"><strong>0.1%</strong></td>
+                <td style="padding:8px 10px;">No usable text in any of the four description fields. Explicitly tagged rather than silently dropped.</td>
+              </tr>
+              <tr style="background:{CHI_NAVY}; color:white; font-weight:600;">
+                <td style="padding:8px 10px;">—</td>
+                <td style="padding:8px 10px;">Total mapped</td>
+                <td style="padding:8px 10px; text-align:right;">784,556</td>
+                <td style="padding:8px 10px; text-align:right;">100.0%</td>
+                <td style="padding:8px 10px;">Zero rows in the review queue.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "**Single-record vs. batch:** This live tool runs **Tier 1 + Tier 2 only** for the "
+        "description you paste — it does not call the resolver or any AI. The 11.9% AI-assist "
+        "tier was applied once to the historical 784K dataset and is preserved in the "
+        "deliverable file. If a live description doesn't match any rule, the result box says "
+        "*NO RULE MATCHED* and points you to the curated rule file — the right next action "
+        "is to add a rule, not to wait on AI."
+    )
+    st.markdown(
+        f"<div style='color:{CHI_RED}; font-style:italic; font-size:14px;'>"
+        "Note on transparency: 100% mapped is not the same statement as 0% misclassification "
+        "risk. Tier 3 rows carry an <code>AI-medium</code> or <code>AI-low</code> confidence "
+        "tag. The <code>Classification_Confidence</code> field on every row exposes the tier — "
+        "leadership and auditors can filter or exclude any tier they choose."
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
     st.subheader("Reading a result")
     st.markdown(
-        "Each classification shows a confidence badge:\n"
+        "Each single-record classification shows a confidence badge:\n"
         "- **HIGH** — strong rule match, trust it.\n"
         "- **MEDIUM** — rule fired with caveats, spot-check.\n"
-        "- **REVIEW RECOMMENDED** — no confident match; the record is in the human-review queue. "
-        "The classifier never guesses."
+        "- **REVIEW RECOMMENDED** — a rule fired but is itself flagged for review.\n"
+        "- **NO RULE MATCHED** — no curated or AI-mined rule fired. The live tool does not "
+        "guess; the right action is to add a rule. (In the historical batch, the Tier 3 "
+        "resolver would have caught this from the saved AI output.)"
     )
 
     st.subheader("How the confidence badge is calculated")
@@ -522,14 +607,30 @@ def page_methodology() -> None:
         "plumbing class without pinning the exact item). The Business Category and 3-digit "
         "Class are reliable; the 5-digit Item is best-effort. Spot-check recommended for "
         "high-dollar transactions.\n"
-        "- **REVIEW RECOMMENDED** — No rule fired with sufficient specificity, OR the matching "
-        "rule is itself flagged for review. The classifier does **not** assign a guess. The row "
-        "is routed to the human-review queue and any NIGP code shown is provisional. This is "
-        "by design — the system never invents a code."
+        "- **AI-HIGH / AI-MEDIUM / AI-LOW** — In the historical batch file, rows that no "
+        "keyword rule matched were resolved by the AI-assist tier from the saved 2026-04-30 "
+        "mining output. The confidence sub-tier is the model's own self-rating. Filter on "
+        "these tags to audit AI-tier classifications. **No new API call is made.**\n"
+        "- **REVIEW RECOMMENDED / NO RULE MATCHED** — In the live tool, the matching rule was "
+        "flagged for review, or no rule fired at all. The classifier does **not** assign a "
+        "guess. The right next action is to add a rule to <code>keyword_rules_DRAFT_JHK3.csv</code>."
     )
     st.markdown(
-        "Every classification is auditable. The exact rule that fired is recorded on every row, "
-        "so any NIGP code can be traced back to the rule that produced it."
+        "Every classification is auditable. The exact rule that fired (or the resolver "
+        "lookup that filled it) is recorded on every row, so any NIGP code can be traced "
+        "back to its source."
+    )
+
+    st.subheader("Audit cadence (what changed in May 2026)")
+    st.markdown(
+        "Through 2026-04-30 the classifier produced a 17.8% review queue — rows flagged "
+        "for procurement-staff triage. The 2026-05-14 refresh eliminated that queue by "
+        "(a) adding 98 curated rules, (b) deploying the Tier 3 AI-assist resolver to "
+        "consume the latent medium/low confidence AI proposals at fill time, and "
+        "(c) explicitly tagging the 966 no-description rows rather than silently dropping "
+        "them. Staff time is now spent **auditing the Tier 3 tier** and promoting recurring "
+        "high-quality AI-assist matches into the curated rule file — the rule base grows; "
+        "Tier 3 shrinks over time."
     )
 
     st.subheader("Need help?")

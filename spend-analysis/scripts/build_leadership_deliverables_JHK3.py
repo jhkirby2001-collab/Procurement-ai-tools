@@ -726,11 +726,11 @@ def build_methodology():
 
     # ---- 1. Project Objective ----
     add_h1(doc, "1.  Project Objective")
-    add_body(doc, "Build a transparent, accuracy-first classification engine that:")
+    add_body(doc, "Build a transparent, tier-labeled classification engine that:")
     add_bullet(doc, "the public-standard NIGP commodity framework, for inter-agency comparability and audit defensibility.", bold_lead="Uses")
     add_bullet(doc, "a Chicago-specific Business Category rollup on top, designed for leadership reporting.", bold_lead="Layers")
     add_bullet(doc, "in two modes — bulk historical files, and single-record live PO work.", bold_lead="Operates")
-    add_bullet(doc, "accuracy over auto-coding. Records the engine cannot classify with confidence are flagged for human review rather than guessed.", bold_lead="Prioritizes")
+    add_bullet(doc, "transparency over a single \"auto-classified\" headline. Every row carries an explicit tier-source label, so leadership and auditors can filter by deterministic-rule, account-pattern, or AI-assist tier rather than reading one blended accuracy number.", bold_lead="Prioritizes")
     add_bullet(doc, "fully repeatable on future raw extracts. Rule files are CSVs; procurement staff own them.", bold_lead="Is")
 
     # ---- 2. Source Data ----
@@ -800,20 +800,25 @@ def build_methodology():
 
     # ---- 5. Decision Pipeline ----
     add_h1(doc, "5.  How a Single Record Is Classified")
-    add_body(doc, "The classifier evaluates each record through a deterministic three-step pipeline. The first rule that fires assigns the classification — subsequent rules don't run for that record. This produces a clean audit trail.")
+    add_body(doc, "The classifier evaluates each record through a deterministic four-tier pipeline. The first tier that fires assigns the classification — subsequent tiers don't run for that record. This produces a clean audit trail: every classified row carries the exact source that drove the decision.")
 
-    add_h2(doc, "Step 1 — Keyword rules on description text")
-    add_bullet(doc, "148 hand-curated rules drafted by procurement leadership.")
+    add_h2(doc, "Tier 1 — Keyword rules on description text")
+    add_bullet(doc, "246 hand-curated rules drafted by procurement leadership.")
     add_bullet(doc, "6,766 AI-mined rules harvested once during the build (more on AI use in Section 6).")
     add_bullet(doc, "Match types: exact (full string), starts-with (prefix), contains (substring). Priority: exact > starts-with > contains. First match wins.")
 
-    add_h2(doc, "Step 2 — Account-code patterns (only if Step 1 didn't fire)")
+    add_h2(doc, "Tier 2 — Account-code patterns (only if Tier 1 didn't fire)")
     add_bullet(doc, "Maps Chicago FMPS account codes to (Business Category, NIGP Class).")
     add_bullet(doc, "Most consequential rule: the 220xxx subgrant-disbursement account series. Empirical analysis confirmed these accounts are 93–100% used for subgrant disbursements regardless of description text quality.")
 
-    add_h2(doc, "Step 3 — Human review (only if Steps 1 and 2 didn't fire)")
-    add_bullet(doc, "Records that don't match any rule are flagged with `Classification_Method = human_review` and `Review_Flag = Yes`.")
-    add_bullet(doc, "These records enter the procurement-staff triage queue. They are not guessed.")
+    add_h2(doc, "Tier 3 — AI-assist resolver (only if Tiers 1 and 2 didn't fire)")
+    add_bullet(doc, "Looks up Description_Best in the saved 2026-04-30 AI mining output (30,342-row CSV) and applies the model's Business Category and NIGP class.")
+    add_bullet(doc, "No new API call. The classifier and resolver operate on saved files. The original AI charge of $27 has already been paid; this tier consumes more of the same output.")
+    add_bullet(doc, "Records are tagged Classification_Method = ai_assist and Classification_Confidence = AI-high / AI-medium / AI-low so leadership and auditors can filter by sub-tier.")
+
+    add_h2(doc, "Tier 4 — Unclassified — No Description (only if Tiers 1, 2, 3 didn't fire)")
+    add_bullet(doc, "Records with no usable description text in any of the four description fields. The data itself is the limitation, not the classifier.")
+    add_bullet(doc, "Explicitly tagged Business_Category = \"Unclassified — No Description\" rather than silently dropped. Downstream consumers can filter on this tag.")
 
     # ---- 6. AI Use ----
     add_h1(doc, "6.  Use of AI — Limited, Transparent, One-Time")
@@ -841,11 +846,12 @@ def build_methodology():
     add_bullet(doc, "6,766 AI-mined rules in the rule file + 93,518 rows filled at the AI-assist fallback layer from the same one-time AI output (no new API calls).", bold_lead="Net result:")
 
     add_h2(doc, "Why this AI use is defensible")
-    add_bullet(doc, "Production runs do not call AI. Once Chicago accepts the harvested rules, the AI dependency is severed.", bold_lead="One-time, not ongoing.")
+    add_bullet(doc, "Production runs do not call AI. The single 2026-04-30 mining run produced a CSV; every downstream consumption is a local file read. No API key, internet access, or per-classification charge is required at runtime.", bold_lead="One-time, not ongoing.")
     add_bullet(doc, "The AI cannot output codes outside the 17 categories and 138 classes Chicago's procurement leadership approved.", bold_lead="Bounded.")
-    add_bullet(doc, "Every AI-mined rule carries provenance metadata — model name, confidence level, source row count, and the model's reasoning.", bold_lead="Transparent.")
-    add_bullet(doc, "Procurement staff can edit, demote, or remove any AI-mined rule. AI rules have no special status — they're evaluated alongside hand-curated rules.", bold_lead="Reviewable.")
-    add_bullet(doc, "If Chicago later decides to remove all AI-mined content, the file can be deleted and the classifier still operates on hand-curated rules alone.", bold_lead="Replaceable.")
+    add_bullet(doc, "Every AI-mined rule and every AI-assist resolver assignment carries provenance metadata — model name, confidence level, source row count, and the model's reasoning.", bold_lead="Transparent.")
+    add_bullet(doc, "Procurement staff can edit, demote, or remove any AI-mined rule. AI rules have no special status — they're evaluated alongside hand-curated rules. AI-assist resolver assignments can be promoted into the curated rule file at any time.", bold_lead="Reviewable.")
+    add_bullet(doc, "If Chicago later decides to remove all AI-mined content, both the rule file and the resolver source CSV can be deleted. The classifier still operates on hand-curated rules + account patterns alone — coverage drops, but the system does not break.", bold_lead="Replaceable.")
+    add_bullet(doc, "AI-assist resolver assignments are tagged AI-high / AI-medium / AI-low in the output file. Leadership and auditors can filter or exclude any confidence tier they choose. The AI tier is not hidden inside a generic \"auto-classified\" bucket.", bold_lead="Confidence-labeled, not laundered.")
 
     # ---- 7. Production Results ----
     add_h1(doc, "7.  Production Run Results — 14 May 2026 (100% Mapped)")
@@ -921,17 +927,18 @@ def build_methodology():
     # ---- 8. Confidence ----
     add_h1(doc, "8.  Confidence and Audit Trail")
     add_body(doc, "Every classified record carries a confidence triple plus a reason — a complete decision record.")
-    add_bullet(doc, "exact (5-digit Class-Item assignable), broad (3-digit Class only), review (best broader category but flagged), or empty (no match — Grants category).", bold_lead="NIGP_Match_Level:")
-    add_bullet(doc, "High / Medium / Low — coarse-grained label.", bold_lead="Classification_Confidence:")
-    add_bullet(doc, "0.0 to 1.0 numeric value. Records with score < 0.75 are auto-flagged for review.", bold_lead="Confidence_Score:")
-    add_bullet(doc, "Records the exact rule pattern that fired and any notes — a complete audit trail end-to-end.", bold_lead="Classification_Reason:")
+    add_bullet(doc, "exact (5-digit Class-Item assignable), broad (3-digit Class only), review (best broader category but flagged), or empty (no match — Grants category, or no description).", bold_lead="NIGP_Match_Level:")
+    add_bullet(doc, "High / Medium / Low for keyword-rule rows; AI-high / AI-medium / AI-low for resolver-filled rows. The AI- prefix makes the AI tier filterable on every row.", bold_lead="Classification_Confidence:")
+    add_bullet(doc, "0.0 to 1.0 numeric value reflecting the rule or resolver match quality.", bold_lead="Confidence_Score:")
+    add_bullet(doc, "Records the exact rule pattern that fired (or the resolver lookup that filled it) — a complete audit trail end-to-end.", bold_lead="Classification_Reason:")
+    add_body(doc, "Through 2026-04-30, the classifier flagged any row scoring below 0.75 as Review_Flag = Yes, producing a 17.8% review queue. After the AI-assist resolver was added 2026-05-14, the field is preserved in the schema for backward compatibility and defaults to \"No\" — every row is mapped, including the 0.1% Unclassified — No Description residue.")
 
     # ---- 9. Output ----
     add_h1(doc, "9.  What Procurement Staff Receive")
-    add_h2(doc, "Three deliverable files, every batch run")
-    add_bullet(doc, "Every record with its full classification.", bold_lead="NIGP_Mapping_JHK3.csv:")
-    add_bullet(doc, "Review-flagged subset for staff triage.", bold_lead="NIGP_Mapping_Review_Queue_JHK3.csv:")
-    add_bullet(doc, "Diagnostic of which rules fired how many times — used to identify rule gaps.", bold_lead="classifier_coverage_report_JHK3.csv:")
+    add_h2(doc, "Two primary deliverable files plus one diagnostic, every batch run")
+    add_bullet(doc, "Every record with its full classification, post-resolver. 100% mapped.", bold_lead="outputs/NIGP_Mapping_JHK3.csv:")
+    add_bullet(doc, "Subset of Review_Flag = Yes rows. 0 rows since the 2026-05-14 resolver pass; retained in schema for forward compatibility.", bold_lead="outputs/NIGP_Mapping_Review_Queue_JHK3.csv:")
+    add_bullet(doc, "Diagnostic of which rules fired how many times — used to identify rule gaps.", bold_lead="data/processed/classifier_coverage_report_JHK3.csv:")
     add_h2(doc, "Lean output design")
     add_bullet(doc, "Output is ~16 columns, not all 87 raw columns. The original 87-column file is preserved untouched and can be joined back if a kitchen-sink view is needed for ad-hoc analysis.")
 
@@ -945,17 +952,17 @@ def build_methodology():
     add_bullet(doc, "Taxonomy was derived from one consulting deliverable. New extracts may reveal commodity types not represented in the EY file.", bold_lead="Single-source dataset.")
     add_bullet(doc, "The classifier ignores transaction date. Year-over-year inflation, contract restructuring, and reorganizations don't affect classification consistency.", bold_lead="Time-agnostic by design.")
     add_bullet(doc, "Classification reflects what was bought, not who sold it. Vendor-based views can be produced separately from the classified output.", bold_lead="No vendor signal.")
-    add_bullet(doc, "Thin descriptions (\"Misc supplies\") cannot be classified from text alone and are correctly routed to human review rather than guessed.", bold_lead="Description quality dependent.")
+    add_bullet(doc, "Thin but non-empty descriptions (\"Misc supplies\", \"Per contract\") that recurred in the source file received an AI proposal during the 2026-04-30 mining run and are now resolved at Tier 3 with an explicit AI-low or AI-medium tag — auditors can filter on that tag where accuracy concerns warrant it. Rows with no usable description across any of the four description fields are tagged \"Unclassified — No Description\" (Tier 4) rather than being assigned a category.", bold_lead="Description quality dependent.")
     add_bullet(doc, "The 138 NIGP classes derived from the EY file are a subset of the full ~9,000-code NIGP standard. Future work should consider licensing the full catalog from Periscope Holdings.", bold_lead="Working NIGP catalog is partial.")
 
     # ---- 12. Governance recommendations ----
     add_h1(doc, "12.  Governance and Maintenance Recommendations")
     add_bullet(doc, "Procurement leadership reviews the 17 Business Categories annually for continued fit with reporting needs.", bold_lead="Annual taxonomy review.")
-    add_bullet(doc, "Designate a procurement analyst as owner of `keyword_rules_DRAFT_JHK3.csv`. New rules added as new commodity types appear; outdated rules retired.", bold_lead="Rule-file ownership.")
-    add_bullet(doc, "Triage review-flagged subset on a monthly or quarterly cadence. Triaged decisions become new rules — the queue shrinks over time.", bold_lead="Review queue triage cadence.")
+    add_bullet(doc, "Designate a procurement analyst as owner of `keyword_rules_DRAFT_JHK3.csv`. New rules added as new commodity types appear; outdated rules retired. Curated-rule count has grown from 148 (2026-04-30) to 246 (2026-05-14) on this principle.", bold_lead="Rule-file ownership.")
+    add_bullet(doc, "With zero rows in the terminal review queue, staff time redirects to confidence-tier auditing. On a monthly or quarterly cadence, sample rows where Classification_Method = ai_assist and Classification_Confidence = AI-medium / AI-low. For descriptions that recur in volume and the AI tier got right, promote the pattern into the curated rule file (Tier 1). This is the new mechanism by which the rule base grows and Tier 3 shrinks over time.", bold_lead="AI-assist tier audit cadence.")
     add_bullet(doc, "When DPS integration is built, analyst overrides of single-record proposals become candidate rule data. Rule base grows; classifier improves without re-running AI.", bold_lead="Single-record feedback loop.")
     add_bullet(doc, "Expands the working catalog from 138 codes to the full ~9,000-code NIGP standard.", bold_lead="Consider procuring a Periscope NIGP license.")
-    add_bullet(doc, "Once a year, sample 100 classified rows at random; have a procurement analyst classify them blind. Track agreement rate over time.", bold_lead="Annual independent audit benchmark.")
+    add_bullet(doc, "Once a year, sample 100 classified rows at random; have a procurement analyst classify them blind. Stratify the sample across tiers (e.g., 25 keyword-rule, 25 account-pattern, 25 AI-medium, 25 AI-low) so the audit reads agreement separately by tier.", bold_lead="Annual stratified audit benchmark.")
 
     # ---- 13. Sources ----
     add_h1(doc, "13.  Sources and References")

@@ -1,7 +1,7 @@
 # How to Use the NIGP Mapping File
 
 **Prepared by:** James H. Kirby III, CSCP, MS-SCM
-**File version:** 2026-04-30
+**File version:** 2026-05-19 (refreshed with 4-tier coverage results)
 **Project:** NIGP-Sourced Procurement Category Mapper
 
 ---
@@ -31,8 +31,8 @@ This is an internally-owned commodity classification of historical procurement s
 | `NIGP_Match_Level` | `exact` (high specificity) / `broad` (3-digit class only) / `review` (low confidence) |
 | `Classification_Confidence` | High / Medium / Low |
 | `Confidence_Score` | 0.0 to 1.0 numeric confidence |
-| `Classification_Method` | `keyword_rule` / `account_pattern` / `human_review` |
-| `Review_Flag` | `Yes` if the row needs human eyes; `No` if confidently classified |
+| `Classification_Method` | `keyword_rule` / `account_pattern` / `ai_assist` / `no_description` (the four classification tiers) |
+| `Review_Flag` | Preserved in schema for compatibility. Defaults to `No` post-resolver — the terminal review queue was eliminated 2026-05-14. |
 | `Classification_Reason` | The exact rule that fired — full audit trail |
 
 ---
@@ -105,7 +105,14 @@ When a new procurement extract is produced (next quarter, next year):
    python /workspaces/Procurement-ai-tools/spend-analysis/scripts/classifier_JHK3.py --batch
    ```
 
-4. Wait ~15 minutes. New `NIGP_Mapping_JHK3.csv` and `NIGP_Mapping_Review_Queue_JHK3.csv` files appear in `outputs/`.
+4. Wait ~15 minutes. New `NIGP_Mapping_JHK3.csv` appears in `outputs/`.
+5. (Optional, ~5 seconds) Run the Tier 3 AI-assist resolver to fill any rows no keyword rule matched:
+
+   ```bash
+   python /workspaces/Procurement-ai-tools/spend-analysis/scripts/resolve_review_queue_JHK3.py
+   ```
+
+   The resolver reads the saved 2026-04-30 AI mining output — **no new API call**. After this step, 100% of rows carry a Business Category.
 
 ---
 
@@ -127,15 +134,18 @@ If you find a description that was categorized wrong, you can teach the classifi
 
 ---
 
-## When a row needs human eyes
+## How rows get classified — the four tiers
 
-If a row's `Review_Flag` is `Yes`, the classifier wasn't confident enough to commit. The companion file `NIGP_Mapping_Review_Queue_JHK3.csv` contains all 139,868 such rows. These are typically:
+Every row is classified by one of four deterministic tiers. The `Classification_Method` column tells you which tier handled the row:
 
-- Descriptions like "Misc supplies" or "Per contract" that don't say what was bought
-- New commodity types that no rule covers yet
-- Rows where the classifier matched a generic rule but the match is ambiguous
+| Tier | Method value | Rows | Share | What it means |
+|---|---|---:|---:|---|
+| 1 | `keyword_rule` | 688,044 | 87.7% | Description matched one of 246 curated rules or 6,766 AI-mined rules. Strongest evidence. |
+| 2 | `account_pattern` | 2,028 | 0.3% | Description was thin/ambiguous; Chicago FMPS account code (e.g., 220xxx subgrant accounts) resolved it. |
+| 3 | `ai_assist` | 93,518 | 11.9% | No keyword rule matched. Resolver looked up the description in the saved 2026-04-30 AI mining output and applied the model's category. **No new API call.** Confidence tag is `AI-high`, `AI-medium`, or `AI-low`. |
+| 4 | `no_description` | 966 | 0.1% | No usable description text in any of the four description fields. Explicitly tagged `Unclassified — No Description`. |
 
-Procurement staff should triage this file periodically. Each row a staff member resolves can be converted into a new keyword rule (see "How to fix a misclassification permanently" above), shrinking the review queue over time.
+`Review_Flag = "Yes"` no longer marks a terminal review queue — every row is mapped. Procurement-staff time is redirected from queue triage to **auditing the Tier 3 AI-assist tier** and promoting recurring high-quality AI-assist matches into the curated rule file (Tier 1) when patterns warrant it. Filter on `Classification_Confidence = AI-medium` or `AI-low` for the rows that benefit most from review.
 
 ---
 
@@ -143,8 +153,8 @@ Procurement staff should triage this file periodically. Each row a staff member 
 
 | File | What it is |
 |---|---|
-| `NIGP_Mapping_JHK3.csv` | The full classified dataset — the deliverable |
-| `NIGP_Mapping_Review_Queue_JHK3.csv` | The 139,868 rows needing human review |
+| `NIGP_Mapping_JHK3.csv` | The full classified dataset — the deliverable. 100% mapped post-resolver. |
+| `NIGP_Mapping_Review_Queue_JHK3.csv` | Subset of `Review_Flag=Yes` rows. **0 rows since 2026-05-14.** Retained for schema-forward compatibility. |
 | `HOW_TO_USE_NIGP_Mapping_JHK3.md` | This file |
 | `METHODOLOGY_JHK3.md` (in `spend-analysis/`) | Full methodology, audit narrative, locked decisions |
 | `business_categories_JHK3.csv` (in `spend-analysis/data/reference/`) | The 138-row NIGP-class to Business-Category mapping with judgment notes |
@@ -154,10 +164,10 @@ Procurement staff should triage this file periodically. Each row a staff member 
 
 ## Headline performance numbers
 
-- **86.4%** of the 784,556 historical rows auto-classified by deterministic rule
-- **17.8%** flagged for human review (Review_Flag = Yes)
-- **148** hand-curated rules + **6,766** AI-mined rules + **6** account-code patterns
-- **No AI is called at runtime.** The classifier is fully deterministic. AI was used once during build to mine long-tail patterns, then frozen.
+- **100% mapped.** All 784,556 historical rows carry a Business Category. **Zero rows in the review queue.**
+- **Coverage by tier:** 87.7% keyword rule • 0.3% account-code pattern • 11.9% AI-assist resolver • 0.1% Unclassified — No Description.
+- **246** hand-curated rules + **6,766** AI-mined rules + **6** account-code patterns + **1** resolver consuming the saved one-time AI mining output (30,342 rows).
+- **No AI is called at runtime.** Even the Tier 3 AI-assist resolver reads a saved CSV — the only AI charge was the one-time 2026-04-30 mining run.
 - **No vendor lock-in.** All rule files are CSVs that procurement staff can edit directly.
 
 ---
