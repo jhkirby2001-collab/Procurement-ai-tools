@@ -534,7 +534,7 @@ def page_methodology() -> None:
                 <td style="padding:8px 10px;">Account-code pattern</td>
                 <td style="padding:8px 10px; text-align:right;">2,028</td>
                 <td style="padding:8px 10px; text-align:right;"><strong>0.3%</strong></td>
-                <td style="padding:8px 10px;">No keyword rule fired. Chicago FMPS account code (e.g., the 220xxx subgrant accounts) resolves it.</td>
+                <td style="padding:8px 10px;">No keyword rule fired. A source-system account code (e.g., the subgrant-disbursement account series) resolves it.</td>
               </tr>
               <tr style="background:{CHI_LT_BLUE};">
                 <td style="padding:8px 10px;"><strong>3</strong></td>
@@ -616,7 +616,7 @@ def page_methodology() -> None:
         "same framework used by hundreds of U.S. state, county, and municipal governments "
         "for procurement classification, inter-agency benchmarking, and audit defensibility. "
         "The 138 classes, 470 5-digit items, and 4,592 10-digit codes used by this project "
-        "were extracted from the historical NIGP-tagged Chicago procurement catalog "
+        "were extracted from a real-world public-sector procurement transaction history "
         "<strong>**</strong> and validated against the public NIGP framework. **No code "
         "assigned by this classifier sits outside the NIGP standard.**",
         unsafe_allow_html=True,
@@ -631,9 +631,9 @@ def page_methodology() -> None:
         "The foundational public-standard taxonomy used across U.S. public-sector "
         "procurement.<br>"
         "<strong>**</strong> &nbsp; <strong>Project working catalog of NIGP codes</strong> "
-        "— derived from the historical NIGP-tagged Chicago procurement dataset (EY "
-        "consulting deliverable), validated against the public NIGP framework. Stored in "
-        "this repo as <code>nigp_codes_3digit_JHK3.csv</code> (138 classes), "
+        "— derived from a real-world public-sector procurement transaction history (23+ "
+        "years of historical AP activity), validated against the public NIGP framework. "
+        "Stored in this repo as <code>nigp_codes_3digit_JHK3.csv</code> (138 classes), "
         "<code>nigp_codes_5digit_JHK3.csv</code> (470 items), and "
         "<code>nigp_codes_10digit_JHK3.csv</code> (4,592 codes).<br>"
         "<strong>Hand-curated rules (246)</strong> — authored by James H. Kirby III, "
@@ -788,14 +788,15 @@ def page_taxonomy_logic() -> None:
         "1. **The public NIGP Commodity/Services Code framework <strong>*</strong>** — the "
         "inter-agency standard taxonomy maintained by NIGP, The Institute for Public "
         "Procurement. This is the same framework used by hundreds of U.S. state, county, and "
-        "municipal procurement offices. Aligning to NIGP gives Chicago peer benchmarking, "
+        "municipal procurement offices. Aligning to NIGP provides peer benchmarking, "
         "audit defensibility, and catalog portability.\n"
-        "2. **The historical Chicago procurement catalog <strong>**</strong>** — the actual "
-        "NIGP codes Chicago has historically used in its purchases were extracted from the "
-        "EY consulting deliverable's NIGP-tagged rows and validated against the public "
-        "framework. The working catalog used by this classifier (138 classes / 470 items / "
-        "4,592 codes) is the intersection: every code that appeared in Chicago's historical "
-        "procurement AND exists in the public NIGP framework.",
+        "2. **A real-world public-sector procurement transaction history "
+        "<strong>**</strong>** — the actual NIGP codes that appeared across 23+ years of "
+        "live municipal procurement activity were extracted from the source dataset and "
+        "validated against the public framework. The working catalog used by this "
+        "classifier (138 classes / 470 items / 4,592 codes) is the intersection: every "
+        "code that appeared in real-world purchasing AND exists in the public NIGP "
+        "framework.",
         unsafe_allow_html=True,
     )
     st.markdown(
@@ -816,9 +817,10 @@ def page_taxonomy_logic() -> None:
         "The foundational public-standard taxonomy used across U.S. public-sector "
         "procurement.<br>"
         "<strong>**</strong> &nbsp; <strong>Working catalog of NIGP codes used by this "
-        "project</strong> — extracted from the EY consulting deliverable's NIGP-tagged "
-        "historical Chicago procurement data, validated against the public NIGP framework. "
-        "Lives in this repo as <code>nigp_codes_3digit_JHK3.csv</code> (138 classes), "
+        "project</strong> — derived from a real-world public-sector procurement "
+        "transaction history (23+ years of historical AP activity), validated against "
+        "the public NIGP framework. Lives in this repo as "
+        "<code>nigp_codes_3digit_JHK3.csv</code> (138 classes), "
         "<code>nigp_codes_5digit_JHK3.csv</code> (470 items), "
         "<code>nigp_codes_10digit_JHK3.csv</code> (4,592 codes).<br>"
         "<strong>Future-state expansion</strong> — licensing the full ~9,000-code NIGP "
