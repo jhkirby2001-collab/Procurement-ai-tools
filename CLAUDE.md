@@ -126,16 +126,16 @@ streamlit run streamlit_app.py
 - Chicago Light Blue `#41B6E6` — h2, horizontal rules
 - Chicago Red `#DA291C` — TOTAL row, callout-box labels
 - Light blue tint `#D6EEF9` — table row banding, callout fills
-- Light red `#E57373` — Tier 3 provenance line emphasis (taxonomy visual)
+- Light red `#E57373` — Level 3 provenance line emphasis (taxonomy visual)
 
 ---
 
 ## Open items (resume from here)
 
-1. **Phase 2 — interactive three-tier drill-down.** The original feature ask. Blocked on data-architecture decision because the 225 MB classified CSV is gitignored and not on Streamlit Cloud. Three options:
-   - Option 1 (recommended, ~90 min): Pre-aggregate Tier 1+2 into small CSVs in git; convert main file to parquet (~30 MB) + DuckDB lazy queries for Tier 3.
-   - Option 2 (~45 min): Aggregations + sampled Tier 3 (top N per class). Loses full audit fidelity.
-   - Option 3 (~60 min): Build feature, gracefully degrade Tier 3 on Cloud when parquet missing.
+1. **Phase 2 — interactive three-level drill-down.** The original feature ask. (Note: "level" = taxonomy hierarchy Level 1 → 2 → 3; distinct from the 4-tier classification pipeline described in `METHODOLOGY_JHK3.md` §5.) Blocked on data-architecture decision because the 225 MB classified CSV is gitignored and not on Streamlit Cloud. Three options:
+   - Option 1 (recommended, ~90 min): Pre-aggregate Level 1+2 into small CSVs in git; convert main file to parquet (~30 MB) + DuckDB lazy queries for Level 3.
+   - Option 2 (~45 min): Aggregations + sampled Level 3 (top N per class). Loses full audit fidelity.
+   - Option 3 (~60 min): Build feature, gracefully degrade Level 3 on Cloud when parquet missing.
 2. **Confirm Streamlit Cloud subdomain rename** to `nigp-sourced-category-mapper.streamlit.app`. User said "i think" they did the UI rename — URL not yet confirmed loading.
 3. **Polish:** `.docx` version of `outputs/HOW_TO_USE_NIGP_Mapping_JHK3.md`.
 4. **Anthropic API key rotation** flagged 2026-04-30, status unconfirmed. Production is rules-only, so not blocking — but verify before any AI re-run.

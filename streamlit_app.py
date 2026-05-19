@@ -5,7 +5,7 @@ Multi-page browser app wrapping classifier_JHK3.py. Authorized users
 sign in once, then navigate via the sidebar between:
   - Classify (single description + recent-history list)
   - Bulk Classify (paste-many or CSV upload, downloadable result)
-  - Procurement Taxonomy Logic (three-tier hierarchy explainer)
+  - Procurement Taxonomy Logic (three-level hierarchy explainer)
   - Methodology (4-tier classifier model + confidence-badge teaching)
   - Business Categories (the 17-category reference)
   - Rule Lookup (search the curated + AI-mined rule catalog)
@@ -494,7 +494,7 @@ def page_methodology() -> None:
     st.markdown(
         "- **Classify** — paste a single description, get a category and NIGP code.\n"
         "- **Bulk Classify** — paste many descriptions or upload a CSV; download the classified file.\n"
-        "- **Procurement Taxonomy Logic** — three-tier explainer of how spend rolls up.\n"
+        "- **Procurement Taxonomy Logic** — three-level explainer of how spend rolls up.\n"
         "- **Methodology** — this page.\n"
         "- **Business Categories** — reference list of all 17 categories with definitions.\n"
         "- **Rule Lookup** — search the rule catalog by keyword to see why a description routed where it did."
@@ -695,7 +695,7 @@ def page_methodology() -> None:
         "(a) adding 98 curated rules, (b) deploying the Tier 3 AI-assist resolver to "
         "consume the latent medium/low confidence AI proposals at fill time, and "
         "(c) explicitly tagging the 966 no-description rows rather than silently dropping "
-        "them. Staff time is now spent **auditing the Tier 3 tier** and promoting recurring "
+        "them. Staff time is now spent **auditing Tier 3** and promoting recurring "
         "high-quality AI-assist matches into the curated rule file — the rule base grows; "
         "Tier 3 shrinks over time."
     )
@@ -715,26 +715,26 @@ def page_taxonomy_logic() -> None:
     )
     st.markdown("---")
 
-    st.subheader("How the three tiers fit together")
+    st.subheader("How the three levels fit together")
     st.markdown(
         f"""
         <div style="max-width: 520px; margin: 24px auto;">
           <div style="background:{CHI_NAVY}; color:white; padding:18px 20px; border-radius:8px; text-align:center;">
-            <div style="font-size:12px; letter-spacing:1px; opacity:0.85;">TIER 1</div>
+            <div style="font-size:12px; letter-spacing:1px; opacity:0.85;">LEVEL 1</div>
             <div style="font-size:20px; font-weight:700; margin-top:4px;">Executive View</div>
             <div style="font-size:14px; margin-top:6px;">17 Business Categories</div>
             <div style="font-size:12px; opacity:0.85; margin-top:4px;">Audience: Leadership &amp; Budget Decisions</div>
           </div>
           <div style="text-align:center; color:{CHI_GRAY}; font-size:24px; line-height:1; margin:6px 0;">▼</div>
           <div style="background:{CHI_BLUE}; color:{CHI_NAVY}; padding:18px 20px; border-radius:8px; text-align:center;">
-            <div style="font-size:12px; letter-spacing:1px; opacity:0.9;">TIER 2</div>
+            <div style="font-size:12px; letter-spacing:1px; opacity:0.9;">LEVEL 2</div>
             <div style="font-size:20px; font-weight:700; margin-top:4px;">Sourcing View</div>
             <div style="font-size:14px; margin-top:6px;">138 NIGP 3-digit Classes</div>
             <div style="font-size:12px; opacity:0.9; margin-top:4px;">Audience: Category Managers &amp; Sourcing Teams</div>
           </div>
           <div style="text-align:center; color:{CHI_GRAY}; font-size:24px; line-height:1; margin:6px 0;">▼</div>
           <div style="background:{CHI_LT_BLUE}; color:{CHI_NAVY}; padding:18px 20px; border-radius:8px; text-align:center; border:1px solid {CHI_BLUE};">
-            <div style="font-size:12px; letter-spacing:1px;">TIER 3</div>
+            <div style="font-size:12px; letter-spacing:1px;">LEVEL 3</div>
             <div style="font-size:20px; font-weight:700; margin-top:4px;">Audit View</div>
             <div style="font-size:14px; margin-top:6px;">784,556 Individual Transactions</div>
             <div style="font-size:11px; font-style:italic; color:#E57373; margin-top:4px; padding:0 6px;">PO/invoice line records in the historical dataset the classifier was validated against (AP activity years 2017, 2020, 2021, 2023).</div>
@@ -744,8 +744,17 @@ def page_taxonomy_logic() -> None:
         """,
         unsafe_allow_html=True,
     )
+    st.markdown(
+        f"<div style='font-size:13px; color:{CHI_GRAY}; font-style:italic; "
+        f"text-align:center; margin: -8px 0 12px 0;'>"
+        "Note: \"Level\" here refers to the taxonomy hierarchy (how spend rolls up). "
+        "The Methodology page describes a separate 4-<em>tier</em> classification pipeline "
+        "(how each row is assigned to a category). Two different concepts; do not confuse."
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
-    st.subheader("Tier 1 — Executive View")
+    st.subheader("Level 1 — Executive View")
     st.markdown(
         "**17 Business Categories** that show where procurement dollars go. This is the "
         "strategic level for leadership attention and budget decisions. Categories are "
@@ -753,7 +762,7 @@ def page_taxonomy_logic() -> None:
         "(every record fits one)."
     )
 
-    st.subheader("Tier 2 — Sourcing View")
+    st.subheader("Level 2 — Sourcing View")
     st.markdown(
         "**Subcategories within each Business Category**, aligned to NIGP 3-digit "
         "commodity classes. This is where consolidation opportunities become visible — "
@@ -761,7 +770,7 @@ def page_taxonomy_logic() -> None:
         "vendors without coordination."
     )
 
-    st.subheader("Tier 3 — Audit View")
+    st.subheader("Level 3 — Audit View")
     st.markdown(
         "**Individual transactions** with full classification detail including the NIGP "
         "code, confidence level, and the exact rule that fired. Every classification is "
@@ -771,7 +780,7 @@ def page_taxonomy_logic() -> None:
     st.markdown("---")
     st.subheader("How the NIGP codes were sourced")
     st.markdown(
-        "Tier 2 (the 138 NIGP 3-digit Classes) and Tier 3 (the 470 NIGP 5-digit Class-Items, "
+        "Level 2 (the 138 NIGP 3-digit Classes) and Level 3 (the 470 NIGP 5-digit Class-Items, "
         "and the 4,592 underlying 10-digit codes) are not invented by this project. They "
         "come from two layered sources, both auditable:"
     )
@@ -813,7 +822,7 @@ def page_taxonomy_logic() -> None:
         "<code>nigp_codes_5digit_JHK3.csv</code> (470 items), "
         "<code>nigp_codes_10digit_JHK3.csv</code> (4,592 codes).<br>"
         "<strong>Future-state expansion</strong> — licensing the full ~9,000-code NIGP "
-        "catalog from Periscope Holdings / OpenGov would widen Tier 3 audit coverage to "
+        "catalog from Periscope Holdings / OpenGov would widen Level 3 audit coverage to "
         "the complete NIGP standard. Not required for current operation."
         "</div>",
         unsafe_allow_html=True,
