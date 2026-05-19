@@ -4,7 +4,7 @@ This repo is the home of the **NIGP-Sourced Procurement Category Mapper**, an in
 
 **Owner:** James H. Kirby III, CSCP, MS-SCM (jhkirby2001@yahoo.com)
 **Output naming convention:** `_JHK3` suffix on every deliverable file
-**Status:** Production. Latest commit `1cd1940` on `origin/main`. Repo is PUBLIC.
+**Status:** Production. Latest commit `e349d65` on `origin/main`. Repo is PUBLIC.
 
 ---
 
