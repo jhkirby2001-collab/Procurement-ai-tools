@@ -3,7 +3,7 @@ Description-driven classifier for Chicago procurement transactions.
 
 Architecture (locked design):
 - INPUTS: description text + Chicago FMPS account/object/fund codes ONLY.
-  Vendor and EY-supplied NIGP codes are NOT inputs.
+  Vendor and prior-supplied NIGP codes are NOT inputs.
 - Rule hierarchy: (1) keyword_rules → (2) account_patterns [TBD] → (3) AI assist [TBD]
 - Same core function serves batch (whole file) and single-record (CLI) modes.
 
@@ -227,7 +227,7 @@ def classify_one(
 
 def classify_batch(df: pd.DataFrame, rules_df: pd.DataFrame,
                     account_df: Optional[pd.DataFrame] = None) -> pd.DataFrame:
-    """Vectorized batch classification on a DataFrame with EY-style columns."""
+    """Vectorized batch classification on a DataFrame with source-style columns."""
     n = len(df)
     print(f"Building Description_Best across {n:,} rows ...")
     desc = df.apply(
@@ -446,7 +446,7 @@ def run_single(description: str) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--batch", action="store_true", help="Run batch over full EY parquet")
+    p.add_argument("--batch", action="store_true", help="Run batch over full source parquet")
     p.add_argument("--describe", type=str, help="Single-record: classify one description string")
     args = p.parse_args()
     if args.batch:

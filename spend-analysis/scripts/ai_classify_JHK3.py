@@ -95,7 +95,7 @@ The 17 BUSINESS CATEGORIES (you must pick exactly one):
 
 Special handling: "Grants & Pass-Through Funding" is for subgrant disbursements only (no NIGP class — leave nigp_class_3digit empty for this category).
 
-The 138 NIGP 3-DIGIT CLASSES (with EY-data canonical descriptions) — you must pick exactly one or leave empty:
+The 138 NIGP 3-DIGIT CLASSES (with source-data canonical descriptions) — you must pick exactly one or leave empty:
 {nigp_block}
 
 Rules:

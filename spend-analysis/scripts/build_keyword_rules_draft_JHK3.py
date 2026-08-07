@@ -9,7 +9,7 @@ Strategy: hybrid match types
 Precedence at classify time: exact > starts_with > contains. First rule to fire wins.
 
 NIGP class numbers are pulled from our 138-class working reference (derived from
-EY data). Where no clean class exists in the working set (legal services,
+source data). Where no clean class exists in the working set (legal services,
 environmental services, etc.), the rule sets nigp_match_level='review' or 'broad'
 and the row goes to Review_Flag=Yes.
 

@@ -325,8 +325,8 @@ def build_excel():
     ws.row_dimensions[foot_start].height = 22
 
     footnotes = [
-        f"Source file:  EY raw data extract — {HEADLINE['rows_total']:,} purchase-order and invoice line records covering AP activity years 2017, 2020, 2021, 2023.",
-        "Classifier inputs:  description text + Chicago FMPS account/object/fund codes only.  Vendor name and EY-supplied NIGP codes are NOT used.",
+        f"Source file:  raw source dataset extract — {HEADLINE['rows_total']:,} purchase-order and invoice line records covering AP activity years 2017, 2020, 2021, 2023.",
+        "Classifier inputs:  description text + Chicago FMPS account/object/fund codes only.  Vendor name and prior-supplied NIGP codes are NOT used.",
         f"Rule base:  {HEADLINE['rules_total']:,} rules total — {HEADLINE['rules_curated']} hand-curated by procurement leadership and {HEADLINE['rules_ai']:,} AI-mined long-tail patterns.",
         "AI use:  one-time, build-time only.  Production runtime is rules-only — no API key, no internet, no recurring cost, no per-classification charge.",
         f"Runtime:  {HEADLINE['runtime']} end-to-end on a standard workstation.  Repeatable on any future Chicago procurement extract.",
@@ -609,7 +609,7 @@ def build_executive_brief():
     # How the engine decides
     add_h1(doc, "How the Engine Decides")
     add_bullet(doc, "Description text from the PO and invoice fields, plus Chicago's own FMPS account/object/fund codes.", bold_lead="Inputs used:")
-    add_bullet(doc, "Vendor name (a vendor can sell across many categories) and EY-supplied NIGP codes (another consultant's work product, not Chicago's authoritative judgment).", bold_lead="Inputs deliberately excluded:")
+    add_bullet(doc, "Vendor name (a vendor can sell across many categories) and prior-supplied NIGP codes (another consultant's work product, not Chicago's authoritative judgment).", bold_lead="Inputs deliberately excluded:")
     add_bullet(doc, "First a hand-curated keyword rule, then an AI-mined long-tail keyword rule, then a Chicago account-code pattern. Anything still unmatched is filled at the AI-assist fallback layer from the saved one-time AI mining output (no runtime API calls).", bold_lead="Decision pipeline:")
     add_bullet(doc, "Every classified record carries the exact rule that fired, a confidence score, and a review flag. Procurement staff can trace any single decision end-to-end.", bold_lead="Audit trail:")
 
@@ -719,7 +719,7 @@ def build_methodology():
         ),
     )
     add_h2(doc, "What's different from prior consulting work")
-    add_bullet(doc, "Chicago now owns its own classification. The earlier EY consulting deliverable is a useful raw data source, but its NIGP labels are EY's work product — not Chicago's authoritative judgment.", bold_lead="In-house ownership.")
+    add_bullet(doc, "Chicago now owns its own classification. The earlier prior consulting deliverable is a useful raw data source, but its NIGP labels are a prior consultant's work product — not Chicago's authoritative judgment.", bold_lead="In-house ownership.")
     add_bullet(doc, "Every classified record carries the exact rule that fired, a confidence score, and a review flag. Any auditor can reconstruct any decision.", bold_lead="Full audit trail.")
     add_bullet(doc, "Procurement staff can edit rules in CSV files. No software developer is required to add a new rule or retire an outdated one.", bold_lead="Staff-editable.")
     add_bullet(doc, "The classifier runs on any future Chicago procurement extract with no code modifications.", bold_lead="Repeatable.")
@@ -736,10 +736,10 @@ def build_methodology():
     # ---- 2. Source Data ----
     add_h1(doc, "2.  Source Data")
     add_h2(doc, "What was analyzed")
-    add_bullet(doc, "EY raw data extract (`ey raw data.xlsx`, 326 MB).", bold_lead="File:")
+    add_bullet(doc, "raw source dataset extract (`raw_source_data.xlsx`, 326 MB).", bold_lead="File:")
     add_bullet(doc, "784,556 purchase-order and invoice line records.", bold_lead="Records:")
     add_bullet(doc, "AP activity years 2017, 2020, 2021, 2023 (all rows).", bold_lead="Time span:")
-    add_bullet(doc, "EY's prior NIGP classification (~30% of rows). The classifier does NOT use these labels — Chicago is building its own.", bold_lead="EY-supplied labels:")
+    add_bullet(doc, "the prior NIGP classification (~30% of rows). The classifier does NOT use these labels — Chicago is building its own.", bold_lead="prior-supplied labels:")
     add_h2(doc, "Data quality checks")
     add_bullet(doc, "Line-level descriptions are populated on virtually all rows. Only 967 of 784,556 (0.1%) have no usable description anywhere.")
     add_bullet(doc, "17.8% of high-level PO Description values are uninformative (\"Misc\", \"Per contract\"). The classifier falls back to the line-level description fields, which carry substantive content.")
@@ -781,7 +781,7 @@ def build_methodology():
     )
 
     add_h2(doc, "Level 2 — NIGP 3-digit Class")
-    add_bullet(doc, "Each Business Category maps to one or more NIGP 3-digit Classes (138 distinct classes appear in the EY data).")
+    add_bullet(doc, "Each Business Category maps to one or more NIGP 3-digit Classes (138 distinct classes appear in the source data).")
     add_bullet(doc, "NIGP is a public, inter-agency-compatible commodity framework used widely across U.S. public procurement.")
     add_bullet(doc, "Aligning to NIGP enables peer benchmarking, audit defensibility, and future portability.")
 
@@ -796,7 +796,7 @@ def build_methodology():
     add_bullet(doc, "Used as supplemental signal where description text alone is ambiguous (most consequentially, the 220xxx subgrant accounts).", bold_lead="Chicago FMPS account/object/fund codes:")
     add_h2(doc, "Inputs the classifier does NOT use — by design")
     add_bullet(doc, "The same vendor often sells across many categories (e.g., a generic supplier selling IT, office, and janitorial on one contract). Vendor-based inference introduces misclassification risk.", bold_lead="Vendor name:")
-    add_bullet(doc, "These represent EY's prior classification work, not Chicago's authoritative judgment. Chicago is independently classifying every record from description text.", bold_lead="EY-supplied NIGP codes:")
+    add_bullet(doc, "These represent the prior consultant's classification work, not Chicago's authoritative judgment. Chicago is independently classifying every record from description text.", bold_lead="prior-supplied NIGP codes:")
 
     # ---- 5. Decision Pipeline ----
     add_h1(doc, "5.  How a Single Record Is Classified")
@@ -836,7 +836,7 @@ def build_methodology():
     add_h2(doc, "What the AI did and didn't see")
     add_bullet(doc, "Anthropic Claude Haiku 4.5.", bold_lead="Model:")
     add_bullet(doc, "A single batch run over 30,342 unique long-tail descriptions.", bold_lead="Invocation:")
-    add_bullet(doc, "Description text plus a system prompt listing the 17 Business Categories and 138 NIGP classes. Vendor name, EY codes, and Chicago account codes were NOT passed to the AI.", bold_lead="What the AI saw:")
+    add_bullet(doc, "Description text plus a system prompt listing the 17 Business Categories and 138 NIGP classes. Vendor name, prior-supplied codes, and Chicago account codes were NOT passed to the AI.", bold_lead="What the AI saw:")
     add_bullet(doc, "Output was constrained by JSON schema with a closed enumeration. The model could not invent codes outside the catalog.", bold_lead="Output bounds:")
 
     add_h2(doc, "How AI proposals are applied")
@@ -855,7 +855,7 @@ def build_methodology():
 
     # ---- 7. Production Results ----
     add_h1(doc, "7.  Production Run Results — 14 May 2026 (100% Mapped)")
-    add_body(doc, "The classifier was run end-to-end against all 784,556 rows of the EY file, followed by a post-classifier resolver pass that merges the one-time AI mining output into any rows no keyword rule matched. Result: 100% of rows mapped, 0 rows in review queue.")
+    add_body(doc, "The classifier was run end-to-end against all 784,556 rows of the source file, followed by a post-classifier resolver pass that merges the one-time AI mining output into any rows no keyword rule matched. Result: 100% of rows mapped, 0 rows in review queue.")
 
     add_h2(doc, "Coverage by classification method")
     table = doc.add_table(rows=1, cols=4)
@@ -949,11 +949,11 @@ def build_methodology():
 
     # ---- 11. Limitations ----
     add_h1(doc, "11.  Honest Limitations")
-    add_bullet(doc, "Taxonomy was derived from one consulting deliverable. New extracts may reveal commodity types not represented in the EY file.", bold_lead="Single-source dataset.")
+    add_bullet(doc, "Taxonomy was derived from one consulting deliverable. New extracts may reveal commodity types not represented in the source file.", bold_lead="Single-source dataset.")
     add_bullet(doc, "The classifier ignores transaction date. Year-over-year inflation, contract restructuring, and reorganizations don't affect classification consistency.", bold_lead="Time-agnostic by design.")
     add_bullet(doc, "Classification reflects what was bought, not who sold it. Vendor-based views can be produced separately from the classified output.", bold_lead="No vendor signal.")
     add_bullet(doc, "Thin but non-empty descriptions (\"Misc supplies\", \"Per contract\") that recurred in the source file received an AI proposal during the 2026-04-30 mining run and are now resolved at Tier 3 with an explicit AI-low or AI-medium tag — auditors can filter on that tag where accuracy concerns warrant it. Rows with no usable description across any of the four description fields are tagged \"Unclassified — No Description\" (Tier 4) rather than being assigned a category.", bold_lead="Description quality dependent.")
-    add_bullet(doc, "The 138 NIGP classes derived from the EY file are a subset of the full ~9,000-code NIGP standard. Future work should consider licensing the full catalog from Periscope Holdings.", bold_lead="Working NIGP catalog is partial.")
+    add_bullet(doc, "The 138 NIGP classes derived from the source file are a subset of the full ~9,000-code NIGP standard. Future work should consider licensing the full catalog from Periscope Holdings.", bold_lead="Working NIGP catalog is partial.")
 
     # ---- 12. Governance recommendations ----
     add_h1(doc, "12.  Governance and Maintenance Recommendations")
@@ -981,8 +981,8 @@ def build_methodology():
          "Serves both executive dashboards (Business Category) and sourcing/audit needs (NIGP codes)."),
         ("2", "AI assist allowed once during build, with strict guardrails.",
          "Rules-only would leave a 20–40% review pile; bounded one-time AI use shrinks it while remaining defensible."),
-        ("3", "Classifier inputs: description text + Chicago FMPS account/object/fund codes only. Vendor and EY-supplied NIGP codes are NOT inputs.",
-         "Chicago must own its own classification; vendor isn't a reliable signal; EY codes are another consultant's work product."),
+        ("3", "Classifier inputs: description text + Chicago FMPS account/object/fund codes only. Vendor and prior-supplied NIGP codes are NOT inputs.",
+         "Chicago must own its own classification; vendor isn't a reliable signal; prior-supplied codes are another consultant's work product."),
         ("4", "Lean ~16-column output instead of preserving all 87 raw columns.",
          "Raw file preserved separately; downstream analysis doesn't need 87 columns."),
         ("5", "Dual-mode classifier (batch + single-record), same core function.",
