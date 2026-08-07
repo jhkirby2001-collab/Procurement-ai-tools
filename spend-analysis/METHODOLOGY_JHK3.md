@@ -2,7 +2,9 @@
 
 **Prepared for:** City of Chicago Department of Procurement Services Leadership
 **Author:** James H. Kirby III, CSCP, MS-SCM
-**Document version:** 1.2 — updated 2026-05-14 with review-queue elimination and 4-tier coverage results (originally finalized 2026-04-30)
+**Document version:** 1.3 — updated 2026-08-07 with an interactive-robustness rule expansion (curated rule base 246 → 280; see changelog note below). Version 1.2 (2026-05-14) added review-queue elimination and 4-tier coverage results; originally finalized 2026-04-30.
+
+> **Changelog — 2026-08-07 (v1.3):** A "fence returns no result" report exposed that the single-record / web-app path answers only when typed text matches a rule, and many short common terms had no rule. 34 curated rules were added — each mapped to its correct NIGP class verified against the reference table — raising coverage on a 45-term common-word probe from 17/45 (38%) to 35/45 (78%) and taking the plain-English regression audit to 72/72 with 0 mis-categorizations. The full 784,556-row batch was **not** re-run, so the §7.5 production-run figures below remain the 2026-05-14 snapshot (they used the 246-rule base). The new rules will fold into the batch percentages at the next full refresh; the "100% mapped" headline is unaffected — the change mainly shifts a small number of rows from Tier 3 (AI-assist) to Tier 1 (keyword rule).
 **Project:** NIGP-Aligned Procurement Taxonomy & Classification Engine
 
 > **Format note for the reader:** This document is structured for direct copy-paste into Microsoft Word. Section headings map to Word's Heading styles. Citations and URLs at the end can be hyperlinked in Word.
@@ -131,7 +133,7 @@ The classifier evaluates each row through a deterministic four-tier pipeline. Th
 
 The classifier loads two keyword-rule files and evaluates them as a single pool:
 
-- `data/reference/keyword_rules_DRAFT_JHK3.csv` — 246 hand-curated rules drafted by the project author. These take priority within any given match-type tier.
+- `data/reference/keyword_rules_DRAFT_JHK3.csv` — 280 hand-curated rules drafted by the project author (246 at the 2026-05-14 production run; 34 added 2026-08-07 — see changelog). These take priority within any given match-type tier.
 - `data/reference/keyword_rules_from_ai_JHK3.csv` — 6,766 rules harvested from the one-time AI pattern-mining run (see §6). Each rule carries provenance metadata (model, confidence, source row count, AI reasoning) in its `notes` field.
 
 Three match types are supported:
@@ -309,7 +311,7 @@ This is the foundation for future integration with Chicago's DPS PO-creation wor
 ## 11. Governance and Future Maintenance Recommendations
 
 1. **Annual taxonomy review.** Procurement leadership should review the 17 Business Categories annually for continued fitness with reporting needs. Edits are made directly in `business_categories_JHK3.csv`.
-2. **Rule-file ownership.** Designate a procurement analyst as owner of `keyword_rules_DRAFT_JHK3.csv`. New rules can be added as new commodity types appear; outdated rules can be retired. Curated-rule count has grown from 148 (2026-04-30) to 246 (2026-05-14) on this principle.
+2. **Rule-file ownership.** Designate a procurement analyst as owner of `keyword_rules_DRAFT_JHK3.csv`. New rules can be added as new commodity types appear; outdated rules can be retired. Curated-rule count has grown from 148 (2026-04-30) to 246 (2026-05-14) to 280 (2026-08-07) on this principle.
 3. **AI-assist tier audit cadence (replaces review-queue triage).** With zero rows in the terminal review queue, staff time is redirected to confidence-tier auditing. On a monthly or quarterly cadence, sample rows where `Classification_Method = "ai_assist"` and `Classification_Confidence = AI-medium | AI-low`. For descriptions that recur in volume and the AI tier got right, promote the pattern into the curated rule file (Tier 1) so the next batch run no longer depends on AI-assist. This is the new mechanism by which the rule base grows.
 4. **Single-record feedback loop.** When the planned DPS integration is built, analyst overrides of the classifier's single-record proposals become candidate rule data. Over time, the rule base grows and the classifier gets more accurate without re-running AI.
 5. **NIGP catalog expansion.** Consider procuring a Periscope NIGP license or comparable subscription. This expands the working catalog from ~138 codes to the full ~9,000-code NIGP standard.
@@ -338,7 +340,7 @@ Procurement-ai-tools/
     │   │   ├── nigp_codes_5digit_JHK3.csv
     │   │   ├── nigp_codes_10digit_JHK3.csv
     │   │   ├── business_categories_JHK3.csv
-    │   │   ├── keyword_rules_DRAFT_JHK3.csv         # 246 hand-curated
+    │   │   ├── keyword_rules_DRAFT_JHK3.csv         # 280 hand-curated
     │   │   ├── keyword_rules_from_ai_JHK3.csv       # 6,766 AI-mined (auditable)
     │   │   └── account_patterns_DRAFT_JHK3.csv
     │   └── processed/

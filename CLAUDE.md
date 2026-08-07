@@ -4,7 +4,7 @@ This repo is the home of the **NIGP-Sourced Procurement Category Mapper**, an in
 
 **Owner:** James H. Kirby III, CSCP, MS-SCM (jhkirby2001@yahoo.com)
 **Output naming convention:** `_JHK3` suffix on every deliverable file
-**Status:** Production. Latest commit `e349d65` on `origin/main`. Repo is PUBLIC.
+**Status:** Production. Latest commit `e349d65` on `origin/main`. Active branch work `claude/github-identification-ivqudt` (2026-08-07: fence fix + interactive-robustness rule expansion 246→280 + expanded operate-and-trust guide). Repo is PUBLIC.
 
 ---
 
@@ -16,8 +16,8 @@ Classifies 784,556 historical public-sector procurement rows into a three-level 
 
 Inputs to the classifier: description text + Chicago FMPS account/object/fund codes ONLY. Vendor names and any EY-supplied NIGP codes are NOT inputs.
 
-**Production batch metrics (post-resolver, 2026-05-14):** 100% mapped, 0 rows in review queue. Coverage breakdown:
-- Tier 1 — Keyword rule (246 curated + 6,766 AI-mined): 688,044 (87.7%)
+**Production batch metrics (post-resolver, 2026-05-14; batch not re-run since):** 100% mapped, 0 rows in review queue. Coverage breakdown (rule base was 246 curated at run time; now 280 — new rules fold in at next batch refresh):
+- Tier 1 — Keyword rule (246 curated + 6,766 AI-mined at run time): 688,044 (87.7%)
 - Tier 2 — Chicago FMPS account-code pattern: 2,028 (0.3%)
 - Tier 3 — AI-assist resolver (saved one-time AI output, no new API call): 93,518 (11.9%)
 - Tier 4 — Unclassified — No Description (no usable text in any of 4 fields): 966 (0.1%)
@@ -28,7 +28,7 @@ Inputs to the classifier: description text + Chicago FMPS account/object/fund co
 ## Key paths
 
 **Rule files (procurement-staff editable, version-controlled):**
-- `spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv` — 246 hand-curated rules (edit these freely)
+- `spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv` — 280 hand-curated rules (edit these freely)
 - `spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv` — 6,766 AI-mined rules (frozen — do not regenerate)
 - `spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv` — 6 subgrant account patterns
 - `spend-analysis/data/reference/business_categories_JHK3.csv` — canonical 138-row NIGP-class → Business-Category map
