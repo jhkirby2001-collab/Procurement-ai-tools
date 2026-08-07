@@ -480,7 +480,7 @@ def _render_bulk_result(df: pd.DataFrame, key: str) -> None:
 # PAGE: Methodology
 # =========================================================================
 def page_methodology() -> None:
-    st.title("How to Use This Tool")
+    st.title("Methodology & Why You Can Trust It")
     st.markdown(f"**Created by:** {AUTHOR_NAME}")
     st.markdown("---")
 
@@ -498,6 +498,31 @@ def page_methodology() -> None:
         "- **Methodology** — this page.\n"
         "- **Business Categories** — reference list of all 17 categories with definitions.\n"
         "- **Rule Lookup** — search the rule catalog by keyword to see why a description routed where it did."
+    )
+
+    st.subheader("What this tool was built on")
+    st.markdown(
+        "The taxonomy and every rule were derived from a **784,556-row public-sector "
+        "procurement extract** (87 columns; AP activity years **2017, 2020, 2021, 2023**). "
+        "Every purchase-order and invoice line was classified **independently from its own "
+        "description text** — not re-labeled from anyone's prior categorization. The source "
+        "file already carried partial prior commodity codes on about 30% of rows; the "
+        "classifier **does not use them as inputs**. They are preserved only for optional "
+        "after-the-fact cross-checking (\"did our independent answer agree?\")."
+    )
+
+    st.subheader("What it deliberately ignores — and why")
+    st.markdown(
+        "Credibility comes as much from what the classifier refuses to use as from what it "
+        "does. It reads **only** the description text and the agency's own account/object/fund "
+        "codes. It deliberately excludes:\n"
+        "- **Vendor name** — the same vendor sells across many categories on one contract, so "
+        "\"who sold it\" is an unreliable guide to \"what it is.\" Using vendor would *introduce* "
+        "misclassification, not reduce it.\n"
+        "- **Spend dollars** — the tool answers *what was bought*, never *how much was spent*. "
+        "Dollars are a downstream analysis that consumes this taxonomy — never an input to it.\n"
+        "- **Prior consultant codes** — building an owned, defensible classification means "
+        "classifying from scratch, not inheriting another party's work product."
     )
 
     st.subheader("How the 4-tier classifier model works")
@@ -579,6 +604,34 @@ def page_methodology() -> None:
         "leadership and auditors can filter or exclude any tier they choose."
         "</div>",
         unsafe_allow_html=True,
+    )
+
+    st.subheader("Why the one-time AI use is defensible")
+    st.markdown(
+        f"<div style='border-left: 4px solid {CHI_RED}; padding: 12px 16px; "
+        f"background: {CHI_LT_BLUE}; margin: 6px 0 14px 0; font-size:14px; line-height:1.6;'>"
+        "<strong>The production tool is rules-only. No AI model is called when you classify "
+        "anything.</strong> AI was used <strong>once</strong>, at build time, to read the long "
+        "tail of ~30,000 descriptions that no hand-written rule covered and propose patterns "
+        "(total one-time cost about $27). Those proposals were frozen into rules and the model "
+        "was never called again."
+        "</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "1. **One-time, not ongoing.** Runs never call AI — no API key, no internet, no "
+        "per-classification charge.\n"
+        "2. **Bounded.** The model could only choose from the 17 approved categories and 138 "
+        "NIGP classes — it cannot invent a code.\n"
+        "3. **Transparent.** Every AI-mined rule records the model, confidence, source "
+        "frequency, and reasoning in its `notes` field.\n"
+        "4. **Reviewable & editable.** Staff can demote or delete any AI-mined rule; it has no "
+        "special status in the classifier — it is matched by the same logic as a curated rule.\n"
+        "5. **Replaceable.** Delete all AI content and the tool still runs on curated rules + "
+        "account patterns. Coverage would drop; nothing would break.\n"
+        "6. **Confidence-labeled, never laundered.** AI-derived answers are tagged "
+        "`AI-high / AI-medium / AI-low` so leadership and auditors can filter or exclude them — "
+        "they are never hidden inside a generic \"auto-classified\" bucket."
     )
 
     st.subheader("How descriptions get mapped to actual NIGP codes")
@@ -667,8 +720,8 @@ def page_methodology() -> None:
     )
     st.markdown(
         "- **HIGH** — The description matched a specific rule that maps directly to a precise "
-        "NIGP 5-digit Item code (e.g., \"BULK ROAD SALT\" → NIGP 285-83). The NIGP assignment "
-        "is exact, defensible, and traceable to a single rule.\n"
+        "NIGP 5-digit Item code (e.g., \"READY-MIX CONCRETE\" → NIGP class 750, item 75070). "
+        "The NIGP assignment is exact, defensible, and traceable to a single rule.\n"
         "- **MEDIUM** — The description matched a broader rule that resolves to an NIGP 3-digit "
         "Class but not a specific 5-digit Item (e.g., generic \"PIPE FITTINGS\" lands in the "
         "plumbing class without pinning the exact item). The Business Category and 3-digit "
@@ -688,7 +741,18 @@ def page_methodology() -> None:
         "back to its source."
     )
 
-    st.subheader("Audit cadence (what changed in May 2026)")
+    st.subheader("How we know it's right — regression tested")
+    st.markdown(
+        "The classifier ships with a **plain-English regression test**: a fixed list of "
+        "everyday procurement phrases, each paired with the Business Category it must return. "
+        "The current suite passes **72 of 72 with zero mis-categorizations**. Every rule change "
+        "is re-run against this suite before it goes live, so a fix in one place cannot silently "
+        "break a classification somewhere else. This is the same discipline software teams use "
+        "to keep a system trustworthy as it grows — the rule base can expand without eroding "
+        "what already worked."
+    )
+
+    st.subheader("Audit cadence (what changed in May & August 2026)")
     st.markdown(
         "Through 2026-04-30 the classifier produced a 17.8% review queue — rows flagged "
         "for procurement-staff triage. The 2026-05-14 refresh eliminated that queue by "
@@ -698,6 +762,15 @@ def page_methodology() -> None:
         "them. Staff time is now spent **auditing Tier 3** and promoting recurring "
         "high-quality AI-assist matches into the curated rule file — the rule base grows; "
         "Tier 3 shrinks over time."
+    )
+    st.markdown(
+        "**August 2026 — interactive robustness pass.** A user report that a common word "
+        "returned no result surfaced that the *live* single-record tool answers only when typed "
+        "text matches a rule. In response, **34 curated rules** were added — each mapped to its "
+        "correct NIGP class **verified against the reference table**, not auto-guessed — raising "
+        "coverage on a 45-term common-word probe from **38% to 78%** and keeping the regression "
+        "suite at **72/72**. The curated rule base grew **246 → 280**. Runtime stayed "
+        "rules-only, no API key."
     )
 
     st.subheader("Need help?")
@@ -775,6 +848,58 @@ def page_taxonomy_logic() -> None:
         "**Individual transactions** with full classification detail including the NIGP "
         "code, confidence level, and the exact rule that fired. Every classification is "
         "transparent and defensible — no black-box decisions."
+    )
+
+    st.markdown("---")
+    st.subheader("Follow one purchase through all three levels")
+    st.markdown(
+        "To make the hierarchy concrete, here is a single real classification flowing from "
+        "raw free text down through every level — the same record answers a different question "
+        "for a different audience at each step:"
+    )
+    st.markdown(
+        f"""
+        <div style="max-width: 600px; margin: 16px 0;">
+          <div style="border:1px dashed {CHI_GRAY}; padding:12px 16px; border-radius:8px; text-align:center; color:{CHI_NAVY};">
+            <span style="font-size:11px; letter-spacing:1px; color:{CHI_GRAY};">FREE-TEXT DESCRIPTION (the raw input)</span><br>
+            <strong style="font-size:16px;">"chain link fence repair"</strong>
+          </div>
+          <div style="text-align:center; color:{CHI_GRAY}; font-size:22px; line-height:1; margin:6px 0;">▼</div>
+          <div style="background:{CHI_NAVY}; color:white; padding:14px 18px; border-radius:8px;">
+            <span style="font-size:11px; letter-spacing:1px; opacity:0.85;">LEVEL 1 · EXECUTIVE VIEW</span><br>
+            <strong style="font-size:17px;">Landscaping, Grounds &amp; Irrigation</strong><br>
+            <span style="font-size:13px; opacity:0.9;">The category leadership sees on a budget rollup.</span>
+          </div>
+          <div style="text-align:center; color:{CHI_GRAY}; font-size:22px; line-height:1; margin:6px 0;">▼</div>
+          <div style="background:{CHI_BLUE}; color:{CHI_NAVY}; padding:14px 18px; border-radius:8px;">
+            <span style="font-size:11px; letter-spacing:1px;">LEVEL 2 · SOURCING VIEW</span><br>
+            <strong style="font-size:17px;">NIGP 3-digit Class 988</strong><br>
+            <span style="font-size:13px;">The commodity class category managers group on to find consolidation.</span>
+          </div>
+          <div style="text-align:center; color:{CHI_GRAY}; font-size:22px; line-height:1; margin:6px 0;">▼</div>
+          <div style="background:{CHI_LT_BLUE}; color:{CHI_NAVY}; padding:14px 18px; border-radius:8px; border:1px solid {CHI_BLUE};">
+            <span style="font-size:11px; letter-spacing:1px;">LEVEL 3 · AUDIT VIEW</span><br>
+            <span style="font-size:13px;">The individual transaction, stamped with
+            <code>Classification_Reason = matched keyword rule 'FENCE' (contains)</code> &mdash;
+            so an auditor can reconstruct the decision from the row alone.</span>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.subheader("Why \"mutually exclusive, collectively exhaustive\" matters")
+    st.markdown(
+        "The 17 Business Categories are built to be **MECE**, and that property is what lets "
+        "leadership trust a category total:\n"
+        "- **Mutually exclusive** — no purchase lands in two categories. \"chain link fence "
+        "repair\" is *Landscaping, Grounds & Irrigation* and nothing else, so spend is never "
+        "double-counted across buckets.\n"
+        "- **Collectively exhaustive** — every purchase has a home. Even subgrant "
+        "disbursements (Category 17) and rows with no usable description (explicitly tagged "
+        "*Unclassified — No Description*, never silently dropped) land somewhere.\n\n"
+        "Together they guarantee the 17 categories sum to **100% of spend with no overlaps and "
+        "no gaps** — the arithmetic property behind every rollup number in this tool."
     )
 
     st.markdown("---")
