@@ -1,5 +1,5 @@
 """
-Profile description text columns in the EY raw file.
+Profile description text columns in the source file.
 
 Purpose: tell us where keyword rules can carry the load (high-repetition,
 informative descriptions) and where AI assist will be needed (low-repetition,
@@ -20,9 +20,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "data" / "processed" / "ey_raw_cache.parquet"
 OUT_DIR = ROOT / "data" / "processed"
 
-# Description columns we care about. EXCLUDES EY-supplied taxonomy fields
+# Description columns we care about. EXCLUDES prior-supplied taxonomy fields
 # (NIGP Description, Commodity Description) per locked decision: classifier
-# uses transaction descriptions only, not EY's classification work.
+# uses transaction descriptions only, not the prior consultant's classification work.
 DESC_COLS = [
     "PO Description",
     "PO Item Description",

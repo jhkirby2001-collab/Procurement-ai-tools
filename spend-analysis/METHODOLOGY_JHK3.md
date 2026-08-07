@@ -13,7 +13,7 @@
 
 ## Executive Summary
 
-The City of Chicago has not historically maintained its own commodity classification system for procurement spend. The "EY raw data" file analyzed here is an EY consulting deliverable — useful as raw transactional data, but **not** an authoritative City of Chicago classification of what the City buys.
+The City of Chicago has not historically maintained its own commodity classification system for procurement spend. The raw source dataset analyzed here is a prior consulting deliverable — useful as raw transactional data, but **not** an authoritative City of Chicago classification of what the City buys.
 
 This project delivers Chicago's **first internally-owned commodity taxonomy** plus a **reusable, defensible classification engine** that the City can run on this historical file and on every future procurement extract. The deliverable is fully self-contained: no recurring vendor dependencies, no per-classification API calls, no third-party software requirements beyond standard open-source Python.
 
@@ -35,24 +35,24 @@ Spend dollars are **not** an input to the classifier. The classifier answers "wh
 - **Prioritizes transparency over a single "auto-classified" headline.** Every row carries an explicit confidence tier and tier-source label, so leadership and auditors can filter by deterministic-rule, account-pattern, or AI-assist tier rather than reading one blended accuracy number.
 - Is **fully repeatable** on future raw extracts with no code modification — the rule files are externalized as CSVs that procurement staff can edit directly.
 
-**Scope:** The historical analysis covers the EY raw data file. The classifier itself is general-purpose and applies to any procurement file with description and account-code fields.
+**Scope:** The historical analysis covers the source dataset file. The classifier itself is general-purpose and applies to any procurement file with description and account-code fields.
 
 ---
 
-## 2. Source Data: EY Raw Data File
+## 2. Source Data: The Raw Source Dataset
 
 | Attribute | Value |
 |-----------|------|
-| Filename | `ey raw data.xlsx` |
+| Filename | `raw_source_data.xlsx` |
 | Size | 326 MB |
 | Rows | 784,556 (sheet `Report 1`) |
 | Columns | 87 |
-| Origin | EY consulting engagement deliverable |
+| Origin | prior consulting engagement deliverable |
 | Date coverage (PO Creation Date) | 2002-10-12 to 2025-05-27 (~23 years, all rows) |
 | Date coverage (AP Voucher Date) | 2020-03-03 to 2025-05-28 (~5 years) |
 | Date coverage (Payment Check Date) | 2023-01-03 to 2025-05-28 (~2.5 years) |
 
-**Important caveat (driving design decisions):** The EY file already contains a populated `NIGP Code` and `NIGP Description` column on 30.4% of rows. These are EY's classification work, not Chicago's authoritative system. **The classifier does not use these EY-supplied codes as inputs.** They are preserved in the raw file for later audit cross-reference (e.g., "did our independent classifier agree with EY's prior labels?") but they do not drive any classification decision.
+**Important caveat (driving design decisions):** The source file already contains a populated `NIGP Code` and `NIGP Description` column on 30.4% of rows. These are the prior consultant's classification work, not Chicago's authoritative system. **The classifier does not use these prior-supplied codes as inputs.** They are preserved in the raw file for later audit cross-reference (e.g., "did our independent classifier agree with the prior labels?") but they do not drive any classification decision.
 
 This decision was made deliberately: building Chicago's own taxonomy means classifying every record independently from the description text, not re-using a prior consultant's work product.
 
@@ -103,7 +103,7 @@ Each Business Category maps to one or more NIGP 3-digit Classes. NIGP is a publi
 - **Audit defensibility** — the assignment can always be traced back to a published NIGP class.
 - **Future portability** — the codes will continue to make sense if Chicago later licenses a full NIGP catalog or migrates to a successor standard.
 
-The 138 distinct 3-digit Classes appearing in the EY data have been mapped 1:1 to the 17 Business Categories. The mapping is preserved in `data/reference/business_categories_JHK3.csv` and is editable by procurement staff without touching code.
+The 138 distinct 3-digit Classes appearing in the source data have been mapped 1:1 to the 17 Business Categories. The mapping is preserved in `data/reference/business_categories_JHK3.csv` and is editable by procurement staff without touching code.
 
 ### 3.3 Level 3 — NIGP 5-digit Class-Item
 
@@ -121,7 +121,7 @@ The classifier accepts **only the following signals** as inputs:
 **Inputs explicitly excluded by design:**
 
 - **Vendor name.** The same vendor often sells in multiple commodity categories (e.g., a generic supplier may sell IT, office, and janitorial goods on one contract). Vendor-based inference introduces misclassification risk that descriptions and account codes do not.
-- **EY-supplied NIGP codes and Commodity codes.** These represent EY's prior classification work, not Chicago's authoritative judgment. The City's principle is to build its own classification independently.
+- **prior-supplied NIGP codes and Commodity codes.** These represent the prior consultant's classification work, not Chicago's authoritative judgment. The City's principle is to build its own classification independently.
 
 ---
 
@@ -175,9 +175,9 @@ To establish defensibility upfront: **the production classification system Chica
 ### How AI was used
 
 - **Model:** Anthropic Claude Haiku 4.5
-- **Invocation:** A single batch run over 30,342 unique long-tail descriptions (every distinct description in the EY file that the hand-curated rules did not already classify).
+- **Invocation:** A single batch run over 30,342 unique long-tail descriptions (every distinct description in the source file that the hand-curated rules did not already classify).
 - **Constraints:** The AI's output was constrained by JSON schema with a closed enumeration of the 17 Business Categories and 138 NIGP 3-digit Classes. The model could not invent codes outside the catalog.
-- **Input:** Each AI call sent only the description text plus a system prompt containing the controlled vocabulary. Vendor name, EY codes, Chicago account codes, and any other operational context were not passed to the AI.
+- **Input:** Each AI call sent only the description text plus a system prompt containing the controlled vocabulary. Vendor name, prior-supplied codes, Chicago account codes, and any other operational context were not passed to the AI.
 - **Output:** Each unique description received a proposed Business Category, optional NIGP class, confidence rating, and short reason.
 - **Confidence distribution returned by the model:** 6,419 high (21.2%), 11,645 medium (38.4%), 12,278 low (40.5%).
 - **Promotion to rules (Tier 1 consumption path):** AI proposals at high confidence were promoted automatically into the rule file. Medium-confidence proposals were promoted only if the description recurred in at least 5 source rows (frequency-of-occurrence threshold) — 1,998 of the 11,645 medium proposals met this bar; the remaining 9,647 long-tail singletons were dropped from the rule file. Low-confidence proposals were never promoted to rules. Net result: **6,766 AI-mined rules promoted** out of 30,342 candidates (22.3%).
@@ -213,7 +213,7 @@ The `Classification_Reason` field on every row records the exact rule pattern (o
 
 ## 7.5 Production Run Results (2026-05-14)
 
-The classifier was run end-to-end against all 784,556 rows of the EY file, followed by the AI-assist resolver pass. Wall-clock runtime: ~15 minutes for the batch + ~5 seconds for the resolver on a standard codespace VM. Coverage results:
+The classifier was run end-to-end against all 784,556 rows of the source file, followed by the AI-assist resolver pass. Wall-clock runtime: ~15 minutes for the batch + ~5 seconds for the resolver on a standard codespace VM. Coverage results:
 
 | Classification tier | Rows | Share |
 |---|---:|---:|
@@ -293,18 +293,18 @@ This is the foundation for future integration with Chicago's DPS PO-creation wor
 
 **Assumptions:**
 
-1. The four description fields in the EY data structure (`PO Description`, `PO Item Description`, `AP Invoice Line Description`, `Invoice Distribution Description`) will continue to be available in future Chicago procurement extracts.
+1. The four description fields in the source data structure (`PO Description`, `PO Item Description`, `AP Invoice Line Description`, `Invoice Distribution Description`) will continue to be available in future Chicago procurement extracts.
 2. The Chicago FMPS account-code structure (Fund, Account, Cost Center, etc.) will remain stable.
-3. The 138 NIGP 3-digit Classes derived from the EY file are sufficient for current Chicago commodity coverage. New commodity types may require expanding the working catalog.
+3. The 138 NIGP 3-digit Classes derived from the source file are sufficient for current Chicago commodity coverage. New commodity types may require expanding the working catalog.
 4. The Business Category structure approved here will be reviewed by leadership at least annually for fitness with reporting needs.
 
 **Limitations:**
 
-1. **Single-source dataset.** The taxonomy was derived from one consulting deliverable. New Chicago extracts may reveal commodity types not represented in the EY file.
+1. **Single-source dataset.** The taxonomy was derived from one consulting deliverable. New Chicago extracts may reveal commodity types not represented in the source file.
 2. **Time-agnostic by design.** The classifier does not consider transaction date when classifying. Year-over-year spend changes (commodity inflation, contract restructuring, departmental reorganizations) do not affect classification consistency.
 3. **No vendor signal.** Per the locked design decision, vendor name is not used as a classification input. This is by choice — the classification should reflect what was bought, not who sold it. Procurement staff who want vendor-based views can produce those separately from the classified output.
 4. **Description quality dependent.** The classifier's accuracy is bounded by description quality. Thin but non-empty descriptions ("Misc supplies", "Per contract") that recurred in the source file received an AI proposal during the 2026-04-30 mining run and are now resolved at Tier 3 with an explicit `AI-low` or `AI-medium` confidence tag — leadership and auditors can filter on that tag where accuracy concerns warrant it. Rows with no usable description across any of the four description fields are tagged `Unclassified — No Description` (Tier 4) rather than being assigned a category, because the data itself provides nothing to classify.
-5. **NIGP working set is partial.** The 138 classes derived from the EY file are a subset of the full NIGP catalog (which covers thousands of codes). Future work should consider licensing a full NIGP catalog from Periscope Holdings or sourcing a comparable public alternative.
+5. **NIGP working set is partial.** The 138 classes derived from the source file are a subset of the full NIGP catalog (which covers thousands of codes). Future work should consider licensing a full NIGP catalog from Periscope Holdings or sourcing a comparable public alternative.
 
 ---
 
@@ -334,7 +334,7 @@ Procurement-ai-tools/
 │   └── NIGP_SOP_JHK3.docx
 └── spend-analysis/
     ├── data/
-    │   ├── raw/ey raw data.xlsx                     # untouched source
+    │   ├── raw/raw_source_data.xlsx                     # untouched source
     │   ├── reference/                               # editable rule files
     │   │   ├── nigp_codes_3digit_JHK3.csv
     │   │   ├── nigp_codes_5digit_JHK3.csv
@@ -380,7 +380,7 @@ python scripts/classifier_JHK3.py --batch
 2. **City of Chicago Department of Procurement Services.** Operating context for this project. Public homepage: <https://www.chicago.gov/city/en/depts/dps.html>
 3. **City of Chicago FMPS (Financial Management & Purchasing System).** Source system for account/object/fund codes used as supplemental classification signal.
 4. **Anthropic — Claude API.** Provider of the AI service used in the one-time pattern-mining phase. Public homepage: <https://www.anthropic.com/>
-5. **NIGP Commodity Code public reference.** General overview of NIGP code structure available via NIGP organizational documentation. Note: a fully licensed NIGP catalog is available commercially from Periscope Holdings; this project's working catalog was derived from codes present in the source EY file rather than a licensed catalog.
+5. **NIGP Commodity Code public reference.** General overview of NIGP code structure available via NIGP organizational documentation. Note: a fully licensed NIGP catalog is available commercially from Periscope Holdings; this project's working catalog was derived from codes present in the source source file rather than a licensed catalog.
 6. **Pandas** (data processing library). Public homepage: <https://pandas.pydata.org/>
 7. **Project repository** (internal): all builder scripts, reference files, and the classifier are committed to the project repository under `spend-analysis/`. Each file carries a docstring describing its purpose and a `_JHK3` suffix indicating authorship and version.
 
@@ -394,7 +394,7 @@ For audit traceability, the following design decisions were made during taxonomy
 |---|----------|-----------|
 | 1 | Three-level taxonomy on every row: Business Category → NIGP Class → NIGP Item | Serves both executive dashboards (Business Category) and sourcing/audit needs (NIGP codes) |
 | 2 | AI assist allowed once during build, with strict guardrails. The single 2026-04-30 mining output is consumed in two paths at build/fill time: (a) high-confidence proposals promoted into the rule file, (b) saved CSV consulted by the post-classifier resolver for any row that no rule or account pattern caught. No runtime API call in either path. | Rules-only alone left a 17.8% review pile that would never be triaged at 140K-row volume; the resolver consumes more of the same paid-for AI output as a fallback layer. Lock preserved: production is rules-only at runtime, no API key required to classify. |
-| 3 | Classifier inputs: description text + Chicago FMPS account/object/fund codes only. Vendor and EY-supplied NIGP codes are NOT inputs | Chicago must own its own classification; vendor isn't a reliable signal; EY codes are another consultant's work product |
+| 3 | Classifier inputs: description text + Chicago FMPS account/object/fund codes only. Vendor and prior-supplied NIGP codes are NOT inputs | Chicago must own its own classification; vendor isn't a reliable signal; prior-supplied codes are another consultant's work product |
 | 4 | Lean ~16-column output instead of preserving all 87 raw columns | Raw file preserved separately; downstream analysis doesn't need 87 columns |
 | 5 | Dual-mode classifier (batch + single-record), same core function | Future-state: procurement analysts paste PO descriptions into a tool, get instant category + confidence |
 | 6 | Externalized rule files (`keyword_rules.csv`, `account_patterns.csv`) | Procurement staff can update rules without touching Python code |

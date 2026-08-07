@@ -1,7 +1,7 @@
 """
 Build draft Business Category mapping (Level 1 of taxonomy).
 
-Maps each of the 138 NIGP 3-digit Classes (extracted from EY raw data) to a
+Maps each of the 138 NIGP 3-digit Classes (extracted from the source dataset) to a
 business-friendly Business Category. Output is a draft for JHK3 review.
 
 Design principles (per project memory):

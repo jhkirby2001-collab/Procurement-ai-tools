@@ -9,7 +9,7 @@ fire AFTER keyword_rules — only when no keyword rule has matched.
 First-pass scope: Subgrant Account Codes
 - The 220xxx series in Chicago FMPS includes a set of accounts used almost
   exclusively for subgrant / pass-through funding to community-based
-  organizations. Empirical analysis of the EY raw data shows accounts 220005,
+  organizations. Empirical analysis of the source dataset shows accounts 220005,
   220044, 220100, 220801, 220300, 220999 carry 93-100% program-tagged rows
   (DFSS-/BACP-/CDPH- subgrants). Account 220140 is mixed (17% program-tag,
   83% other) — excluded from this pattern set to avoid false positives.
@@ -29,9 +29,9 @@ OUT_DIR = ROOT / "data" / "reference"
 #  nigp_item_5digit, nigp_match_level, notes)
 # Empty string for fund/object means "any". account_code is required.
 PATTERNS = [
-    # Subgrant / pass-through accounts (>=93% program-tag in EY data)
+    # Subgrant / pass-through accounts (>=93% program-tag in source data)
     ("220005", "", "", "Grants & Pass-Through Funding", "", "", "broad",
-     "Subgrant disbursement account (99% program-tagged in EY data)"),
+     "Subgrant disbursement account (99% program-tagged in source data)"),
     ("220044", "", "", "Grants & Pass-Through Funding", "", "", "broad",
      "Subgrant disbursement account (99% program-tagged)"),
     ("220100", "", "", "Grants & Pass-Through Funding", "", "", "broad",

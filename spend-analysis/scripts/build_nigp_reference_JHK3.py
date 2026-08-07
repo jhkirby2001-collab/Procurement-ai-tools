@@ -1,5 +1,5 @@
 """
-Build NIGP reference catalog from the EY raw data file.
+Build NIGP reference catalog from the source dataset file.
 
 Inputs:  spend-analysis/data/processed/ey_raw_cache.parquet
 Outputs: spend-analysis/data/reference/nigp_codes_10digit_JHK3.csv
@@ -17,7 +17,7 @@ SRC = ROOT / "data" / "processed" / "ey_raw_cache.parquet"
 OUT_DIR = ROOT / "data" / "reference"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-SOURCE_LABEL = "EY raw data file (City of Chicago purchasing extract, AP activity years 2017, 2020, 2021, 2023)"
+SOURCE_LABEL = "Source dataset (five-year AP extract, AP activity years 2017, 2020, 2021, 2023)"
 
 
 def canonical_description(series: pd.Series) -> str:

@@ -2,8 +2,8 @@
 One-shot audit: run plain-English public-sector procurement phrases through
 the classifier and report which ones fall to human review.
 
-Goal: surface vocabulary gaps where the rule base (tuned on EY description
-formats) fails on phrases a procurement staffer would actually type.
+Goal: surface vocabulary gaps where the rule base (tuned on source-dataset
+description formats) fails on phrases a procurement staffer would actually type.
 
 Usage:  python scripts/audit_classifier_coverage_JHK3.py
 """

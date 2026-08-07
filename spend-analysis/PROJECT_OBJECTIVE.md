@@ -2,11 +2,11 @@
 
 > **Author:** James H. Kirby III, CSCP, MS-SCM
 > **Date locked:** 2026-04-29
-> **Source file under analysis:** `spend-analysis/data/raw/ey raw data.xlsx` (City of Chicago purchasing data; EY consulting deliverable)
+> **Source file under analysis:** `spend-analysis/data/raw/raw_source_data.xlsx` (City of Chicago purchasing data; prior consulting deliverable)
 
 ---
 
-You are my coding and data analysis assistant in this Claude Code project. I am working with an Excel/CSV file called "EY raw data" that contains 4 years of City of Chicago purchasing data. Your job is to help me analyze this file, design a practical procurement taxonomy with Categories and Subcategories mapped to NIGP codes, classify the historical transactions, and build a repeatable, accuracy-first process that I can reuse on all new raw purchasing data going forward.
+You are my coding and data analysis assistant in this Claude Code project. I am working with an Excel/CSV file called the raw source dataset that contains 4 years of City of Chicago purchasing data. Your job is to help me analyze this file, design a practical procurement taxonomy with Categories and Subcategories mapped to NIGP codes, classify the historical transactions, and build a repeatable, accuracy-first process that I can reuse on all new raw purchasing data going forward.
 
 ## Important constraints and priorities
 
@@ -16,7 +16,7 @@ You are my coding and data analysis assistant in this Claude Code project. I am 
 
 ## 1. Project goals
 
-Help me achieve all of the following from the "EY raw data" file:
+Help me achieve all of the following from the raw source dataset file:
 
 - Analyze and classify the years of purchasing transactions in the file.
 - Create Categories and Subcategories that align to NIGP codes.
@@ -28,13 +28,13 @@ Help me achieve all of the following from the "EY raw data" file:
 
 ## 2. Data context
 
-- Primary file: "EY raw data" (Excel, 326 MB, 784,558 rows × 87 columns, sheet `Report 1`).
-- This file is an **EY consulting deliverable** — it is NOT a live City of Chicago system extract. The City does not currently have its own commodity categorization system. This project will produce that.
+- Primary file: the raw source dataset (Excel, 326 MB, 784,558 rows × 87 columns, sheet `Report 1`).
+- This file is an **prior consulting deliverable** — it is NOT a live City of Chicago system extract. The City does not currently have its own commodity categorization system. This project will produce that.
 - Likely fields include: transaction ID, date, department, vendor, description, amount, contract number, account/object code, fund, commodity/NIGP code fields (if present), and other classification fields.
 - Use all available fields (especially vendor, description, and any existing codes) to maximize classification accuracy.
-- The NIGP Code column populated in some rows = EY's classification work, not authoritative. Treat as a starting hypothesis to validate, not ground truth.
+- The NIGP Code column populated in some rows = the prior consultant's classification work, not authoritative. Treat as a starting hypothesis to validate, not ground truth.
 
-First, please inspect the structure of "EY raw data" and tell me:
+First, please inspect the structure of the raw source dataset and tell me:
 - What columns exist and their data types.
 - Any obvious data quality issues (missing values, inconsistent formats, duplicates, etc.).
 
@@ -61,7 +61,7 @@ Map each level cleanly to NIGP codes / code ranges. Keep the taxonomy as mutuall
 
 ### 4.2 Historical transaction classification
 
-Using "EY raw data," classify each transaction and produce a **lean output** (NOT all 87 original columns) with these fields:
+Using "the source dataset," classify each transaction and produce a **lean output** (NOT all 87 original columns) with these fields:
 
 - Transaction ID / PO #
 - Date
@@ -84,7 +84,7 @@ The original raw 87-column file remains untouched in `data/raw/` — we never ov
 
 ## 5. Accuracy-first repeatable logic
 
-Design a reusable classification framework that can be applied to future raw data files that look like "EY raw data":
+Design a reusable classification framework that can be applied to future raw data files that look like the raw source dataset:
 
 Use a combination of:
 - Existing NIGP or commodity fields (validated as a starting hypothesis, not auto-trusted)
@@ -107,7 +107,7 @@ Build this in a way that is easy to maintain as new vendors and patterns appear.
 
 ## 6. Reusable Python script / workflow
 
-Create runnable Python code for a repeatable pipeline that operates on "EY raw data" and future similar files. The same core classifier function serves **two modes**:
+Create runnable Python code for a repeatable pipeline that operates on the raw source dataset and future similar files. The same core classifier function serves **two modes**:
 
 - **Batch mode:** process a whole file (e.g., quarterly extracts)
 - **Single-record mode:** classify a single PO/requisition description on demand (paste a description, get a category) — for use as new POs flow through Chicago's DPS system
@@ -137,7 +137,7 @@ Before writing the full code:
 Produce a Word-document-style explanation (copy/paste from Claude Code into Word) that covers:
 
 - Project objective and scope
-- Description of the "EY raw data" file and its date coverage
+- Description of the raw source dataset file and its date coverage
 - Fields used for classification and why
 - How the Category/Subcategory taxonomy was designed
 - How NIGP alignment was determined
@@ -160,9 +160,9 @@ Organize at the end of the methodology explanation so leadership can independent
 
 ## 9. How to proceed
 
-1. First, inspect the "EY raw data" file and summarize its structure and any issues.
+1. First, inspect the raw source dataset file and summarize its structure and any issues.
 2. Then propose the taxonomy and rule design for my approval.
-3. After that, generate the Python pipeline code and show how to run it on "EY raw data".
+3. After that, generate the Python pipeline code and show how to run it on the raw source dataset.
 4. Finally, produce the leadership-ready methodology explanation and the source list.
 
 ---
@@ -173,7 +173,7 @@ Organize at the end of the methodology explanation so leadership can independent
 |---|---|---|
 | 1 | Three-level taxonomy on every row: Business Category → NIGP Class → NIGP Item (Option C) | Serves both executive dashboards (Business Category) and sourcing/audit needs (NIGP codes) |
 | 2 | AI assist allowed on the long tail, with strict guardrails | Rules-only would produce a 20-40% review pile; bounded AI shrinks it while remaining defensible |
-| 3 | Existing EY-supplied NIGP codes are starting hypotheses, NOT ground truth | EY's deliverable, not Chicago's authoritative system; must be validated against vendor + description |
+| 3 | Existing prior-supplied NIGP codes are starting hypotheses, NOT ground truth | the prior consultant's deliverable, not Chicago's authoritative system; must be validated against vendor + description |
 | 4 | Lean output (~13 columns) instead of preserving all 87 | Raw file is preserved separately; downstream analysis doesn't need 87 columns and Excel chokes on them |
-| 5 | EY data is raw material; the taxonomy + classifier are the actual deliverables | Categorized EY file is proof-of-concept, not the end product |
-| 6 | Single source: `spend-analysis/data/raw/ey raw data.xlsx` only — no cross-dataset reconciliation in scope | Keep scope tight; other extracts can be re-run through the classifier later |
+| 5 | source data is raw material; the taxonomy + classifier are the actual deliverables | Categorized source file is proof-of-concept, not the end product |
+| 6 | Single source: `spend-analysis/data/raw/raw_source_data.xlsx` only — no cross-dataset reconciliation in scope | Keep scope tight; other extracts can be re-run through the classifier later |

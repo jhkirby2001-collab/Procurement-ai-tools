@@ -14,7 +14,7 @@ Classifies 784,556 historical public-sector procurement rows into a three-level 
 
 **Business Category (17) → NIGP Class (3-digit) → NIGP Item (5-digit)**
 
-Inputs to the classifier: description text + Chicago FMPS account/object/fund codes ONLY. Vendor names and any EY-supplied NIGP codes are NOT inputs.
+Inputs to the classifier: description text + Chicago FMPS account/object/fund codes ONLY. Vendor names and any prior-supplied NIGP codes are NOT inputs.
 
 **Production batch metrics (post-resolver, 2026-05-14; batch not re-run since):** 100% mapped, 0 rows in review queue. Coverage breakdown (rule base was 246 curated at run time; now 280 — new rules fold in at next batch refresh):
 - Tier 1 — Keyword rule (246 curated + 6,766 AI-mined at run time): 688,044 (87.7%)
@@ -94,7 +94,7 @@ streamlit run streamlit_app.py
 |---|---|
 | 1 | Three-level taxonomy on every row: Business Category (17) → NIGP Class (3-digit) → NIGP Item (5-digit). |
 | 2 | AI used ONCE during build to mine long-tail patterns. Production runtime is rules-only. No API key needed to classify. |
-| 3 | Classifier inputs: description text + Chicago FMPS account/object/fund codes ONLY. Vendor and EY-supplied NIGP codes are NOT inputs. |
+| 3 | Classifier inputs: description text + Chicago FMPS account/object/fund codes ONLY. Vendor and prior-supplied NIGP codes are NOT inputs. |
 | 4 | Lean ~16-column output. Raw 87-column file preserved separately. |
 | 5 | Dual-mode classifier: same core function for batch and single-record CLI. |
 | 6 | Rule files externalized as CSV so procurement staff can edit without touching Python. |
