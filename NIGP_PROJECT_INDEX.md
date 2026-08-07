@@ -70,7 +70,7 @@ The NIGP commodity-code lookup tables. These rarely change.
 |---|---|
 | [spend-analysis/data/reference/nigp_codes_3digit_JHK3.csv](spend-analysis/data/reference/nigp_codes_3digit_JHK3.csv) | 138 NIGP 3-digit Classes used by the classifier. |
 | [spend-analysis/data/reference/nigp_codes_5digit_JHK3.csv](spend-analysis/data/reference/nigp_codes_5digit_JHK3.csv) | 470 NIGP 5-digit Class-Items used by the classifier. |
-| [spend-analysis/data/reference/nigp_codes_10digit_JHK3.csv](spend-analysis/data/reference/nigp_codes_10digit_JHK3.csv) | 4,592 codes — full EY-supplied catalog at 10-digit granularity. |
+| [spend-analysis/data/reference/nigp_codes_10digit_JHK3.csv](spend-analysis/data/reference/nigp_codes_10digit_JHK3.csv) | 4,592 codes — full source-derived catalog at 10-digit granularity. |
 
 ---
 
@@ -90,7 +90,7 @@ The NIGP commodity-code lookup tables. These rarely change.
 
 | File | What it is |
 |---|---|
-| [spend-analysis/scripts/build_nigp_reference_JHK3.py](spend-analysis/scripts/build_nigp_reference_JHK3.py) | Built the three NIGP reference CSVs from the raw EY data. |
+| [spend-analysis/scripts/build_nigp_reference_JHK3.py](spend-analysis/scripts/build_nigp_reference_JHK3.py) | Built the three NIGP reference CSVs from the raw source data. |
 | [spend-analysis/scripts/build_business_categories_draft_JHK3.py](spend-analysis/scripts/build_business_categories_draft_JHK3.py) | Built the initial draft of the 17-category mapping. |
 | [spend-analysis/scripts/build_keyword_rules_draft_JHK3.py](spend-analysis/scripts/build_keyword_rules_draft_JHK3.py) | Built the initial draft of the hand-curated keyword rules. |
 | [spend-analysis/scripts/build_account_patterns_draft_JHK3.py](spend-analysis/scripts/build_account_patterns_draft_JHK3.py) | Built the initial draft of the account-code patterns. |
@@ -120,7 +120,7 @@ These files explain *how* the classifier made its decisions. They are NOT in git
 | `spend-analysis/data/processed/classifier_account_pattern_report_JHK3.csv` | How often each account-code pattern fired. |
 | `spend-analysis/data/processed/ai_classified_unique_descriptions_JHK3.csv` | All 30,342 AI proposals with confidence and reasoning — preserved for audit. |
 | `spend-analysis/data/processed/description_column_profile_JHK3.csv` | One-time descriptive profile of the four description fields. |
-| `spend-analysis/data/processed/top_description_patterns_JHK3.csv` | Most common description patterns from the EY raw data. |
+| `spend-analysis/data/processed/top_description_patterns_JHK3.csv` | Most common description patterns from the source dataset. |
 | `spend-analysis/data/processed/lowinfo_description_examples_JHK3.csv` | Examples of "Misc" / "Per contract" type descriptions. |
 
 ---
@@ -129,7 +129,7 @@ These files explain *how* the classifier made its decisions. They are NOT in git
 
 | File | What it is |
 |---|---|
-| `spend-analysis/data/raw/ey raw data.xlsx` | Original EY consulting deliverable. **326 MB. Untouched.** Not in git (too large; raw data is never committed). |
+| `spend-analysis/data/raw/` (raw source extract) | Original source dataset — a five-year AP dataset. **326 MB. Untouched.** Not in git (too large; raw data is never committed). |
 
 ---
 
@@ -137,7 +137,7 @@ These files explain *how* the classifier made its decisions. They are NOT in git
 
 For clarity — these files exist in this repo but are unrelated to the NIGP project:
 
-- The earlier EY benchmark / Top Consolidation Savings work (separate analytical effort)
+- The earlier benchmark / Top Consolidation Savings work (separate analytical effort)
 - `outputs/research-reports/` market research deliverables
 - `market_research_emergency_generator_maintenance_2026-04-22.md` (separate market-research engagement)
 - The procurement-researcher agent definition under `.claude/agents/`
