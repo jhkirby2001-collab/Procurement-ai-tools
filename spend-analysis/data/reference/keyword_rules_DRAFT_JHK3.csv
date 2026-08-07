@@ -54,7 +54,7 @@ AIRPORT MAINTENANCE AND REPAIR,contains,Facilities Operations & Maintenance,909,
 DOORS AND MOTORS:OVERHEAD,contains,Facilities Operations & Maintenance,450,,broad,
 ELECTRICAL PRODUCTS AND SUPPLIES,contains,Facilities Operations & Maintenance,285,,broad,
 "ELEVATORS, DUMBWAITERS",contains,Facilities Operations & Maintenance,,,broad,No elevator class in working set
-"FENCING, GUARDRAIL",contains,Facilities Operations & Maintenance,,,broad,
+"FENCING, GUARDRAIL",contains,"Landscaping, Grounds & Irrigation",988,,broad,Aligned to NIGP class 988 (fence/guardrail item 98815) — 2026-08-07
 FLAGPOLE,contains,Facilities Operations & Maintenance,350,,broad,
 HVAC,contains,Facilities Operations & Maintenance,031,,broad,
 LOCKSMITH SERVICES,contains,Facilities Operations & Maintenance,450,,broad,
@@ -245,3 +245,37 @@ GENERAL CHEMICAL & BIOLOGICAL LAB,contains,Chemicals & Water Treatment,175,,broa
 FLEET WASHING,contains,Vehicles & Fleet,928,,broad,Fleet vehicle washing service — added 2026-05-14
 SUMMONS,contains,Professional & Administrative Services,,,broad,Legal summons (variant of SUBPOENA contexts) — added 2026-05-14
 END TO END RECRUITMENT,contains,Professional & Administrative Services,,,broad,Recruitment-process services — added 2026-05-14
+FENCE,contains,"Landscaping, Grounds & Irrigation",988,,broad,Fence coverage — NIGP class 988 (item 98815); raw data shows fence = landscape salt-fence service — added 2026-08-07
+FENCING,contains,"Landscaping, Grounds & Irrigation",988,,broad,Fencing coverage — NIGP class 988 — added 2026-08-07
+PAPER TOWEL,contains,"Janitorial, Sanitation & Waste",640,,broad,Paper towels — NIGP 640 (item: TOWELS PAPER ROLL) — added 2026-08-07
+TOILET TISSUE,contains,"Janitorial, Sanitation & Waste",640,,broad,Toilet tissue/paper — NIGP 640 — added 2026-08-07
+PAPER PRODUCTS,contains,"Janitorial, Sanitation & Waste",640,,broad,Janitorial paper products — NIGP 640 — added 2026-08-07
+CARPET,contains,"Janitorial, Sanitation & Waste",977,,broad,Carpet/floor covering — NIGP 977 — added 2026-08-07
+GLOVE,contains,"Public Safety, Uniforms & PPE",200,,broad,Work/EMS gloves (PPE) — NIGP 200 — added 2026-08-07
+UNIFORM,contains,"Public Safety, Uniforms & PPE",200,,broad,Uniforms/apparel — NIGP 200 — added 2026-08-07
+AMMUNITION,contains,"Public Safety, Uniforms & PPE",680,,broad,Ammunition/cartridges — NIGP 680 — added 2026-08-07
+RESPIRATOR,contains,"Public Safety, Uniforms & PPE",680,,broad,Respirator PPE — NIGP 680 — added 2026-08-07
+FACE MASK,contains,"Public Safety, Uniforms & PPE",680,,broad,Face mask PPE — NIGP 680 — added 2026-08-07
+DUST MASK,contains,"Public Safety, Uniforms & PPE",680,,broad,Dust mask PPE — NIGP 680 — added 2026-08-07
+N95,contains,"Public Safety, Uniforms & PPE",680,,broad,N95 respirator PPE — NIGP 680 — added 2026-08-07
+BODY ARMOR,contains,"Public Safety, Uniforms & PPE",680,,broad,Body armor/protection equipment — NIGP 680 — added 2026-08-07
+BALLISTIC VEST,contains,"Public Safety, Uniforms & PPE",680,,broad,Ballistic vest — NIGP 680 — added 2026-08-07
+FIRE HOSE,contains,"Public Safety, Uniforms & PPE",340,,broad,Fire hose (annual service test) — NIGP 340 — added 2026-08-07
+ROAD SALT,contains,Chemicals & Water Treatment,192,,broad,Road salt/deicer — NIGP 192 (ICE AND SNOW REMOVAL CHEMICALS) — added 2026-08-07
+ROCK SALT,contains,Chemicals & Water Treatment,192,,broad,Rock salt/deicer — NIGP 192 — added 2026-08-07
+DEICER,contains,Chemicals & Water Treatment,192,,broad,Deicer chemical — NIGP 192 — added 2026-08-07
+DE-ICER,contains,Chemicals & Water Treatment,192,,broad,De-icer chemical — NIGP 192 — added 2026-08-07
+TRANSLATION,contains,Professional & Administrative Services,918,,broad,Translation services — NIGP 918 — added 2026-08-07
+INTERPRET,contains,Professional & Administrative Services,918,,broad,Interpreter/interpretation services — NIGP 918 — added 2026-08-07
+SECURITY GUARD,contains,Professional & Administrative Services,964,,broad,Unarmed security guard services — NIGP 964 — added 2026-08-07
+DEFIBRILLATOR,contains,Medical & Health Services,430,,broad,Defibrillator/AED — NIGP 430 — added 2026-08-07
+ELECTRICAL WIRE,contains,Facilities Operations & Maintenance,285,,broad,Electrical wire/supplies — NIGP 285 — added 2026-08-07
+BATTERIES,contains,Facilities Operations & Maintenance,287,,broad,Batteries/power supply — NIGP 287 — added 2026-08-07
+BATTERY,contains,Facilities Operations & Maintenance,287,,broad,Battery/power supply — NIGP 287 — added 2026-08-07
+PAVEMENT MARKING,contains,Construction Materials,745,,broad,Pavement marking materials — NIGP 745 (matches thermoplastic rule) — added 2026-08-07
+FORKLIFT,contains,Heavy Equipment & Machinery,560,,broad,Forklifts — NIGP 560 — added 2026-08-07
+WINDOW CLEANING,contains,"Landscaping, Grounds & Irrigation",910,,broad,Window cleaning/washing services — NIGP 910 — added 2026-08-07
+WINDOW WASHING,contains,"Landscaping, Grounds & Irrigation",910,,broad,Window washing services — NIGP 910 — added 2026-08-07
+TONER,contains,"IT, Telecom & Audio/Visual",207,,broad,Printer toner/supplies — NIGP 207 — added 2026-08-07
+SNOW REMOVAL,contains,"Landscaping, Grounds & Irrigation",,,broad,Snow removal service (no snow-services class in working set) — added 2026-08-07
+FUEL,contains,Vehicles & Fleet,405,,broad,Fuel (gasoline/diesel/fleet) — NIGP 405 — added 2026-08-07
