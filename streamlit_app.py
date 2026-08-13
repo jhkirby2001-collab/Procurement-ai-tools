@@ -31,6 +31,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "spend-analysis" / "scripts"))
 from classifier_JHK3 import classify_one, load_keyword_rules  # noqa: E402
+import spend_report_JHK3 as sr  # noqa: E402
 
 # -- Brand palette ---------------------------------------------------------
 CHI_NAVY = "#002F6C"
@@ -1038,6 +1039,155 @@ def page_rule_lookup() -> None:
 
 
 # =========================================================================
+# PAGE: Spend Report
+# =========================================================================
+def _fmt_money(v) -> str:
+    try:
+        return f"${float(v):,.0f}"
+    except (TypeError, ValueError):
+        return "—"
+
+
+def page_spend_report() -> None:
+    st.title("Spend Report")
+    st.markdown(
+        "Upload a spend file. The mapper classifies every line into a Business Category, "
+        "then builds a spend analysis — spend by category, Pareto 80/20, top vendors, and "
+        "vendor consolidation — that you can download as an Excel report. "
+        "**Runs on rules only — no AI, and your file stays in this session.**"
+    )
+
+    uploaded = st.file_uploader(
+        "Upload a spend file (CSV or Excel).",
+        type=["csv", "xlsx", "xls"],
+        accept_multiple_files=False,
+    )
+    if uploaded is None:
+        st.info("Awaiting file upload…")
+        return
+
+    try:
+        if uploaded.name.lower().endswith(".csv"):
+            df_in = pd.read_csv(uploaded, low_memory=False)
+        else:
+            df_in = pd.read_excel(uploaded)
+    except Exception as e:  # noqa: BLE001
+        st.error(f"Could not read the file: {e}")
+        return
+    df_in.columns = [str(c).strip() for c in df_in.columns]
+
+    st.success(f"Loaded {len(df_in):,} rows × {len(df_in.columns)} columns.")
+    st.dataframe(df_in.head(), use_container_width=True, hide_index=True)
+
+    guess = sr.detect_columns(df_in)
+    cols = list(df_in.columns)
+    NONE = "— none —"
+
+    def _opt_idx(val):
+        return cols.index(val) + 1 if val in cols else 0
+
+    st.markdown("#### Map your columns")
+    c1, c2 = st.columns(2)
+    with c1:
+        desc_col = st.selectbox(
+            "Description (required)", cols,
+            index=cols.index(guess["desc"]) if guess["desc"] in cols else 0)
+        amount_col = st.selectbox("Amount / spend", [NONE] + cols, index=_opt_idx(guess["amount"]))
+    with c2:
+        vendor_col = st.selectbox("Vendor", [NONE] + cols, index=_opt_idx(guess["vendor"]))
+        dept_col = st.selectbox("Department", [NONE] + cols, index=_opt_idx(guess["dept"]))
+    amount_col = None if amount_col == NONE else amount_col
+    vendor_col = None if vendor_col == NONE else vendor_col
+    dept_col = None if dept_col == NONE else dept_col
+
+    max_rows = len(df_in)
+    if len(df_in) > 25000:
+        st.warning(
+            f"Large file ({len(df_in):,} rows). Classifying every row can take a couple of "
+            "minutes. You can cap the row count for a faster first look."
+        )
+        max_rows = st.number_input(
+            "Rows to analyze", min_value=1000, max_value=len(df_in),
+            value=min(25000, len(df_in)), step=5000)
+
+    if not st.button("Generate spend report", type="primary"):
+        return
+
+    work = df_in.head(int(max_rows)).copy()
+    with st.spinner(f"Classifying {len(work):,} rows (rules only)…"):
+        cls = sr.classify_series(work[desc_col], get_rules())
+        work = pd.concat([work.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
+
+    tiles = sr.summary_tiles(work, "Business_Category", amount_col, vendor_col, guess["date"])
+    cov = sr.coverage(work, "Business_Category")
+    cat = sr.spend_by_category(work, "Business_Category", amount_col)
+    classified = work[~work["Business_Category"].isin(
+        [sr.UNCLASSIFIED_NO_RULE, sr.UNCLASSIFIED_NO_DESC])]
+    par, measure, n80 = sr.pareto(classified, "Business_Category", amount_col)
+    vend = sr.top_vendors(work, vendor_col, amount_col)
+    cons = sr.consolidation_finder(work, "Business_Category", vendor_col, amount_col, dept_col)
+
+    # Summary tiles
+    st.markdown("### Summary")
+    m = st.columns(4)
+    m[0].metric("Total spend", _fmt_money(tiles["total_spend"]) if tiles["has_amount"] else "n/a")
+    m[1].metric("Transactions", f"{tiles['transactions']:,}")
+    m[2].metric("Categories", tiles["categories"])
+    m[3].metric("Vendors", f"{tiles['vendors']:,}" if tiles["vendors"] is not None else "n/a")
+
+    # Coverage note
+    st.info(
+        f"**Coverage:** {cov['classified']:,} of {cov['total']:,} rows "
+        f"({cov['classified_pct']}%) matched a keyword rule — "
+        f"{cov['no_rule']:,} had no rule match, {cov['no_description']:,} had no description. "
+        "Rules were tuned on one agency's vocabulary; add rules to raise coverage on a new dataset."
+    )
+
+    # Spend by category
+    st.markdown("### Spend by Business Category")
+    st.dataframe(cat, use_container_width=True, hide_index=True)
+    chart_measure = measure if measure in cat.columns else cat.columns[1]
+    st.bar_chart(cat.set_index("Business Category")[chart_measure])
+
+    # Pareto
+    st.markdown("### Pareto 80/20")
+    if len(par):
+        st.caption(
+            f"**{n80}** categor{'y' if n80 == 1 else 'ies'} drive 80% of "
+            f"{'spend' if tiles['has_amount'] else 'transactions'} (classified rows only).")
+        st.dataframe(par, use_container_width=True, hide_index=True)
+    else:
+        st.caption("No classified rows to chart.")
+
+    # Top vendors
+    st.markdown("### Top Vendors")
+    if vend is not None:
+        st.dataframe(vend, use_container_width=True, hide_index=True)
+    else:
+        st.caption("Map a Vendor column above to see this.")
+
+    # Consolidation
+    st.markdown("### Vendor Consolidation / Fragmentation")
+    if cons is not None and len(cons):
+        st.caption("Categories bought from more than one vendor — the biggest consolidation "
+                   "opportunities appear first.")
+        st.dataframe(cons, use_container_width=True, hide_index=True)
+    else:
+        st.caption("Map a Vendor column (and ideally Department) to surface consolidation opportunities.")
+
+    # Excel download
+    buf = io.BytesIO()
+    sr.build_excel_report(buf, tiles=tiles, cat_tbl=cat, pareto_tbl=par,
+                          vendors_tbl=vend, consolidation_tbl=cons, cov=cov)
+    st.download_button(
+        "⬇  Download full spend report (Excel)",
+        data=buf.getvalue(),
+        file_name="Spend_Report_JHK3.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+# =========================================================================
 # Sidebar + dispatch
 # =========================================================================
 def render_sidebar() -> str:
@@ -1056,6 +1206,7 @@ def render_sidebar() -> str:
             [
                 "Classify",
                 "Bulk Classify",
+                "Spend Report",
                 "Procurement Taxonomy Logic",
                 "Methodology",
                 "Business Categories",
@@ -1096,6 +1247,8 @@ def main() -> None:
         page_classify()
     elif page == "Bulk Classify":
         page_bulk()
+    elif page == "Spend Report":
+        page_spend_report()
     elif page == "Procurement Taxonomy Logic":
         page_taxonomy_logic()
     elif page == "Methodology":
