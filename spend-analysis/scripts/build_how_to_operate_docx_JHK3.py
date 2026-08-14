@@ -317,23 +317,30 @@ def build():
         "Everyday workflows: use Classify to answer \"what category is this?\"; use Rule Lookup to "
         "answer \"why did it decide that?\"",
     )
-    add_h2(doc, "5B.  The Spend Report — spend analysis from any file")
+    add_h2(doc, "5B.  The Spend Report — adaptive spend analysis from any file")
     add_body(
         doc,
-        "The Spend Report page takes the tool one step past classification: upload a spend "
-        "file and it classifies every line, then builds a spend analysis you can download as "
-        "Excel. Steps: (1) upload a CSV or Excel spend file; (2) confirm the auto-detected "
-        "Description, Amount, Vendor, and Department columns; (3) click Generate spend report, "
-        "then download the Excel workbook.",
+        "The Spend Report page takes the tool one step past classification: upload a spend file "
+        "in any format and it builds a full spend analysis you can download as one Excel "
+        "workbook. It is adaptive — it inspects every column (name and content), figures out "
+        "which is the description, amount, vendor, department, date, and any breakdown "
+        "dimensions, then runs every analysis the data supports and skips the ones it can't, "
+        "telling you why. You do not have to shape your file to fit the tool. Steps: (1) upload "
+        "a CSV or Excel file; (2) confirm the detected columns (only change a box if a guess is "
+        "wrong; only Description is required); (3) click Generate, then download the workbook.",
     )
     add_body(
         doc,
-        "It produces six reports: summary tiles, spend by Business Category, Pareto 80/20 "
-        "(which categories drive 80% of spend), top vendors, vendor consolidation/fragmentation "
-        "(the savings story), and a coverage note. All deterministic arithmetic — no AI, and the "
-        "file stays in the session. Classification is keyword-rules-only, so coverage depends on "
-        "description quality; the coverage note always shows how much of the file was classified. "
-        "The in-app Spend Report Methodology page documents each report in full.",
+        "Depending on what the file contains, it produces: a data-driven executive summary "
+        "(findings + recommended steps), spend by category, Pareto 80/20, top vendors, vendor "
+        "concentration/risk (HHI), tail-spend, single- vs multi-source, spend trend over time, "
+        "spend by department, a category-by-department matrix, vendor consolidation/"
+        "fragmentation, and a spend breakdown for any dimension it finds (contract vs "
+        "non-contract, supplier diversity, status). Each becomes a tab in a brand-colored Excel "
+        "workbook with charts. All deterministic arithmetic — no AI, and the file stays in the "
+        "session. Classification is keyword-rules-only, so coverage depends on description "
+        "quality; the coverage note always shows how much of the file was classified. The "
+        "in-app Spend Report Methodology page documents each report in full.",
     )
     add_h2(doc, "5C.  The command line (advanced / technical users)")
     add_body(

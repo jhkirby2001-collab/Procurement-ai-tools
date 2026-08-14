@@ -261,6 +261,231 @@ def coverage(df, category_col, method_col=None):
 
 
 # ---------------------------------------------------------------------------
+# Adaptive column profiler + analysis planner (schema/format agnostic)
+# ---------------------------------------------------------------------------
+CONTRACT_HINTS = ["contract awarded", "contract", "awarded", "bpa", "blanket", "on contract"]
+DIVERSITY_HINTS = ["mbe", "wbe", "dbe", "bepd", "diversity", "minority", "m/wbe", "certif"]
+ID_HINTS = ["number", "req #", "req#", " id", "id ", "invoice", "voucher", "requisition number", "po #"]
+
+
+def _num_frac(s: pd.Series) -> float:
+    return float(clean_amount(s).notna().mean()) if len(s) else 0.0
+
+
+def _date_frac(s: pd.Series) -> float:
+    if pd.api.types.is_datetime64_any_dtype(s):
+        return 1.0
+    try:
+        return float(pd.to_datetime(s, errors="coerce", format="mixed").notna().mean())
+    except Exception:
+        try:
+            return float(pd.to_datetime(s, errors="coerce").notna().mean())
+        except Exception:
+            return 0.0
+
+
+def profile_columns(df: pd.DataFrame) -> dict:
+    """Inspect every column and assign a probable role using name + content
+    heuristics. Roles: amount, date, description, vendor, department, id,
+    dimension (low-cardinality categorical, subtype contract/diversity), other.
+    Returns per-column detail plus the chosen primary columns for each role."""
+    def hint(low, hints):
+        return any(h in low for h in hints)
+
+    cols = []
+    for c in df.columns:
+        s = df[c]
+        nn = int(s.notna().sum())
+        low = str(c).strip().lower()
+        nun = int(s.nunique(dropna=True))
+        card = nun / nn if nn else 0.0
+        strvals = s.dropna().astype(str)
+        avglen = float(strvals.str.len().mean()) if len(strvals) else 0.0
+        has_dollar = float(strvals.str.contains(r"\$", regex=True).mean()) if len(strvals) else 0.0
+        numf = _num_frac(s)
+        datef = _date_frac(s) if (s.dtype == object or "date" in low or pd.api.types.is_datetime64_any_dtype(s)) else 0.0
+
+        role, sub = "other", None
+        if datef >= 0.7 or (hint(low, DATE_HINTS) and datef >= 0.4):
+            role = "date"
+        elif has_dollar >= 0.3 or (numf >= 0.8 and hint(low, AMOUNT_HINTS)):
+            role = "amount"
+        elif card >= 0.9 and avglen < 22 and (numf >= 0.6 or hint(low, ID_HINTS)):
+            role = "id"
+        elif hint(low, DESC_HINTS) and avglen >= 18 and card >= 0.2:
+            role = "description"
+        elif avglen >= 30 and card >= 0.3 and numf < 0.3:
+            role = "description"
+        elif hint(low, DEPT_HINTS):
+            role = "department"
+        elif hint(low, VENDOR_HINTS):
+            role = "vendor"
+        elif nun <= 40 and card < 0.5 and numf < 0.8 and datef < 0.4:
+            role = "dimension"
+            if hint(low, DIVERSITY_HINTS):
+                sub = "diversity"
+            elif hint(low, CONTRACT_HINTS):
+                sub = "contract"
+        elif numf < 0.3 and 0.02 < card < 0.95:
+            role = "vendor"  # fallback: free-text categorical → likely a name
+        cols.append(dict(name=str(c).strip(), low=low, role=role, subtype=sub,
+                         nun=nun, card=round(card, 3), avglen=round(avglen, 1),
+                         numf=round(numf, 2), datef=round(datef, 2)))
+
+    def pick(role, hints=None, exclude=()):
+        cands = [c for c in cols if c["role"] == role and c["name"] not in exclude]
+        if hints:
+            for h in hints:
+                for c in cands:
+                    if h in c["low"]:
+                        return c["name"]
+        return cands[0]["name"] if cands else None
+
+    desc = pick("description", DESC_HINTS)
+    if not desc:
+        texts = sorted([c for c in cols if c["numf"] < 0.5 and c["datef"] < 0.5],
+                       key=lambda c: -c["avglen"])
+        desc = texts[0]["name"] if texts else None
+    amount = pick("amount", AMOUNT_HINTS)
+    vendor = pick("vendor", VENDOR_HINTS, exclude={desc})
+    department = pick("department", DEPT_HINTS)
+    date = pick("date", DATE_HINTS)
+    dims = [c for c in cols if c["role"] == "dimension"]
+    roles = {
+        "description": desc, "amount": amount, "vendor": vendor,
+        "department": department, "date": date,
+        "dimensions": [c["name"] for c in dims],
+        "dimension_subtypes": {c["name"]: c["subtype"] for c in dims},
+    }
+    return {"columns": cols, "roles": roles}
+
+
+def plan_analyses(profile: dict) -> list:
+    r = profile["roles"]
+    has = lambda k: bool(r.get(k))
+    amt = has("amount")
+    plan = []
+
+    def add(key, label, ok, why=""):
+        plan.append({"key": key, "label": label, "feasible": bool(ok), "reason": why})
+
+    add("category", "Spend by Business Category", True)
+    add("pareto", "Pareto 80/20", True)
+    add("top_vendors", "Top Vendors", has("vendor"), "" if has("vendor") else "no vendor column")
+    add("consolidation", "Vendor Consolidation / Fragmentation", has("vendor"),
+        "" if has("vendor") else "no vendor column")
+    add("department", "Spend by Department", has("department"),
+        "" if has("department") else "no department column")
+    add("trend", "Spend Trend Over Time", has("date"),
+        "" if has("date") else "no date column")
+    add("tail", "Tail-Spend Analysis", has("vendor"), "" if has("vendor") else "no vendor column")
+    add("concentration", "Vendor Concentration / Risk", has("vendor"),
+        "" if has("vendor") else "no vendor column")
+    add("single_multi", "Single- vs Multi-Source Categories", has("vendor"),
+        "" if has("vendor") else "no vendor column")
+    add("matrix", "Category × Department Matrix", has("department"),
+        "" if has("department") else "no department column")
+    for dim in r.get("dimensions", []):
+        sub = r.get("dimension_subtypes", {}).get(dim)
+        label = {"contract": f"Contract vs Non-Contract ({dim})",
+                 "diversity": f"Supplier Diversity ({dim})"}.get(sub, f"Spend by {dim}")
+        add(f"dim::{dim}", label, True)
+    return plan
+
+
+# ---------------------------------------------------------------------------
+# Extended industry-standard analyses
+# ---------------------------------------------------------------------------
+def spend_trend(df, date_col, amount_col=None):
+    if not date_col or date_col not in df:
+        return None
+    work = df.copy()
+    work["_d"] = pd.to_datetime(work[date_col], errors="coerce", format="mixed")
+    work = work[work["_d"].notna()]
+    if not len(work):
+        return None
+    work["_amt"] = clean_amount(work[amount_col]).fillna(0.0) if amount_col else 1.0
+    work["Year"] = work["_d"].dt.year.astype(int).astype(str)
+    g = work.groupby("Year").agg(Spend=("_amt", "sum"), Transactions=("_amt", "size")).reset_index()
+    g = g.sort_values("Year")
+    if amount_col:
+        g["YoY %"] = (g["Spend"].pct_change() * 100).round(1)
+    return g
+
+
+def tail_spend(df, vendor_col, amount_col=None):
+    if not vendor_col or vendor_col not in df:
+        return None
+    g, measure = _rollup(df, vendor_col, amount_col)
+    g["_cum"] = g["% of Total"].cumsum()
+    total_v = len(g)
+    top_v = int((g["_cum"] < 80).sum() + 1) if total_v else 0
+    top_v = min(top_v, total_v)
+    tail = g.iloc[top_v:]
+    tail_val = float(tail[measure].sum())
+    grand = float(g[measure].sum())
+    return {"total_vendors": total_v, "vendors_to_80pct": top_v,
+            "tail_vendors": total_v - top_v,
+            "tail_pct_of_vendors": round((total_v - top_v) / total_v * 100, 1) if total_v else 0.0,
+            "tail_value": tail_val,
+            "tail_pct_of_value": round(tail_val / grand * 100, 1) if grand else 0.0,
+            "measure": measure}
+
+
+def vendor_concentration(df, vendor_col, amount_col=None):
+    if not vendor_col or vendor_col not in df:
+        return None
+    g, measure = _rollup(df, vendor_col, amount_col)
+    tot = float(g[measure].sum())
+    share = lambda k: round(float(g.head(k)[measure].sum()) / tot * 100, 1) if tot else 0.0
+    frac = g["% of Total"] / 100.0
+    hhi = int(round(float((frac ** 2).sum()) * 10000))
+    return {"total_vendors": len(g), "top1": share(1), "top5": share(5),
+            "top10": share(10), "hhi": hhi, "measure": measure}
+
+
+def single_vs_multi_source(df, category_col, vendor_col, amount_col=None):
+    if not vendor_col or vendor_col not in df:
+        return None
+    work = df[_is_classified(df[category_col])].copy()
+    if amount_col:
+        work["_amt"] = clean_amount(work[amount_col]).fillna(0.0)
+        grp = work.groupby(category_col).agg(Vendors=(vendor_col, "nunique"), Spend=("_amt", "sum"))
+        col = "Spend"
+    else:
+        grp = work.groupby(category_col).agg(Vendors=(vendor_col, "nunique"), Spend=(vendor_col, "size"))
+        col = "Spend"
+    single = grp[grp["Vendors"] == 1]
+    multi = grp[grp["Vendors"] > 1]
+    return {"single_categories": int(len(single)), "multi_categories": int(len(multi)),
+            "single_value": float(single[col].sum()), "multi_value": float(multi[col].sum()),
+            "has_amount": bool(amount_col)}
+
+
+def spend_by_dimension(df, dim_col, amount_col=None, top_n=20):
+    if not dim_col or dim_col not in df:
+        return None
+    g, _ = _rollup(df, dim_col, amount_col)
+    g = g.rename(columns={dim_col: str(dim_col)})
+    return g.head(top_n)
+
+
+def category_department_matrix(df, category_col, dept_col, amount_col=None, top_depts=8, top_cats=12):
+    if not dept_col or dept_col not in df:
+        return None
+    work = df[_is_classified(df[category_col])].copy()
+    work["_amt"] = clean_amount(work[amount_col]).fillna(0.0) if amount_col else 1.0
+    top_d = work.groupby(dept_col)["_amt"].sum().sort_values(ascending=False).head(top_depts).index
+    top_c = work.groupby(category_col)["_amt"].sum().sort_values(ascending=False).head(top_cats).index
+    w = work[work[dept_col].isin(top_d) & work[category_col].isin(top_c)]
+    pv = pd.pivot_table(w, index=category_col, columns=dept_col, values="_amt",
+                        aggfunc="sum", fill_value=0.0)
+    pv = pv.round(0).reset_index().rename(columns={category_col: "Business Category"})
+    pv.columns = [str(c) for c in pv.columns]
+    return pv
+
+
+# ---------------------------------------------------------------------------
 # Executive summary (deterministic, data-driven)
 # ---------------------------------------------------------------------------
 def _money_text(v):
@@ -270,7 +495,8 @@ def _money_text(v):
         return "n/a"
 
 
-def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None) -> dict:
+def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
+                      trend=None, tail=None, concentration=None) -> dict:
     has_amt = tiles.get("has_amount")
     unit = "spend" if has_amt else "transactions"
     real = cat[~cat["Business Category"].isin([UNCLASSIFIED_NO_RULE, UNCLASSIFIED_NO_DESC])]
@@ -319,6 +545,25 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None) -> dict:
         lines.append(
             f"The largest single vendor is {tv['Vendor']} at {val} ({tv['% of Total']}% of total).")
         steps.append("Review the top vendors for volume-based pricing, contract compliance, and overlap.")
+
+    if trend is not None and "Spend" in trend.columns and len(trend) >= 2:
+        peak = trend.loc[trend["Spend"].idxmax()]
+        lines.append(
+            f"Annual spend spans {trend.iloc[0]['Year']}–{trend.iloc[-1]['Year']}, peaking in "
+            f"{peak['Year']} at {_money_text(peak['Spend'])}.")
+
+    if concentration:
+        lvl = ("high" if concentration["top10"] >= 60 else
+               "moderate" if concentration["top10"] >= 35 else "low")
+        lines.append(
+            f"Supplier concentration is {lvl}: the top 10 vendors represent "
+            f"{concentration['top10']}% of {unit} (HHI {concentration['hhi']:,}).")
+
+    if tail:
+        lines.append(
+            f"A long tail of {tail['tail_vendors']:,} vendors ({tail['tail_pct_of_vendors']}% of all "
+            f"vendors) accounts for only {tail['tail_pct_of_value']}% of {unit} — prime consolidation "
+            "territory.")
 
     if cov["classified_pct"] < 90:
         steps.append(
@@ -519,78 +764,219 @@ def _write_exec_summary(ws, title, tiles, cov, es):
     ws.row_dimensions[row].height = 46
 
 
+def _safe_sheet_name(name, used):
+    base = re.sub(r'[\[\]\:\*\?\/\\]', ' ', str(name))[:28].strip() or "Sheet"
+    nm, i = base, 2
+    while nm in used:
+        nm = f"{base[:25]} {i}"
+        i += 1
+    used.add(nm)
+    return nm
+
+
+def _write_analytics_sheet(ws, tail, conc, sm):
+    from openpyxl.styles import Font, PatternFill, Alignment
+    ws.sheet_view.showGridLines = False
+    ws.column_dimensions["A"].width = 2.5
+    ws.column_dimensions["B"].width = 46
+    ws.column_dimensions["C"].width = 24
+    ws.merge_cells("B2:C2")
+    t = ws["B2"]
+    t.value = "Vendor Analytics"
+    t.font = Font(size=14, bold=True, color=WHITE)
+    t.fill = PatternFill("solid", fgColor=NAVY)
+    t.alignment = Alignment(vertical="center", indent=1)
+    ws.row_dimensions[2].height = 22
+    state = {"row": 4}
+
+    def section(title, rows):
+        r = state["row"]
+        h = ws.cell(row=r, column=2, value=title)
+        h.font = Font(size=12, bold=True, color=NAVY)
+        r += 1
+        for label, val in rows:
+            ws.cell(row=r, column=2, value=label).font = Font(size=11)
+            c = ws.cell(row=r, column=3, value=val)
+            c.font = Font(size=11, bold=True)
+            c.alignment = Alignment(horizontal="right")
+            r += 1
+        state["row"] = r + 1
+
+    if conc:
+        section("Vendor concentration", [
+            ("Total vendors", f"{conc['total_vendors']:,}"),
+            ("Top 1 vendor share", f"{conc['top1']}%"),
+            ("Top 5 vendor share", f"{conc['top5']}%"),
+            ("Top 10 vendor share", f"{conc['top10']}%"),
+            ("HHI (0–10,000; higher = more concentrated)", f"{conc['hhi']:,}")])
+    if tail:
+        m = tail["measure"].lower()
+        fmt = _money_text if tail["measure"] == "Spend" else (lambda v: f"{int(v):,}")
+        section("Tail spend", [
+            (f"Vendors making up 80% of {m}", f"{tail['vendors_to_80pct']:,}"),
+            ("Tail vendors (the rest)", f"{tail['tail_vendors']:,}  ({tail['tail_pct_of_vendors']}%)"),
+            (f"Tail {m}", f"{fmt(tail['tail_value'])}  ({tail['tail_pct_of_value']}%)")])
+    if sm:
+        vfmt = _money_text if sm["has_amount"] else (lambda v: f"{int(v):,}")
+        section("Sourcing", [
+            ("Single-source categories", f"{sm['single_categories']}   ({vfmt(sm['single_value'])})"),
+            ("Multi-source categories", f"{sm['multi_categories']}   ({vfmt(sm['multi_value'])})")])
+    r = state["row"]
+    ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=3)
+    n = ws.cell(row=r, column=2, value="Tail vendors and multi-source categories are the primary "
+                                       "consolidation targets.")
+    n.font = Font(size=9, italic=True, color=GRAY)
+    n.alignment = Alignment(wrap_text=True)
+
+
 def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
                        consolidation_tbl, cov, exec_summary=None, dept_tbl=None,
+                       trend_tbl=None, tail=None, concentration=None, single_multi=None,
+                       matrix_tbl=None, dimensions=None,
                        report_title="Procurement Spend Analysis") -> str:
     has_amt = tiles.get("has_amount")
     measure = "Spend" if has_amt else "Transactions"
     money = ["Spend"] if has_amt else []
+    used = set()
+
+    def col_idx(df, name):
+        return list(df.columns).index(name) + 1
+
+    def anchor(ws, df):
+        return ws.cell(row=2, column=df.shape[1] + 2).coordinate
 
     with pd.ExcelWriter(path, engine="openpyxl") as xl:
-        cat_tbl.to_excel(xl, sheet_name="Spend by Category", index=False, startrow=1)
-        pareto_tbl.to_excel(xl, sheet_name="Pareto 80-20", index=False, startrow=1)
+        s_cat = _safe_sheet_name("Spend by Category", used)
+        cat_tbl.to_excel(xl, sheet_name=s_cat, index=False, startrow=1)
+        s_trend = None
+        if trend_tbl is not None and len(trend_tbl):
+            s_trend = _safe_sheet_name("Spend Trend", used)
+            trend_tbl.to_excel(xl, sheet_name=s_trend, index=False, startrow=1)
+        s_par = _safe_sheet_name("Pareto 80-20", used)
+        pareto_tbl.to_excel(xl, sheet_name=s_par, index=False, startrow=1)
+        s_ven = None
         if vendors_tbl is not None:
-            vendors_tbl.to_excel(xl, sheet_name="Top Vendors", index=False, startrow=1)
+            s_ven = _safe_sheet_name("Top Vendors", used)
+            vendors_tbl.to_excel(xl, sheet_name=s_ven, index=False, startrow=1)
+        s_dep = None
         if dept_tbl is not None:
-            dept_tbl.to_excel(xl, sheet_name="Spend by Department", index=False, startrow=1)
+            s_dep = _safe_sheet_name("Spend by Department", used)
+            dept_tbl.to_excel(xl, sheet_name=s_dep, index=False, startrow=1)
+        s_mat = None
+        if matrix_tbl is not None and len(matrix_tbl):
+            s_mat = _safe_sheet_name("Category x Dept Matrix", used)
+            matrix_tbl.to_excel(xl, sheet_name=s_mat, index=False, startrow=1)
+        s_con = None
         if consolidation_tbl is not None:
-            consolidation_tbl.to_excel(xl, sheet_name="Consolidation", index=False, startrow=1)
-        wb = xl.book
+            s_con = _safe_sheet_name("Consolidation", used)
+            consolidation_tbl.to_excel(xl, sheet_name=s_con, index=False, startrow=1)
+        dim_sheets = []
+        for label, dfd in (dimensions or []):
+            if dfd is None or not len(dfd):
+                continue
+            snm = _safe_sheet_name(label, used)
+            dfd.to_excel(xl, sheet_name=snm, index=False, startrow=1)
+            dim_sheets.append((snm, label, dfd))
 
+        wb = xl.book
         es = wb.create_sheet("Executive Summary", 0)
         _write_exec_summary(es, report_title, tiles, cov, exec_summary)
+        if tail or concentration or single_multi:
+            an = wb.create_sheet("Vendor Analytics", 1)
+            _write_analytics_sheet(an, tail, concentration, single_multi)
 
-        def col_idx(df, name):
-            return list(df.columns).index(name) + 1
-
-        # Spend by Category
-        ws = wb["Spend by Category"]
-        hr, df1, dl = _style_data_sheet(
-            ws, "Spend by Business Category", cat_tbl,
+        ws = wb[s_cat]
+        hr, df1, dl = _style_data_sheet(ws, "Spend by Business Category", cat_tbl,
             money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
             total_cols=[measure] + (["Transactions"] if has_amt else []))
-        _bar_chart(ws, f"{measure} by Category", 1, col_idx(cat_tbl, measure),
-                   hr, df1, dl, ws.cell(row=2, column=cat_tbl.shape[1] + 2).coordinate)
+        _bar_chart(ws, f"{measure} by Category", 1, col_idx(cat_tbl, measure), hr, df1, dl, anchor(ws, cat_tbl))
 
-        # Pareto
-        ws = wb["Pareto 80-20"]
-        hr, df1, dl = _style_data_sheet(
-            ws, "Pareto 80/20 (classified spend)", pareto_tbl,
-            money_cols=money, pct_cols=["% of Total", "Cumulative %"],
-            int_cols=["Transactions"], add_total=False)
-        _pareto_chart(ws, 1, col_idx(pareto_tbl, measure), col_idx(pareto_tbl, "Cumulative %"),
-                      hr, df1, dl, ws.cell(row=2, column=pareto_tbl.shape[1] + 2).coordinate)
+        if s_trend:
+            ws = wb[s_trend]
+            hr, df1, dl = _style_data_sheet(ws, "Spend Trend Over Time", trend_tbl,
+                money_cols=money, pct_cols=[c for c in ["YoY %"] if c in trend_tbl.columns],
+                int_cols=["Transactions"], add_total=False)
+            _bar_chart(ws, f"{measure} by Year", 1, col_idx(trend_tbl, measure), hr, df1, dl, anchor(ws, trend_tbl))
 
-        # Top Vendors
-        if vendors_tbl is not None:
-            ws = wb["Top Vendors"]
-            hr, df1, dl = _style_data_sheet(
-                ws, "Top Vendors by Spend", vendors_tbl,
+        ws = wb[s_par]
+        hr, df1, dl = _style_data_sheet(ws, "Pareto 80/20 (classified spend)", pareto_tbl,
+            money_cols=money, pct_cols=["% of Total", "Cumulative %"], int_cols=["Transactions"], add_total=False)
+        _pareto_chart(ws, 1, col_idx(pareto_tbl, measure), col_idx(pareto_tbl, "Cumulative %"), hr, df1, dl, anchor(ws, pareto_tbl))
+
+        if s_ven:
+            ws = wb[s_ven]
+            hr, df1, dl = _style_data_sheet(ws, "Top Vendors by Spend", vendors_tbl,
                 money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
                 total_cols=[measure] + (["Transactions"] if has_amt else []))
-            _bar_chart(ws, f"Top Vendors by {measure}", 1, col_idx(vendors_tbl, measure),
-                       hr, df1, dl, ws.cell(row=2, column=vendors_tbl.shape[1] + 2).coordinate)
+            _bar_chart(ws, f"Top Vendors by {measure}", 1, col_idx(vendors_tbl, measure), hr, df1, dl, anchor(ws, vendors_tbl))
 
-        # Spend by Department
-        if dept_tbl is not None:
-            ws = wb["Spend by Department"]
-            hr, df1, dl = _style_data_sheet(
-                ws, "Spend by Department", dept_tbl,
+        if s_dep:
+            ws = wb[s_dep]
+            hr, df1, dl = _style_data_sheet(ws, "Spend by Department", dept_tbl,
                 money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
                 total_cols=[measure] + (["Transactions"] if has_amt else []))
-            _bar_chart(ws, f"{measure} by Department", 1, col_idx(dept_tbl, measure),
-                       hr, df1, dl, ws.cell(row=2, column=dept_tbl.shape[1] + 2).coordinate)
+            _bar_chart(ws, f"{measure} by Department", 1, col_idx(dept_tbl, measure), hr, df1, dl, anchor(ws, dept_tbl))
 
-        # Consolidation
-        if consolidation_tbl is not None:
-            ws = wb["Consolidation"]
+        if s_mat:
+            ws = wb[s_mat]
+            _style_data_sheet(ws, "Category × Department Matrix", matrix_tbl,
+                money_cols=[c for c in matrix_tbl.columns if c != "Business Category"], add_total=False)
+
+        if s_con:
+            ws = wb[s_con]
             int_c = [c for c in ["Vendors", "Transactions", "Departments"] if c in consolidation_tbl.columns]
-            _style_data_sheet(
-                ws, "Vendor Consolidation / Fragmentation", consolidation_tbl,
+            _style_data_sheet(ws, "Vendor Consolidation / Fragmentation", consolidation_tbl,
                 money_cols=money, int_cols=int_c,
                 total_cols=(["Spend", "Transactions"] if has_amt else ["Transactions"]))
 
+        for snm, label, dfd in dim_sheets:
+            ws = wb[snm]
+            hr, df1, dl = _style_data_sheet(ws, label, dfd,
+                money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
+                total_cols=[measure] + (["Transactions"] if has_amt else []))
+            _bar_chart(ws, label[:40], 1, col_idx(dfd, measure), hr, df1, dl, anchor(ws, dfd))
+
     return path
+
+
+# ---------------------------------------------------------------------------
+# Orchestrator — compute every feasible analysis given detected roles
+# ---------------------------------------------------------------------------
+def compute_all(df, roles, max_dims=6):
+    """df must already carry a 'Business_Category' column (from classify_series).
+    Returns a dict of every analysis the roles support; infeasible ones are None."""
+    amt, ven = roles.get("amount"), roles.get("vendor")
+    dep, dat = roles.get("department"), roles.get("date")
+    tiles = summary_tiles(df, "Business_Category", amt, ven, dat)
+    cov = coverage(df, "Business_Category")
+    cat = spend_by_category(df, "Business_Category", amt)
+    classified_df = df[_is_classified(df["Business_Category"])]
+    par, measure, n80 = pareto(classified_df, "Business_Category", amt)
+    vend = top_vendors(df, ven, amt)
+    dept_tbl = spend_by_department(df, dep, amt)
+    cons = consolidation_finder(df, "Business_Category", ven, amt, dep)
+    trend = spend_trend(df, dat, amt)
+    tail = tail_spend(df, ven, amt)
+    conc = vendor_concentration(df, ven, amt)
+    sm = single_vs_multi_source(df, "Business_Category", ven, amt) if ven else None
+    matrix = category_department_matrix(df, "Business_Category", dep, amt)
+
+    subs = roles.get("dimension_subtypes", {})
+    dim_names = sorted(roles.get("dimensions", []), key=lambda d: 0 if subs.get(d) else 1)
+    dims = []
+    for d in dim_names[:max_dims]:
+        sub = subs.get(d)
+        label = {"contract": f"Contract vs Non-Contract ({d})",
+                 "diversity": f"Supplier Diversity ({d})"}.get(sub, f"Spend by {d}")
+        tbl = spend_by_dimension(df, d, amt)
+        if tbl is not None and len(tbl):
+            dims.append((label, tbl))
+
+    es = executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl,
+                           trend=trend, tail=tail, concentration=conc)
+    return dict(tiles=tiles, cov=cov, cat=cat, par=par, measure=measure, n80=n80,
+                vend=vend, dept_tbl=dept_tbl, cons=cons, trend=trend, tail=tail,
+                concentration=conc, single_multi=sm, matrix=matrix, dimensions=dims, es=es)
 
 
 # ---------------------------------------------------------------------------
@@ -607,39 +993,40 @@ def run(path, desc=None, amount=None, vendor=None, dept=None, out=None, sample=N
     df.columns = [str(c).strip() for c in df.columns]
     if sample:
         df = df.head(int(sample))
-    guess = detect_columns(df)
-    desc = desc or guess["desc"]
-    amount = amount or guess["amount"]
-    vendor = vendor or guess["vendor"]
-    dept = dept or guess["dept"]
-    print(f"Columns -> desc={desc!r} amount={amount!r} vendor={vendor!r} dept={dept!r}")
-    print(f"Classifying {len(df):,} rows ...")
-    cls = classify_series(df[desc])
+    prof = profile_columns(df)
+    roles = prof["roles"]
+    # allow CLI overrides
+    if desc: roles["description"] = desc
+    if amount: roles["amount"] = amount
+    if vendor: roles["vendor"] = vendor
+    if dept: roles["department"] = dept
+    print("Detected roles:", {k: roles[k] for k in ["description", "amount", "vendor", "department", "date"]})
+    print("Dimensions:", roles["dimensions"])
+    print("\nAnalysis plan:")
+    for p in plan_analyses(prof):
+        print(f"  [{'RUN ' if p['feasible'] else 'SKIP'}] {p['label']}"
+              + (f"  ({p['reason']})" if not p["feasible"] else ""))
+    print(f"\nClassifying {len(df):,} rows ...")
+    cls = classify_series(df[roles["description"]])
     df = pd.concat([df.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
 
-    tiles = summary_tiles(df, "Business_Category", amount, vendor, guess["date"])
-    cov = coverage(df, "Business_Category")
-    cat = spend_by_category(df, "Business_Category", amount)
-    classified_df = df[_is_classified(df["Business_Category"])]
-    par, measure, n80 = pareto(classified_df, "Business_Category", amount)
-    vend = top_vendors(df, vendor, amount)
-    deptt = spend_by_department(df, dept, amount)
-    cons = consolidation_finder(df, "Business_Category", vendor, amount, dept)
-    es = executive_summary(tiles, cat, n80, vend, cons, cov, deptt)
-
+    b = compute_all(df, roles)
     print("\n=== EXECUTIVE SUMMARY ===")
-    for ln in es["lines"]:
+    for ln in b["es"]["lines"]:
         print("  • " + ln)
     print("  Recommended steps:")
-    for i, s in enumerate(es["steps"], 1):
+    for i, s in enumerate(b["es"]["steps"], 1):
         print(f"   {i}. {s}")
-    print(f"\n=== COVERAGE === classified {cov['classified']:,}/{cov['total']:,} "
-          f"({cov['classified_pct']}%)")
-    print(f"\n=== SPEND BY CATEGORY (top 8) ===\n{cat.head(8).to_string(index=False)}")
+    print(f"\n=== COVERAGE === classified {b['cov']['classified']:,}/{b['cov']['total']:,} "
+          f"({b['cov']['classified_pct']}%)")
 
     out = out or (Path(path).with_suffix("").as_posix() + "_Spend_Report_JHK3.xlsx")
-    build_excel_report(out, tiles=tiles, cat_tbl=cat, pareto_tbl=par, vendors_tbl=vend,
-                       consolidation_tbl=cons, cov=cov, exec_summary=es, dept_tbl=deptt)
+    build_excel_report(out, tiles=b["tiles"], cat_tbl=b["cat"], pareto_tbl=b["par"],
+                       vendors_tbl=b["vend"], consolidation_tbl=b["cons"], cov=b["cov"],
+                       exec_summary=b["es"], dept_tbl=b["dept_tbl"], trend_tbl=b["trend"],
+                       tail=b["tail"], concentration=b["concentration"],
+                       single_multi=b["single_multi"], matrix_tbl=b["matrix"],
+                       dimensions=b["dimensions"])
     print(f"\nWrote Excel report: {out}")
     return out
 

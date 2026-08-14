@@ -1093,38 +1093,53 @@ def page_spend_report() -> None:
     st.success(f"Loaded {len(df_in):,} rows × {len(df_in.columns)} columns.")
     st.dataframe(df_in.head(), use_container_width=True, hide_index=True)
 
-    guess = sr.detect_columns(df_in)
+    profile = sr.profile_columns(df_in)
+    roles = dict(profile["roles"])
     cols = list(df_in.columns)
     NONE = "— none —"
 
     def _opt_idx(val):
         return cols.index(val) + 1 if val in cols else 0
 
-    st.markdown("#### Map your columns")
+    st.markdown("#### Detected columns")
     st.caption(
-        "We auto-detected these from your file — in most cases just click **Generate spend "
-        "report** below. Only change a box if it points at the wrong column. Only "
-        "**Description** is required; Amount / Vendor / Department unlock the dollar, vendor, "
-        "and department analysis.")
-    c1, c2 = st.columns(2)
+        "The tool inspected **every column** and guessed each one's role — it adapts to any "
+        "file, whatever the format. In most cases just click **Generate** below; only change a "
+        "box if a guess is wrong. Only **Description** is required.")
+    c1, c2, c3 = st.columns(3)
     with c1:
-        desc_col = st.selectbox(
-            "Description (required)", cols,
-            index=cols.index(guess["desc"]) if guess["desc"] in cols else 0)
-        amount_col = st.selectbox("Amount / spend", [NONE] + cols, index=_opt_idx(guess["amount"]))
+        desc_col = st.selectbox("Description (required)", cols,
+            index=cols.index(roles["description"]) if roles.get("description") in cols else 0)
+        amount_col = st.selectbox("Amount / spend", [NONE] + cols, index=_opt_idx(roles.get("amount")))
     with c2:
-        vendor_col = st.selectbox("Vendor", [NONE] + cols, index=_opt_idx(guess["vendor"]))
-        dept_col = st.selectbox("Department", [NONE] + cols, index=_opt_idx(guess["dept"]))
+        vendor_col = st.selectbox("Vendor", [NONE] + cols, index=_opt_idx(roles.get("vendor")))
+        dept_col = st.selectbox("Department", [NONE] + cols, index=_opt_idx(roles.get("department")))
+    with c3:
+        date_col = st.selectbox("Date", [NONE] + cols, index=_opt_idx(roles.get("date")))
+        dims_sel = st.multiselect(
+            "Breakdown dimensions (contract flags, status, etc.)",
+            options=cols, default=roles.get("dimensions", [])[:6],
+            help="Any low-cardinality column becomes a 'Spend by …' breakdown.")
     amount_col = None if amount_col == NONE else amount_col
     vendor_col = None if vendor_col == NONE else vendor_col
     dept_col = None if dept_col == NONE else dept_col
+    date_col = None if date_col == NONE else date_col
+
+    roles.update({"description": desc_col, "amount": amount_col, "vendor": vendor_col,
+                  "department": dept_col, "date": date_col, "dimensions": dims_sel})
+
+    with st.expander("What the tool will analyze for this file (and what it will skip)"):
+        for p in sr.plan_analyses({"roles": roles}):
+            if p["feasible"]:
+                st.markdown(f"✅ **{p['label']}**")
+            else:
+                st.markdown(f"⤫ {p['label']} — _skipped: {p['reason']}_")
 
     max_rows = len(df_in)
     if len(df_in) > 25000:
         st.warning(
             f"Large file ({len(df_in):,} rows). Classifying every row can take a couple of "
-            "minutes. You can cap the row count for a faster first look."
-        )
+            "minutes. You can cap the row count for a faster first look.")
         max_rows = st.number_input(
             "Rows to analyze", min_value=1000, max_value=len(df_in),
             value=min(25000, len(df_in)), step=5000)
@@ -1137,24 +1152,16 @@ def page_spend_report() -> None:
         cls = sr.classify_series(work[desc_col], get_rules())
         work = pd.concat([work.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
 
-    tiles = sr.summary_tiles(work, "Business_Category", amount_col, vendor_col, guess["date"])
-    cov = sr.coverage(work, "Business_Category")
-    cat = sr.spend_by_category(work, "Business_Category", amount_col)
-    classified = work[~work["Business_Category"].isin(
-        [sr.UNCLASSIFIED_NO_RULE, sr.UNCLASSIFIED_NO_DESC])]
-    par, measure, n80 = sr.pareto(classified, "Business_Category", amount_col)
-    vend = sr.top_vendors(work, vendor_col, amount_col)
-    cons = sr.consolidation_finder(work, "Business_Category", vendor_col, amount_col, dept_col)
-    dept_tbl = sr.spend_by_department(work, dept_col, amount_col)
-    es = sr.executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl)
+    b = sr.compute_all(work, roles)
+    tiles, cov, cat, measure = b["tiles"], b["cov"], b["cat"], b["measure"]
 
     # Executive summary
     st.markdown("### Executive Summary")
-    for ln in es["lines"]:
+    for ln in b["es"]["lines"]:
         st.markdown(f"- {ln}")
-    if es["steps"]:
+    if b["es"]["steps"]:
         st.markdown("**Recommended first steps:**")
-        for i, s in enumerate(es["steps"], 1):
+        for i, s in enumerate(b["es"]["steps"], 1):
             st.markdown(f"{i}. {s}")
 
     # Summary tiles
@@ -1165,58 +1172,84 @@ def page_spend_report() -> None:
     m[2].metric("Categories", tiles["categories"])
     m[3].metric("Vendors", f"{tiles['vendors']:,}" if tiles["vendors"] is not None else "n/a")
 
-    # Coverage note
     st.info(
         f"**Coverage:** {cov['classified']:,} of {cov['total']:,} rows "
         f"({cov['classified_pct']}%) matched a keyword rule — "
         f"{cov['no_rule']:,} had no rule match, {cov['no_description']:,} had no description. "
-        "Rules were tuned on one agency's vocabulary; add rules to raise coverage on a new dataset."
-    )
+        "Rules were tuned on one agency's vocabulary; add rules to raise coverage on a new dataset.")
 
     # Spend by category
     st.markdown("### Spend by Business Category")
     st.dataframe(cat, use_container_width=True, hide_index=True)
-    chart_measure = measure if measure in cat.columns else cat.columns[1]
-    st.bar_chart(cat.set_index("Business Category")[chart_measure])
+    st.bar_chart(cat.set_index("Business Category")[measure if measure in cat.columns else cat.columns[1]])
+
+    # Spend trend
+    if b["trend"] is not None:
+        st.markdown("### Spend Trend Over Time")
+        st.dataframe(b["trend"], use_container_width=True, hide_index=True)
+        if measure in b["trend"].columns:
+            st.bar_chart(b["trend"].set_index("Year")[measure])
 
     # Pareto
     st.markdown("### Pareto 80/20")
-    if len(par):
-        st.caption(
-            f"**{n80}** categor{'y' if n80 == 1 else 'ies'} drive 80% of "
-            f"{'spend' if tiles['has_amount'] else 'transactions'} (classified rows only).")
-        st.dataframe(par, use_container_width=True, hide_index=True)
-    else:
-        st.caption("No classified rows to chart.")
+    if len(b["par"]):
+        st.caption(f"**{b['n80']}** categor{'y' if b['n80'] == 1 else 'ies'} drive 80% of "
+                   f"{'spend' if tiles['has_amount'] else 'transactions'} (classified rows).")
+        st.dataframe(b["par"], use_container_width=True, hide_index=True)
 
     # Top vendors
-    st.markdown("### Top Vendors")
-    if vend is not None:
-        st.dataframe(vend, use_container_width=True, hide_index=True)
-    else:
-        st.caption("Map a Vendor column above to see this.")
+    if b["vend"] is not None:
+        st.markdown("### Top Vendors")
+        st.dataframe(b["vend"], use_container_width=True, hide_index=True)
+
+    # Vendor analytics
+    if b["concentration"] or b["tail"] or b["single_multi"]:
+        st.markdown("### Vendor Analytics")
+        vc = st.columns(3)
+        if b["concentration"]:
+            vc[0].metric("Top-10 vendor share", f"{b['concentration']['top10']}%")
+            vc[1].metric("Total vendors", f"{b['concentration']['total_vendors']:,}")
+            vc[2].metric("HHI (concentration)", f"{b['concentration']['hhi']:,}")
+        if b["tail"]:
+            t = b["tail"]
+            st.caption(f"**Tail spend:** {t['tail_vendors']:,} vendors ({t['tail_pct_of_vendors']}%) "
+                       f"account for only {t['tail_pct_of_value']}% of {t['measure'].lower()} — consolidation targets.")
+        if b["single_multi"]:
+            sm = b["single_multi"]
+            st.caption(f"**Sourcing:** {sm['single_categories']} single-source vs "
+                       f"{sm['multi_categories']} multi-source categories.")
 
     # Spend by department
-    if dept_tbl is not None:
+    if b["dept_tbl"] is not None:
         st.markdown("### Spend by Department")
-        st.dataframe(dept_tbl, use_container_width=True, hide_index=True)
-        dm = measure if measure in dept_tbl.columns else dept_tbl.columns[1]
-        st.bar_chart(dept_tbl.set_index("Department")[dm])
+        st.dataframe(b["dept_tbl"], use_container_width=True, hide_index=True)
+        st.bar_chart(b["dept_tbl"].set_index("Department")[
+            measure if measure in b["dept_tbl"].columns else b["dept_tbl"].columns[1]])
+
+    # Category × department matrix
+    if b["matrix"] is not None:
+        st.markdown("### Category × Department Matrix")
+        st.dataframe(b["matrix"], use_container_width=True, hide_index=True)
 
     # Consolidation
-    st.markdown("### Vendor Consolidation / Fragmentation")
-    if cons is not None and len(cons):
-        st.caption("Categories bought from more than one vendor — the biggest consolidation "
-                   "opportunities appear first.")
-        st.dataframe(cons, use_container_width=True, hide_index=True)
-    else:
-        st.caption("Map a Vendor column (and ideally Department) to surface consolidation opportunities.")
+    if b["cons"] is not None and len(b["cons"]):
+        st.markdown("### Vendor Consolidation / Fragmentation")
+        st.caption("Categories bought from more than one vendor — biggest opportunities first.")
+        st.dataframe(b["cons"], use_container_width=True, hide_index=True)
 
-    # Excel download
+    # Dimension breakdowns
+    for label, tbl in b["dimensions"]:
+        st.markdown(f"### {label}")
+        st.dataframe(tbl, use_container_width=True, hide_index=True)
+
+    # Excel download — the full leadership workbook
     buf = io.BytesIO()
-    sr.build_excel_report(buf, tiles=tiles, cat_tbl=cat, pareto_tbl=par,
-                          vendors_tbl=vend, consolidation_tbl=cons, cov=cov,
-                          exec_summary=es, dept_tbl=dept_tbl)
+    sr.build_excel_report(buf, tiles=tiles, cat_tbl=cat, pareto_tbl=b["par"],
+                          vendors_tbl=b["vend"], consolidation_tbl=b["cons"], cov=cov,
+                          exec_summary=b["es"], dept_tbl=b["dept_tbl"], trend_tbl=b["trend"],
+                          tail=b["tail"], concentration=b["concentration"],
+                          single_multi=b["single_multi"], matrix_tbl=b["matrix"],
+                          dimensions=b["dimensions"])
     st.download_button(
         "⬇  Download full spend report (Excel)",
         data=buf.getvalue(),
@@ -1242,15 +1275,28 @@ def page_spend_report_methodology() -> None:
 
     st.subheader("What it produces — the pipeline")
     st.markdown(
-        "Upload a spend file and the tool runs four stages, in order:\n"
-        "1. **Classify** — the mapper's keyword rules add a Business Category / NIGP code to "
-        "every row (the same engine as the Classify page — rules only, no AI).\n"
-        "2. **Detect columns** — it auto-finds your description, amount, vendor, and "
-        "department columns (you can override any of them).\n"
-        "3. **Analyze** — it computes the six reports below with `groupby` + share-of-total "
-        "math.\n"
-        "4. **Deliver** — the results render on screen and download as a formatted Excel "
-        "workbook."
+        "Upload a spend file **in any format** and the tool runs four stages, in order:\n"
+        "1. **Profile every column** — it inspects each column (name *and* the data inside it) "
+        "and assigns a role: description, amount, vendor, department, date, or a breakdown "
+        "dimension (contract flag, status, etc.). You can override any guess.\n"
+        "2. **Plan** — from the roles it found, it decides which analyses this particular file "
+        "can support, and **skips the ones it can't** (e.g., no date column → no trend), telling "
+        "you why.\n"
+        "3. **Classify + analyze** — the mapper's keyword rules add a Business Category to every "
+        "row (rules only, no AI), then it computes every feasible analysis with `groupby` + "
+        "share-of-total math.\n"
+        "4. **Deliver** — results render on screen and download as one formatted Excel workbook "
+        "(a tab per analysis, with charts, in the Chicago palette)."
+    )
+    st.markdown(
+        f"<div style='border-left: 4px solid {CHI_BLUE}; padding: 10px 14px; "
+        f"background: {CHI_LT_BLUE}; margin: 8px 0; font-size:14px;'>"
+        "<strong>It adapts to the data, not the other way around.</strong> Drop in any "
+        "procurement spend file — the tool figures out what's there and runs whatever the data "
+        "supports. It never invents data it doesn't have; if a column isn't present, the "
+        "dependent analysis is simply skipped with a note."
+        "</div>",
+        unsafe_allow_html=True,
     )
 
     st.subheader("How to run it (step by step)")
@@ -1274,7 +1320,9 @@ def page_spend_report_methodology() -> None:
         unsafe_allow_html=True,
     )
 
-    st.subheader("The six reports — what each one is, and how to read it")
+    st.subheader("The reports it can produce — what each is, and how to read it")
+    st.caption("Which of these run depends on what your file contains — the tool includes every "
+               "one the data supports and skips the rest.")
     _spend_report_methods_table()
 
     st.subheader("How the numbers are calculated (no black box)")
@@ -1289,6 +1337,15 @@ def page_spend_report_methodology() -> None:
         "- **Consolidation / Fragmentation** = for each category, the **distinct vendor "
         "count** (and department count); categories bought from more than one vendor are "
         "flagged and ranked by spend — the biggest consolidation opportunities first.\n"
+        "- **Spend Trend** = `sum(amount)` grouped by the year of the date column, with "
+        "year-over-year % change.\n"
+        "- **Vendor Concentration** = the spend share of the top 1/5/10 vendors, plus an "
+        "**HHI** (sum of squared vendor shares × 10,000; higher = more concentrated).\n"
+        "- **Tail Spend** = the vendors *outside* the top group that makes up 80% — counted and "
+        "summed to show how little of total spend the long tail represents.\n"
+        "- **Spend by Dimension** = `sum(amount)` grouped by any categorical column found "
+        "(contract flag, diversity, status). Contract/diversity flags are recognized and "
+        "labeled automatically.\n"
         "- **Coverage** = how many rows matched a keyword rule vs. had no rule / no "
         "description. This is the report's honesty check."
     )
@@ -1367,6 +1424,41 @@ def _spend_report_methods_table() -> None:
                 <td style="padding:8px 10px;">The savings story — where to consolidate demand.</td>
               </tr>
               <tr>
+                <td style="padding:8px 10px;"><strong>Spend Trend Over Time</strong></td>
+                <td style="padding:8px 10px;">Spend by year with year-over-year change. <em>Needs a date column.</em></td>
+                <td style="padding:8px 10px;">Is spend rising or falling, and when did it peak?</td>
+              </tr>
+              <tr style="background:{CHI_LT_BLUE};">
+                <td style="padding:8px 10px;"><strong>Vendor Concentration / Risk</strong></td>
+                <td style="padding:8px 10px;">Top-1/5/10 vendor share and an HHI concentration score.</td>
+                <td style="padding:8px 10px;">How dependent are we on a few suppliers?</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 10px;"><strong>Tail-Spend Analysis</strong></td>
+                <td style="padding:8px 10px;">The many small vendors making up the last ~20% of spend.</td>
+                <td style="padding:8px 10px;">The classic consolidation target.</td>
+              </tr>
+              <tr style="background:{CHI_LT_BLUE};">
+                <td style="padding:8px 10px;"><strong>Single- vs Multi-Source</strong></td>
+                <td style="padding:8px 10px;">Categories bought from one vendor vs. many.</td>
+                <td style="padding:8px 10px;">Vendor rationalization &amp; supply risk.</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 10px;"><strong>Spend by Department</strong></td>
+                <td style="padding:8px 10px;">Dollars by department (actual names). <em>Needs a department column.</em></td>
+                <td style="padding:8px 10px;">Who is spending, and on what.</td>
+              </tr>
+              <tr style="background:{CHI_LT_BLUE};">
+                <td style="padding:8px 10px;"><strong>Category × Department Matrix</strong></td>
+                <td style="padding:8px 10px;">A spend cross-tab of category by department.</td>
+                <td style="padding:8px 10px;">Cross-department demand for the same commodity.</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 10px;"><strong>Spend by any Dimension</strong></td>
+                <td style="padding:8px 10px;">A breakdown for any categorical column it finds — contract vs non-contract, supplier diversity, status, etc.</td>
+                <td style="padding:8px 10px;">Off-contract leakage, diversity participation, and more — whatever the file carries.</td>
+              </tr>
+              <tr style="background:{CHI_LT_BLUE};">
                 <td style="padding:8px 10px;"><strong>Coverage</strong></td>
                 <td style="padding:8px 10px;">Share of rows classified vs. no-rule / no-description.</td>
                 <td style="padding:8px 10px;">How much of the file the analysis actually covers.</td>
