@@ -1101,6 +1101,11 @@ def page_spend_report() -> None:
         return cols.index(val) + 1 if val in cols else 0
 
     st.markdown("#### Map your columns")
+    st.caption(
+        "We auto-detected these from your file — in most cases just click **Generate spend "
+        "report** below. Only change a box if it points at the wrong column. Only "
+        "**Description** is required; Amount / Vendor / Department unlock the dollar, vendor, "
+        "and department analysis.")
     c1, c2 = st.columns(2)
     with c1:
         desc_col = st.selectbox(
@@ -1140,6 +1145,17 @@ def page_spend_report() -> None:
     par, measure, n80 = sr.pareto(classified, "Business_Category", amount_col)
     vend = sr.top_vendors(work, vendor_col, amount_col)
     cons = sr.consolidation_finder(work, "Business_Category", vendor_col, amount_col, dept_col)
+    dept_tbl = sr.spend_by_department(work, dept_col, amount_col)
+    es = sr.executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl)
+
+    # Executive summary
+    st.markdown("### Executive Summary")
+    for ln in es["lines"]:
+        st.markdown(f"- {ln}")
+    if es["steps"]:
+        st.markdown("**Recommended first steps:**")
+        for i, s in enumerate(es["steps"], 1):
+            st.markdown(f"{i}. {s}")
 
     # Summary tiles
     st.markdown("### Summary")
@@ -1180,6 +1196,13 @@ def page_spend_report() -> None:
     else:
         st.caption("Map a Vendor column above to see this.")
 
+    # Spend by department
+    if dept_tbl is not None:
+        st.markdown("### Spend by Department")
+        st.dataframe(dept_tbl, use_container_width=True, hide_index=True)
+        dm = measure if measure in dept_tbl.columns else dept_tbl.columns[1]
+        st.bar_chart(dept_tbl.set_index("Department")[dm])
+
     # Consolidation
     st.markdown("### Vendor Consolidation / Fragmentation")
     if cons is not None and len(cons):
@@ -1192,7 +1215,8 @@ def page_spend_report() -> None:
     # Excel download
     buf = io.BytesIO()
     sr.build_excel_report(buf, tiles=tiles, cat_tbl=cat, pareto_tbl=par,
-                          vendors_tbl=vend, consolidation_tbl=cons, cov=cov)
+                          vendors_tbl=vend, consolidation_tbl=cons, cov=cov,
+                          exec_summary=es, dept_tbl=dept_tbl)
     st.download_button(
         "⬇  Download full spend report (Excel)",
         data=buf.getvalue(),
