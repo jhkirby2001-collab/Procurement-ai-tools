@@ -158,14 +158,16 @@ The table below is from the **last complete batch run (2026-05-14)**, which clas
 
 There are two ways to use the tool. **Most people should use the web app.**
 
-### 5A. The web app — six pages
+### 5A. The web app — eight pages
 
-The tool is deployed as a password-gated web app (the address and password are maintained by the project author — request access from James). It has six pages:
+The tool is deployed as a password-gated web app (the address and password are maintained by the project author — request access from James). It has eight pages:
 
 | Page | What it does | Who uses it |
 |---|---|---|
 | **Classify** | Paste one description → get Business Category, NIGP class, confidence, and the rule that fired. | Anyone classifying a single item |
 | **Bulk Classify** | Upload a spreadsheet of descriptions → download it back with a category on every row. | Staff processing a list |
+| **Spend Report** | Upload a spend file → it classifies, then produces a spend analysis (spend-by-category, Pareto 80/20, top vendors, consolidation) + downloadable Excel. | Anyone analyzing a spend file |
+| **Spend Report Methodology** | How the spend analysis works, how to run it, how to read each report, and its limits. | Leadership, staff learning the tool |
 | **Procurement Taxonomy Logic** | Visual walkthrough of the three levels and the four tiers. | Anyone learning the model |
 | **Methodology** | The full build narrative and defensibility argument. | Leadership, auditors |
 | **Business Categories** | The 17 categories and what rolls into each. | Anyone checking scope |
@@ -189,6 +191,18 @@ python spend-analysis/scripts/classifier_JHK3.py --describe "PASTE THE DESCRIPTI
 ```
 
 It prints the Business Category, NIGP code, confidence, and the rule that fired. If you don't have access to the environment, send the description to James and he'll run it.
+
+### 5D. The Spend Report — spend analysis from any file
+
+The **Spend Report** page takes the tool one step past classification: upload a spend file and it classifies every line, then builds a spend analysis you can download as Excel.
+
+1. Open the **Spend Report** page → **upload** a CSV or Excel spend file.
+2. **Map your columns** — confirm the auto-detected Description (required), Amount, Vendor, and Department columns.
+3. Click **Generate spend report** → read the results and **download the Excel workbook**.
+
+It produces six reports: summary tiles, **spend by Business Category**, **Pareto 80/20** (which categories drive 80% of spend), **top vendors**, **vendor consolidation/fragmentation** (the savings story), and a **coverage note** (how much of the file classified). All of it is deterministic arithmetic — **no AI, and the file stays in your session.** Full detail is on the in-app **Spend Report Methodology** page.
+
+**Honest limit:** classification is keyword-rules-only, so coverage depends on description quality — the coverage note always shows exactly how much of the file was classified.
 
 ---
 

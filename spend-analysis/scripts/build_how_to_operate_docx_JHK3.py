@@ -295,13 +295,15 @@ def build():
     # ------------------------------------------------------------ 5. Operate
     add_h1(doc, "5.  How to operate it — the web app (primary) and CLI (advanced)")
     add_body(doc, "There are two ways to use the tool. Most people should use the web app.")
-    add_h2(doc, "5A.  The web app — six pages")
+    add_h2(doc, "5A.  The web app — eight pages")
     _table(
         doc,
         ["Page", "What it does"],
         [
             ["Classify", "Paste one description; get category, NIGP class, confidence, and the rule that fired."],
             ["Bulk Classify", "Upload a spreadsheet of descriptions; download it back with a category on every row."],
+            ["Spend Report", "Upload a spend file; it classifies, then builds a spend analysis (spend-by-category, Pareto 80/20, top vendors, consolidation) + downloadable Excel."],
+            ["Spend Report Methodology", "How the spend analysis works, how to run it, how to read each report, and its limits."],
             ["Procurement Taxonomy Logic", "Visual walkthrough of the three levels and the four tiers."],
             ["Methodology", "The full build narrative and defensibility argument."],
             ["Business Categories", "The 17 categories and what rolls into each."],
@@ -315,7 +317,25 @@ def build():
         "Everyday workflows: use Classify to answer \"what category is this?\"; use Rule Lookup to "
         "answer \"why did it decide that?\"",
     )
-    add_h2(doc, "5B.  The command line (advanced / technical users)")
+    add_h2(doc, "5B.  The Spend Report — spend analysis from any file")
+    add_body(
+        doc,
+        "The Spend Report page takes the tool one step past classification: upload a spend "
+        "file and it classifies every line, then builds a spend analysis you can download as "
+        "Excel. Steps: (1) upload a CSV or Excel spend file; (2) confirm the auto-detected "
+        "Description, Amount, Vendor, and Department columns; (3) click Generate spend report, "
+        "then download the Excel workbook.",
+    )
+    add_body(
+        doc,
+        "It produces six reports: summary tiles, spend by Business Category, Pareto 80/20 "
+        "(which categories drive 80% of spend), top vendors, vendor consolidation/fragmentation "
+        "(the savings story), and a coverage note. All deterministic arithmetic — no AI, and the "
+        "file stays in the session. Classification is keyword-rules-only, so coverage depends on "
+        "description quality; the coverage note always shows how much of the file was classified. "
+        "The in-app Spend Report Methodology page documents each report in full.",
+    )
+    add_h2(doc, "5C.  The command line (advanced / technical users)")
     add_body(
         doc,
         "From a terminal in the project environment, classify a single description with:  "
