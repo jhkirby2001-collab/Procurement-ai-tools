@@ -80,6 +80,7 @@ The NIGP commodity-code lookup tables. These rarely change.
 |---|---|
 | [spend-analysis/scripts/classifier_JHK3.py](spend-analysis/scripts/classifier_JHK3.py) | The production classifier (Tier 1 keyword rules + Tier 2 account patterns). Rules-only at runtime — no API key needed. Supports two modes: `--batch` (whole file) and `--describe "text"` (single record). |
 | [spend-analysis/scripts/resolve_review_queue_JHK3.py](spend-analysis/scripts/resolve_review_queue_JHK3.py) | The Tier 3 AI-assist resolver. Runs after `--batch` and fills any unmatched rows from the saved 2026-04-30 AI mining output. No new API call. Also tags the 0.1% of rows with no usable description as Tier 4 "Unclassified — No Description." |
+| [spend-analysis/scripts/spend_report_JHK3.py](spend-analysis/scripts/spend_report_JHK3.py) | Reusable spend-report engine behind the app's **Spend Report** page: vectorized `classify_series` + deterministic analyzers (spend-by-category, Pareto 80/20, top vendors, consolidation/fragmentation, coverage) + Excel builder. Rules-only, no AI. Runs standalone too: `python spend-analysis/scripts/spend_report_JHK3.py <file> --desc <col> --amount <col> --vendor <col>`. |
 
 **To run a full batch:** `python spend-analysis/scripts/classifier_JHK3.py --batch` (then optionally `python spend-analysis/scripts/resolve_review_queue_JHK3.py` for Tier 3 + Tier 4 fill)
 **To classify one description:** `python spend-analysis/scripts/classifier_JHK3.py --describe "your description here"`

@@ -1188,6 +1188,160 @@ def page_spend_report() -> None:
 
 
 # =========================================================================
+# PAGE: Spend Report Methodology & How-To
+# =========================================================================
+def page_spend_report_methodology() -> None:
+    st.title("Spend Report — Methodology & How-To")
+    st.markdown(f"**Created by:** {AUTHOR_NAME}")
+    st.markdown("---")
+    st.markdown(
+        "The **Spend Report** page turns a raw spend file into a categorized spend "
+        "analysis. This page explains — for leadership and staff — exactly how it works, "
+        "how to run it, how to read each result, and where its limits are. "
+        "**Everything here is deterministic: plain arithmetic on your data. No AI runs, "
+        "and your file never leaves the session.**"
+    )
+
+    st.subheader("What it produces — the pipeline")
+    st.markdown(
+        "Upload a spend file and the tool runs four stages, in order:\n"
+        "1. **Classify** — the mapper's keyword rules add a Business Category / NIGP code to "
+        "every row (the same engine as the Classify page — rules only, no AI).\n"
+        "2. **Detect columns** — it auto-finds your description, amount, vendor, and "
+        "department columns (you can override any of them).\n"
+        "3. **Analyze** — it computes the six reports below with `groupby` + share-of-total "
+        "math.\n"
+        "4. **Deliver** — the results render on screen and download as a formatted Excel "
+        "workbook."
+    )
+
+    st.subheader("How to run it (step by step)")
+    st.markdown(
+        "1. Go to the **Spend Report** page.\n"
+        "2. **Upload** a CSV or Excel spend file.\n"
+        "3. **Map your columns** — confirm the auto-detected Description (required), Amount, "
+        "Vendor, and Department columns, or pick the right ones from the dropdowns.\n"
+        "4. Click **Generate spend report**. (Large files show a row cap you can adjust.)\n"
+        "5. Read the on-screen reports, then click **Download full spend report (Excel)**."
+    )
+    st.markdown(
+        f"<div style='border-left: 4px solid {CHI_BLUE}; padding: 10px 14px; "
+        f"background: {CHI_LT_BLUE}; margin: 8px 0 16px 0; font-size:14px;'>"
+        "<strong>Minimum you need:</strong> a <em>description</em> column (to classify). "
+        "An <em>amount</em> column unlocks dollar analysis; a <em>vendor</em> column unlocks "
+        "top-vendors and consolidation; a <em>department</em> column enriches the "
+        "consolidation view. Without them, the report gracefully falls back to transaction "
+        "counts."
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.subheader("The six reports — what each one is, and how to read it")
+    _spend_report_methods_table()
+
+    st.subheader("How the numbers are calculated (no black box)")
+    st.markdown(
+        "- **Spend by Category** = `sum(amount)` and row count grouped by Business Category, "
+        "with each category's **% of total**. Unclassified rows are shown too, so the total "
+        "always reconciles to your file.\n"
+        "- **Pareto 80/20** = the same category totals sorted high-to-low, with a running "
+        "**cumulative %**; the report names how many categories it takes to reach 80%. "
+        "*Computed on classified rows only* — \"unclassified\" isn't a real commodity.\n"
+        "- **Top Vendors** = `sum(amount)` grouped by vendor, sorted, with % of total.\n"
+        "- **Consolidation / Fragmentation** = for each category, the **distinct vendor "
+        "count** (and department count); categories bought from more than one vendor are "
+        "flagged and ranked by spend — the biggest consolidation opportunities first.\n"
+        "- **Coverage** = how many rows matched a keyword rule vs. had no rule / no "
+        "description. This is the report's honesty check."
+    )
+    st.markdown(
+        "Currency text is cleaned automatically (`$`, commas, and parenthesized negatives "
+        "are handled). Amounts that can't be parsed are treated as zero, not guessed."
+    )
+
+    st.subheader("Why you can trust it")
+    st.markdown(
+        "- **Deterministic.** Every number is a `groupby`/sum you could reproduce in Excel — "
+        "there is no model opinion in the analysis.\n"
+        "- **Classification matches the rest of the tool.** The Spend Report uses the exact "
+        "same rule engine as the Classify page (verified identical), so a category here means "
+        "the same thing everywhere.\n"
+        "- **Honest coverage.** The report never hides what it couldn't classify — it counts "
+        "it and shows it.\n"
+        "- **Private.** The file is processed in-session and is not stored."
+    )
+
+    st.subheader("Limits — stated plainly")
+    st.markdown(
+        "- **Coverage depends on description quality.** Classification is keyword-rules-only "
+        "and was tuned on one agency's vocabulary. A new dataset — or one with terse "
+        "descriptions — will classify a lower share; the coverage note shows exactly how "
+        "much. Raise it by adding rules.\n"
+        "- **Dollars are analyzed, never used to classify.** Spend is an output of the "
+        "analysis, not an input to the category decision.\n"
+        "- **Consolidation needs a vendor column** (and ideally department) to be meaningful.\n"
+        "- **Large files** (100K+ rows) take a couple of minutes and can be row-capped for a "
+        "faster first look.\n"
+        "- **This is the deterministic first version.** A written executive-summary narrative "
+        "and Word/PDF export are planned later iterations."
+    )
+
+    st.subheader("Need help?")
+    st.markdown(f"Contact **{AUTHOR_NAME.split(',')[0]}**.")
+
+
+def _spend_report_methods_table() -> None:
+    st.markdown(
+        f"""
+        <div style="margin: 8px 0 4px 0;">
+          <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="background:{CHI_NAVY}; color:white;">
+                <th style="padding:8px 10px; text-align:left;">Report</th>
+                <th style="padding:8px 10px; text-align:left;">What it shows</th>
+                <th style="padding:8px 10px; text-align:left;">Decision it supports</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="background:{CHI_LT_BLUE};">
+                <td style="padding:8px 10px;"><strong>Summary tiles</strong></td>
+                <td style="padding:8px 10px;">Total spend, transactions, categories, vendors.</td>
+                <td style="padding:8px 10px;">Instant scale check.</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 10px;"><strong>Spend by Category</strong></td>
+                <td style="padding:8px 10px;">Dollars &amp; share by the 17 Business Categories.</td>
+                <td style="padding:8px 10px;">Where the money actually goes, by <em>what</em> is bought.</td>
+              </tr>
+              <tr style="background:{CHI_LT_BLUE};">
+                <td style="padding:8px 10px;"><strong>Pareto 80/20</strong></td>
+                <td style="padding:8px 10px;">The few categories that drive ~80% of spend.</td>
+                <td style="padding:8px 10px;">Where to focus sourcing effort first.</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 10px;"><strong>Top Vendors</strong></td>
+                <td style="padding:8px 10px;">Largest vendors by spend and share.</td>
+                <td style="padding:8px 10px;">Vendor rationalization candidates.</td>
+              </tr>
+              <tr style="background:{CHI_LT_BLUE};">
+                <td style="padding:8px 10px;"><strong>Consolidation / Fragmentation</strong></td>
+                <td style="padding:8px 10px;">Categories bought from many vendors (and departments).</td>
+                <td style="padding:8px 10px;">The savings story — where to consolidate demand.</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 10px;"><strong>Coverage</strong></td>
+                <td style="padding:8px 10px;">Share of rows classified vs. no-rule / no-description.</td>
+                <td style="padding:8px 10px;">How much of the file the analysis actually covers.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# =========================================================================
 # Sidebar + dispatch
 # =========================================================================
 def render_sidebar() -> str:
@@ -1207,6 +1361,7 @@ def render_sidebar() -> str:
                 "Classify",
                 "Bulk Classify",
                 "Spend Report",
+                "Spend Report Methodology",
                 "Procurement Taxonomy Logic",
                 "Methodology",
                 "Business Categories",
@@ -1249,6 +1404,8 @@ def main() -> None:
         page_bulk()
     elif page == "Spend Report":
         page_spend_report()
+    elif page == "Spend Report Methodology":
+        page_spend_report_methodology()
     elif page == "Procurement Taxonomy Logic":
         page_taxonomy_logic()
     elif page == "Methodology":

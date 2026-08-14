@@ -22,16 +22,18 @@ Alias URL also resolves: `https://nigp-sourced-category-mapper.streamlit.app/` (
 - No City SSO integration (independent tool posture).
 - Reads as an independent public-sector procurement utility — not branded as a City-institutional product.
 
-## Six Pages
+## Eight Pages
 
 | # | Page | What It Does | Typical User |
 |---|---|---|---|
 | 1 | **Classify** | Paste a single description, get full classification (Business Category + NIGP class + NIGP item + confidence + reason). Recent-history sidebar. | Procurement staff doing live PO classification |
 | 2 | **Bulk Classify** | Paste many descriptions (one per line) OR upload a CSV. Downloads results as CSV. | Buyers processing a batch of requisitions |
-| 3 | **Procurement Taxonomy Logic** | Visual explainer of the three-tier hierarchy (Executive View → Sourcing View → Audit View). | Leadership, auditors |
-| 4 | **Methodology** | How the engine decides; confidence-badge logic; AI use defensibility. | Auditors, technical reviewers |
-| 5 | **Business Categories** | Browseable list of all 17 Business Categories with definitions. | Any user learning the taxonomy |
-| 6 | **Rule Lookup** | Search across all 7,046 rules (280 hand-curated + 6,766 AI-mined) to verify how any specific phrase routes. | Anyone validating a classification decision |
+| 3 | **Spend Report** | Upload a spend file → classifies it, then builds a spend analysis (spend-by-category, Pareto 80/20, top vendors, consolidation) + downloadable Excel. Deterministic, rules-only. | Anyone analyzing a spend file |
+| 4 | **Spend Report Methodology** | How the spend analysis works, how to run it, how to read each report, and its limits. | Leadership, staff learning the tool |
+| 5 | **Procurement Taxonomy Logic** | Visual explainer of the three-tier hierarchy (Executive View → Sourcing View → Audit View). | Leadership, auditors |
+| 6 | **Methodology** | How the engine decides; confidence-badge logic; AI use defensibility. | Auditors, technical reviewers |
+| 7 | **Business Categories** | Browseable list of all 17 Business Categories with definitions. | Any user learning the taxonomy |
+| 8 | **Rule Lookup** | Search across all 7,046 rules (280 hand-curated + 6,766 AI-mined) to verify how any specific phrase routes. | Anyone validating a classification decision |
 
 ## How It Works (One Sentence)
 

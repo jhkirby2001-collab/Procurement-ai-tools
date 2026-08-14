@@ -38,6 +38,7 @@ Inputs to the classifier: description text + Chicago FMPS account/object/fund co
 **Production scripts:**
 - `spend-analysis/scripts/classifier_JHK3.py` — production classifier, dual-mode (batch + single-record), runs Tier 1 + Tier 2
 - `spend-analysis/scripts/resolve_review_queue_JHK3.py` — Tier 3 AI-assist resolver (reads saved AI output, no new API call)
+- `spend-analysis/scripts/spend_report_JHK3.py` — reusable spend-report engine (vectorized `classify_series` + Pareto/consolidation/spend-by-category analyzers + Excel builder); powers the app's Spend Report page. Deterministic, rules-only.
 - `spend-analysis/scripts/build_leadership_deliverables_JHK3.py` — regenerates Word/Excel summaries
 - `spend-analysis/scripts/build_sop_JHK3.py` — regenerates the SOP .docx
 - `spend-analysis/scripts/audit_classifier_coverage_JHK3.py` — 63-phrase plain-English regression test
@@ -61,7 +62,7 @@ Inputs to the classifier: description text + Chicago FMPS account/object/fund co
 - `README.md` — public-facing readme
 
 **Web app:**
-- `streamlit_app.py` (repo root) — six-page Streamlit app: Classify → Bulk Classify → Procurement Taxonomy Logic → Methodology → Business Categories → Rule Lookup
+- `streamlit_app.py` (repo root) — eight-page Streamlit app: Classify → Bulk Classify → Spend Report → Spend Report Methodology → Procurement Taxonomy Logic → Methodology → Business Categories → Rule Lookup
 - Deployed at `https://chicago-nigp-classifier.streamlit.app/` (subdomain rename to `nigp-sourced-category-mapper` may be in flight — verify before citing)
 - Password: `chicagosbo2026` (in gitignored `.streamlit/secrets.toml`)
 
