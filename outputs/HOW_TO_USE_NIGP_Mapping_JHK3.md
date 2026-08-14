@@ -194,15 +194,17 @@ It prints the Business Category, NIGP code, confidence, and the rule that fired.
 
 ### 5D. The Spend Report — spend analysis from any file
 
-The **Spend Report** page takes the tool one step past classification: upload a spend file and it classifies every line, then builds a spend analysis you can download as Excel.
+The **Spend Report** page takes the tool one step past classification: upload a spend file **in any format** and it classifies every line, then builds a full spend analysis you can download as one Excel workbook.
+
+**It's adaptive.** The tool inspects *every* column (name and content), figures out which is the description, amount, vendor, department, date, and any breakdown dimensions, then **runs every analysis the data supports and skips the ones it can't** — telling you why. You don't have to shape your file to fit the tool.
 
 1. Open the **Spend Report** page → **upload** a CSV or Excel spend file.
-2. **Map your columns** — confirm the auto-detected Description (required), Amount, Vendor, and Department columns.
-3. Click **Generate spend report** → read the results and **download the Excel workbook**.
+2. **Confirm the detected columns** — the tool pre-fills them; only change a box if a guess is wrong (only Description is required).
+3. Click **Generate spend report** → read the results and **download the Excel workbook** (a tab per analysis, with charts, in the Chicago palette).
 
-It produces six reports: summary tiles, **spend by Business Category**, **Pareto 80/20** (which categories drive 80% of spend), **top vendors**, **vendor consolidation/fragmentation** (the savings story), and a **coverage note** (how much of the file classified). All of it is deterministic arithmetic — **no AI, and the file stays in your session.** Full detail is on the in-app **Spend Report Methodology** page.
+Depending on what your file contains, it can produce: an **executive summary** (findings + recommended steps), **spend by category**, **Pareto 80/20**, **top vendors**, **vendor concentration/risk (HHI)**, **tail-spend**, **single- vs multi-source**, **spend trend over time** (needs a date), **spend by department**, a **category × department matrix**, **vendor consolidation/fragmentation**, and **spend by any dimension** it finds — contract vs non-contract, supplier diversity, status, and more. All deterministic arithmetic — **no AI, and the file stays in your session.** Full detail is on the in-app **Spend Report Methodology** page.
 
-**Honest limit:** classification is keyword-rules-only, so coverage depends on description quality — the coverage note always shows exactly how much of the file was classified.
+**Honest limit:** classification is keyword-rules-only, so coverage depends on description quality — the coverage note always shows exactly how much of the file was classified. The tool never invents data it doesn't have; a missing column just means that analysis is skipped.
 
 ---
 
