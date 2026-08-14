@@ -369,6 +369,23 @@ def page_classify() -> None:
 # =========================================================================
 # PAGE: Bulk Classify (paste-many or CSV upload)
 # =========================================================================
+def read_uploaded_table(uploaded) -> pd.DataFrame:
+    """Read an uploaded CSV/Excel file robustly, tolerating non-UTF-8 encodings
+    (Excel exports are often cp1252/latin-1). Tries UTF-8 first, then falls back
+    to cp1252, then latin-1 (which decodes any byte)."""
+    name = uploaded.name.lower()
+    if name.endswith((".xlsx", ".xls")):
+        return pd.read_excel(uploaded)
+    raw = uploaded.getvalue()
+    for enc in ("utf-8-sig", "cp1252", "latin-1"):
+        try:
+            return pd.read_csv(io.BytesIO(raw), encoding=enc, low_memory=False)
+        except UnicodeDecodeError:
+            continue
+    return pd.read_csv(io.BytesIO(raw), encoding="latin-1",
+                       encoding_errors="replace", low_memory=False)
+
+
 def page_bulk() -> None:
     st.title("Bulk Classify")
     st.markdown(
@@ -434,9 +451,9 @@ def page_bulk() -> None:
         return
 
     try:
-        df_in = pd.read_csv(uploaded)
+        df_in = read_uploaded_table(uploaded)
     except Exception as e:
-        st.error(f"Could not read the CSV: {e}")
+        st.error(f"Could not read the file: {e}")
         return
 
     st.success(f"Loaded {len(df_in):,} rows × {len(df_in.columns)} columns.")
@@ -1067,10 +1084,7 @@ def page_spend_report() -> None:
         return
 
     try:
-        if uploaded.name.lower().endswith(".csv"):
-            df_in = pd.read_csv(uploaded, low_memory=False)
-        else:
-            df_in = pd.read_excel(uploaded)
+        df_in = read_uploaded_table(uploaded)
     except Exception as e:  # noqa: BLE001
         st.error(f"Could not read the file: {e}")
         return

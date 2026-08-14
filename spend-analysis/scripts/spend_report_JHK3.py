@@ -313,8 +313,13 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
 # ---------------------------------------------------------------------------
 def run(path, desc=None, amount=None, vendor=None, dept=None, out=None,
         sample=None):
-    df = (pd.read_csv(path, low_memory=False) if str(path).lower().endswith(".csv")
-          else pd.read_excel(path))
+    if str(path).lower().endswith(".csv"):
+        try:
+            df = pd.read_csv(path, low_memory=False)
+        except UnicodeDecodeError:
+            df = pd.read_csv(path, low_memory=False, encoding="latin-1")
+    else:
+        df = pd.read_excel(path)
     df.columns = [str(c).strip() for c in df.columns]
     if sample:
         df = df.head(int(sample))
