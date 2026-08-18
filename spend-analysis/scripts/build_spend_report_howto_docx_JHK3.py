@@ -280,8 +280,10 @@ def build():
         "Same Commodity (NIGP code) = the same idea as Same Item, but grouped by the NIGP "
         "commodity code (5-digit item where the rule assigned one, otherwise 3-digit class) "
         "rather than the exact wording — so two differently-worded descriptions of the same "
-        "commodity roll together. Only rows that carry a NIGP code appear here; the variant "
-        "wordings that merged are shown so the grouping is transparent.",
+        "commodity roll together. It is laid out as a matrix: each department is its own column "
+        "(spend), shaded cells show which departments bought the commodity, and any commodity "
+        "bought across two or more departments is highlighted as a consolidation target. The "
+        "top consolidatable items also appear in the Executive Summary.",
         bold_lead="Same Commodity",
     )
     add_bullet(
