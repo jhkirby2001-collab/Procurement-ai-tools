@@ -54,7 +54,7 @@ These CSVs are the source-of-truth for every classification decision. Edit them 
 
 | File | What it is |
 |---|---|
-| [spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv](spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv) | 324 hand-curated keyword rules. The highest-volume hitters. |
+| [spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv](spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv) | 336 hand-curated keyword rules. The highest-volume hitters. |
 | [spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv](spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv) | 6,766 AI-mined long-tail rules with full provenance metadata in each row. Frozen. Consulted at Tier 1 of the classifier alongside the curated rules. |
 | [spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv](spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv) | Six FMPS account-code patterns (the 220xxx subgrant series). |
 | [spend-analysis/data/reference/business_categories_JHK3.csv](spend-analysis/data/reference/business_categories_JHK3.csv) | Mapping from NIGP 3-digit Class to one of the 17 Business Categories — with judgment notes. |
