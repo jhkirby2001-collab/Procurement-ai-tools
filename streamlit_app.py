@@ -1194,14 +1194,19 @@ def page_spend_report() -> None:
 
     st.info(
         f"**Coverage:** {cov['classified']:,} of {cov['total']:,} rows "
-        f"({cov['classified_pct']}%) matched a keyword rule — "
-        f"{cov['no_rule']:,} had no rule match, {cov['no_description']:,} had no description. "
-        "Rules were tuned on one agency's vocabulary; add rules to raise coverage on a new dataset.")
+        f"({cov['classified_pct']}%) mapped to a specific commodity category. The remaining "
+        f"{cov['catchall']:,} ({cov['catchall_pct']}%) sit in **General & Other Procurement** — "
+        "still counted and shown, with example descriptions so you can see what's in it. "
+        "Add keyword rules for the most common of those descriptions to move that spend into "
+        "specific categories.")
 
     # Spend by category
     st.markdown("### Spend by Business Category")
+    st.caption("Every row lands in a real category. The **Examples** column shows representative "
+               "descriptions from each one — including the General & Other catch-all.")
     st.dataframe(_style_spend_df(cat), use_container_width=True, hide_index=True)
-    st.bar_chart(cat.set_index("Business Category")[measure if measure in cat.columns else cat.columns[1]])
+    _chart_col = measure if measure in cat.columns else cat.columns[1]
+    st.bar_chart(cat.set_index("Business Category")[_chart_col])
 
     # Spend trend
     if b["trend"] is not None:
@@ -1349,11 +1354,14 @@ def page_spend_report_methodology() -> None:
     st.subheader("How the numbers are calculated (no black box)")
     st.markdown(
         "- **Spend by Category** = `sum(amount)` and row count grouped by Business Category, "
-        "with each category's **% of total**. Unclassified rows are shown too, so the total "
-        "always reconciles to your file.\n"
-        "- **Pareto 80/20** = the same category totals sorted high-to-low, with a running "
-        "**cumulative %**; the report names how many categories it takes to reach 80%. "
-        "*Computed on classified rows only* — \"unclassified\" isn't a real commodity.\n"
+        "with each category's **% of total** and an **Examples** column of representative "
+        "descriptions. Every row lands in a real category — anything without a specific-commodity "
+        "rule match falls into **General & Other Procurement**, so the total always reconciles to "
+        "your file.\n"
+        "- **Pareto 80/20** = the specific-commodity category totals sorted high-to-low, with a "
+        "running **cumulative %**; the report names how many categories it takes to reach 80%. "
+        "*The General & Other catch-all is excluded here* — it isn't a single commodity to focus "
+        "sourcing on.\n"
         "- **Top Vendors** = `sum(amount)` grouped by vendor, sorted, with % of total.\n"
         "- **Consolidation / Fragmentation** = for each category, the **distinct vendor "
         "count** (and department count); categories bought from more than one vendor are "
@@ -1367,8 +1375,9 @@ def page_spend_report_methodology() -> None:
         "- **Spend by Dimension** = `sum(amount)` grouped by any categorical column found "
         "(contract flag, diversity, status). Contract/diversity flags are recognized and "
         "labeled automatically.\n"
-        "- **Coverage** = how many rows matched a keyword rule vs. had no rule / no "
-        "description. This is the report's honesty check."
+        "- **Coverage** = how many rows mapped to a specific commodity category vs. fell into "
+        "**General & Other Procurement** (the catch-all). This is the report's honesty check — "
+        "and the Examples column shows exactly what's in the catch-all."
     )
     st.markdown(
         "Currency text is cleaned automatically (`$`, commas, and parenthesized negatives "

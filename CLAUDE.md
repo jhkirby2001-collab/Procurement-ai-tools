@@ -4,7 +4,7 @@ This repo is the home of the **NIGP-Sourced Procurement Category Mapper**, an in
 
 **Owner:** James H. Kirby III, CSCP, MS-SCM (jhkirby2001@yahoo.com)
 **Output naming convention:** `_JHK3` suffix on every deliverable file
-**Status:** Production. Latest commit `e349d65` on `origin/main`. Active branch work `claude/github-identification-ivqudt` (2026-08-07: fence fix + interactive-robustness rule expansion 246→280 + expanded operate-and-trust guide). Repo is PUBLIC.
+**Status:** Production. Latest commit `e349d65` on `origin/main`. Active branch work `claude/github-identification-ivqudt` (2026-08-07: fence fix + interactive-robustness rule expansion 246→280 + expanded operate-and-trust guide; 2026-08-18: Spend Report path — every row now lands in a real category, the "Unclassified" bucket replaced by a single catch-all **"General & Other Procurement"**, a new **Examples** column shows representative descriptions per category, **Grants** scoped to fire only on genuine grant signals on uploads (no memorized-exact misfires), curated rules 293→305). Repo is PUBLIC.
 
 ---
 
@@ -28,7 +28,7 @@ Inputs to the classifier: description text + Chicago FMPS account/object/fund co
 ## Key paths
 
 **Rule files (procurement-staff editable, version-controlled):**
-- `spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv` — 293 hand-curated rules (edit these freely)
+- `spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv` — 305 hand-curated rules (edit these freely)
 - `spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv` — 6,766 AI-mined rules (frozen — do not regenerate)
 - `spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv` — 6 subgrant account patterns
 - `spend-analysis/data/reference/business_categories_JHK3.csv` — canonical 138-row NIGP-class → Business-Category map
@@ -38,7 +38,7 @@ Inputs to the classifier: description text + Chicago FMPS account/object/fund co
 **Production scripts:**
 - `spend-analysis/scripts/classifier_JHK3.py` — production classifier, dual-mode (batch + single-record), runs Tier 1 + Tier 2
 - `spend-analysis/scripts/resolve_review_queue_JHK3.py` — Tier 3 AI-assist resolver (reads saved AI output, no new API call)
-- `spend-analysis/scripts/spend_report_JHK3.py` — reusable, **adaptive** spend-report engine: `profile_columns` (assigns a role to every column via name+content heuristics) + `plan_analyses` + vectorized `classify_series` + `compute_all` orchestrator. Analyzers: spend-by-category, Pareto, top vendors, consolidation, spend-by-department, spend-trend, tail-spend, vendor-concentration (HHI), single-vs-multi-source, category×department matrix, spend-by-any-dimension (contract/diversity/status). Data-driven executive summary + brand-colored multi-tab Excel builder with charts. Powers the Spend Report page. Deterministic, rules-only, schema/format-agnostic.
+- `spend-analysis/scripts/spend_report_JHK3.py` — reusable, **adaptive** spend-report engine: `profile_columns` (assigns a role to every column via name+content heuristics) + `plan_analyses` + vectorized `classify_series` + `compute_all` orchestrator. Analyzers: spend-by-category, Pareto, top vendors, consolidation, spend-by-department, spend-trend, tail-spend, vendor-concentration (HHI), single-vs-multi-source, category×department matrix, spend-by-any-dimension (contract/diversity/status). Data-driven executive summary + brand-colored multi-tab Excel builder with charts. Powers the Spend Report page. Deterministic, rules-only, schema/format-agnostic. **Every row lands in a real Business Category** — anything the rules don't map to a specific commodity goes to the single catch-all `CATCHALL = "General & Other Procurement"` (never an "Unclassified" gap); the Spend-by-Category output carries an **Examples** column (`category_examples`) showing representative descriptions per category. On uploads, **Grants (`GRANTS_CATEGORY`) fires only on strong grant signals** (program-tag prefixes + grant keywords) — memorized full-description `exact` rules are skipped so they don't misfire on arbitrary files.
 - `spend-analysis/scripts/build_leadership_deliverables_JHK3.py` — regenerates Word/Excel summaries
 - `spend-analysis/scripts/build_sop_JHK3.py` — regenerates the SOP .docx
 - `spend-analysis/scripts/audit_classifier_coverage_JHK3.py` — 63-phrase plain-English regression test

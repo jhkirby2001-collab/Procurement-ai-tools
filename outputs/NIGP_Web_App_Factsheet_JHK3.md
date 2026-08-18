@@ -28,12 +28,12 @@ Alias URL also resolves: `https://nigp-sourced-category-mapper.streamlit.app/` (
 |---|---|---|---|
 | 1 | **Classify** | Paste a single description, get full classification (Business Category + NIGP class + NIGP item + confidence + reason). Recent-history sidebar. | Procurement staff doing live PO classification |
 | 2 | **Bulk Classify** | Paste many descriptions (one per line) OR upload a CSV. Downloads results as CSV. | Buyers processing a batch of requisitions |
-| 3 | **Spend Report** | Upload a spend file in **any format** → it profiles every column, then runs every analysis the data supports (category, Pareto, top vendors, concentration/HHI, tail-spend, single-vs-multi-source, trend, department, category×dept matrix, consolidation, contract/diversity/any-dimension) + a data-driven executive summary and a brand-colored multi-tab Excel with charts. Deterministic, rules-only. | Anyone analyzing a spend file |
+| 3 | **Spend Report** | Upload a spend file in **any format** → it profiles every column, then runs every analysis the data supports (category, Pareto, top vendors, concentration/HHI, tail-spend, single-vs-multi-source, trend, department, category×dept matrix, consolidation, contract/diversity/any-dimension) + a data-driven executive summary and a brand-colored multi-tab Excel with charts. Every row lands in a real Business Category — unmatched rows go to the catch-all "General & Other Procurement" (never an "Unclassified" gap), with an **Examples** column showing what's in each category. Deterministic, rules-only. | Anyone analyzing a spend file |
 | 4 | **Spend Report Methodology** | How the spend analysis works, how to run it, how to read each report, and its limits. | Leadership, staff learning the tool |
 | 5 | **Procurement Taxonomy Logic** | Visual explainer of the three-tier hierarchy (Executive View → Sourcing View → Audit View). | Leadership, auditors |
 | 6 | **Methodology** | How the engine decides; confidence-badge logic; AI use defensibility. | Auditors, technical reviewers |
 | 7 | **Business Categories** | Browseable list of all 17 Business Categories with definitions. | Any user learning the taxonomy |
-| 8 | **Rule Lookup** | Search across all 7,059 rules (293 hand-curated + 6,766 AI-mined) to verify how any specific phrase routes. | Anyone validating a classification decision |
+| 8 | **Rule Lookup** | Search across all 7,071 rules (305 hand-curated + 6,766 AI-mined) to verify how any specific phrase routes. | Anyone validating a classification decision |
 
 ## How It Works (One Sentence)
 
@@ -79,7 +79,7 @@ These are factual capability statements; Layer 3 turns them into strategic narra
 
 | Question | Answer |
 |---|---|
-| "How many rules?" | 7,059 total: 293 hand-curated + 6,766 AI-mined |
+| "How many rules?" | 7,071 total: 305 hand-curated + 6,766 AI-mined |
 | "What did the AI cost?" | $27 one-time (2026-04-30 Haiku 4.5 mining); $0 ongoing |
 | "How long to classify a single record?" | Sub-second |
 | "How long for the full 784,556-row file?" | ~15 minutes |

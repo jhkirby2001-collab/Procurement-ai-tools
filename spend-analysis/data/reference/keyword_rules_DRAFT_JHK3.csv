@@ -292,3 +292,15 @@ BOARD-UP,contains,Facilities Operations & Maintenance,,,broad,Board-up services 
 SIGN POST,contains,Construction Materials,,,broad,Sign posts (roadway hardware) — 2026-08
 BACKGROUND INVESTIGATION,contains,Professional & Administrative Services,,,broad,Background investigations service — 2026-08
 TRANSPORTATION FOR,contains,Professional & Administrative Services,,,broad,Transportation services such as migrant transport — 2026-08
+BRIDGE INSPECTION,contains,Professional & Administrative Services,,,broad,Bridge inspection engineering services — 2026-08
+GRAFFITI REMOVAL,contains,Facilities Operations & Maintenance,,,broad,Graffiti removal service — 2026-08
+POLE PAINTING,contains,Facilities Operations & Maintenance,,,broad,Pole painting service — 2026-08
+STREET AND PARKWAY RESTORATION,contains,Construction & Trades Services,,,broad,Street/parkway restoration — 2026-08
+PARKWAY RESTORATION,contains,Construction & Trades Services,,,broad,Parkway restoration — 2026-08
+UTILITY STRUCTURE ADJUSTMENT,contains,Construction & Trades Services,,,broad,Utility structure adjustment program — 2026-08
+HELICOPTER PARTS,contains,Vehicles & Fleet,,,broad,Helicopter/aircraft parts & repair — 2026-08
+MIG ROD,contains,Construction Materials,,,broad,Welding rod/wire consumable — 2026-08
+CLOUD SERVICES,contains,"IT, Telecom & Audio/Visual",,,broad,Cloud services — 2026-08
+COVID-19,contains,Medical & Health Services,,,broad,COVID-19 test kits/supplies — 2026-08
+TEST KIT,contains,Medical & Health Services,,,broad,Diagnostic test kits — 2026-08
+TRANSPORTATION SERVICES FOR,contains,Professional & Administrative Services,,,broad,Contracted transportation services — 2026-08
