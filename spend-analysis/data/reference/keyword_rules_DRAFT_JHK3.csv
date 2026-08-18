@@ -323,3 +323,15 @@ SUPERVISORY CONTROL AND DATA ACQUISITION,contains,"IT, Telecom & Audio/Visual",,
 LIBRARY BOOK,contains,"Office, Print & Marketing",,,broad,Library books — 2026-08
 BOOK MATERIAL,contains,"Office, Print & Marketing",,,broad,Book materials — 2026-08
 LIBRARY MATERIAL,contains,"Office, Print & Marketing",,,broad,Library materials — 2026-08
+MOBILE CART,contains,"Janitorial, Sanitation & Waste",485,,broad,Refuse/recycling mobile carts — 2026-08
+GREEN CART,contains,"Janitorial, Sanitation & Waste",485,,broad,Organic/compost green carts — 2026-08
+STEEL WIRE BASKET,contains,"Janitorial, Sanitation & Waste",485,,broad,Street litter/wire baskets — 2026-08
+SWEEPING,contains,"Janitorial, Sanitation & Waste",,,broad,Street sweeping services — 2026-08
+GUARDRAIL,contains,"Landscaping, Grounds & Irrigation",988,,broad,Guardrail install/repair — aligned to existing 988 rule — 2026-08
+PHOSPHATE,contains,Chemicals & Water Treatment,,,broad,Blended phosphates for water/corrosion control — 2026-08
+CORROSION CONTROL,contains,Chemicals & Water Treatment,,,broad,Corrosion-control water treatment — 2026-08
+STREET LIGHT POLE,contains,Construction Materials,,,broad,Street light poles/arms — 2026-08
+TRAFFIC SIGNAL POLE,contains,Construction Materials,,,broad,Traffic signal poles/arms — 2026-08
+SOFTWARE,contains,"IT, Telecom & Audio/Visual",,,broad,Software (generalizes SOFTWARE LICENSE) — 2026-08
+MARKETING,contains,"Office, Print & Marketing",915,,broad,Marketing/media marketing — 2026-08
+INTEGRATED CONTROL,contains,Facilities Operations & Maintenance,,,broad,Integrated/building control systems — 2026-08

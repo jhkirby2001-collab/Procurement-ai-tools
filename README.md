@@ -17,7 +17,7 @@ A reusable, rules-based classification engine that maps unstructured procurement
 | **Coverage** | **100% mapped — 0 rows in a human-review queue** |
 | **Taxonomy** | 17 Business Categories (MECE) → NIGP 3-digit Class → NIGP 5-digit Item |
 | **Runtime** | ~15 min batch + 5 sec resolver; **no API key, no internet dependency** |
-| **Rule base** | 324 hand-curated + 6,766 AI-mined rules + 6 account-code patterns |
+| **Rule base** | 336 hand-curated + 6,766 AI-mined rules + 6 account-code patterns |
 
 **Coverage by method**
 
