@@ -32,8 +32,21 @@ from classifier_JHK3 import (  # noqa: E402
     LOWINFO_RE,
 )
 
-UNCLASSIFIED_NO_RULE = "Uncategorized (no matching rule yet)"
-UNCLASSIFIED_NO_DESC = "Uncategorized (no description provided)"
+# Every row lands in a real Business Category. Anything the keyword rules don't
+# map to a specific commodity is placed in a single, honest catch-all so a
+# leadership reader never sees an "Unclassified"/gap line. The dollars are still
+# counted, and the Examples column shows exactly what fell into it.
+CATCHALL = "General & Other Procurement"
+# Grants is a real category, but on arbitrary uploads it must only fire on strong,
+# generalizable grant signals (program-tag prefixes + grant keywords) — never on
+# memorized full-description exact rules. See classify_series().
+GRANTS_CATEGORY = "Grants & Pass-Through Funding"
+# Internal Classification_Method tags (kept for audit; both display as CATCHALL)
+METHOD_NO_RULE = "no_rule"
+METHOD_NO_DESC = "no_description"
+# Back-compat aliases (older callers referenced these names)
+UNCLASSIFIED_NO_RULE = CATCHALL
+UNCLASSIFIED_NO_DESC = CATCHALL
 
 AMOUNT_HINTS = ["amount", "spend", "cost", "price", "total", "value", "paid",
                 "billed", "ordered", "award", "expenditure", "payment"]
@@ -117,6 +130,15 @@ def classify_series(desc: pd.Series, rules_df=None) -> pd.DataFrame:
             break
         pat_u = rule["pattern_upper"]
         mt = rule["match_type"]
+        # Upload-path scoping for Grants & Pass-Through Funding: only a genuine,
+        # generalizable grant signal may route to Grants — a program-tag prefix
+        # (starts_with) or an explicit grant keyword (contains). Full-description
+        # `exact` rules memorized one agency's specific PO strings and misfire on
+        # an arbitrary uploaded file (e.g. a sewer-improvement or JOC-closeout row
+        # that merely shares a memorized string). Let those fall through to their
+        # real commodity rule or the General & Other catch-all instead.
+        if rule["business_category"] == GRANTS_CATEGORY and mt == "exact":
+            continue
         if mt == "exact":
             mask = unclassified & (desc_u == pat_u)
         elif mt == "starts_with":
@@ -139,10 +161,13 @@ def classify_series(desc: pd.Series, rules_df=None) -> pd.DataFrame:
 
     no_desc = unclassified & (desc == "")
     no_rule = unclassified & (desc != "")
-    out.loc[no_rule, "Business_Category"] = UNCLASSIFIED_NO_RULE
-    out.loc[no_rule, "Classification_Method"] = "no_rule"
-    out.loc[no_desc, "Business_Category"] = UNCLASSIFIED_NO_DESC
-    out.loc[no_desc, "Classification_Method"] = "no_description"
+    # Both fall into a single real catch-all category — never an "Unclassified" gap.
+    out.loc[no_rule, "Business_Category"] = CATCHALL
+    out.loc[no_rule, "Classification_Method"] = METHOD_NO_RULE
+    out.loc[no_rule, "Classification_Reason"] = "no specific commodity rule matched — grouped as General & Other"
+    out.loc[no_desc, "Business_Category"] = CATCHALL
+    out.loc[no_desc, "Classification_Method"] = METHOD_NO_DESC
+    out.loc[no_desc, "Classification_Reason"] = "no description text on this row — grouped as General & Other"
     return out
 
 
@@ -150,7 +175,36 @@ def classify_series(desc: pd.Series, rules_df=None) -> pd.DataFrame:
 # Analyzers (pure pandas, column-parameterized)
 # ---------------------------------------------------------------------------
 def _is_classified(cat: pd.Series) -> pd.Series:
-    return ~cat.isin([UNCLASSIFIED_NO_RULE, UNCLASSIFIED_NO_DESC])
+    """A row is 'classified' when it mapped to a specific commodity category.
+    The General & Other catch-all is a real reporting category, but it is not a
+    specific commodity, so it is excluded from consolidation / Pareto-of-specifics."""
+    return cat != CATCHALL
+
+
+def _truncate(text, max_len):
+    text = str(text).strip()
+    return text if len(text) <= max_len else text[: max_len - 1].rstrip() + "…"
+
+
+def category_examples(df, category_col, desc_col, per_cat=3, max_len=42) -> dict:
+    """For each Business Category, return a short string of representative example
+    descriptions (most frequent first, de-duplicated, truncated). Gives leadership
+    visibility into what actually sits inside every category — especially the
+    General & Other catch-all."""
+    if not desc_col or desc_col not in df:
+        return {}
+    d = df[[category_col, desc_col]].copy()
+    d[desc_col] = d[desc_col].fillna("").astype(str).str.strip()
+    d = d[d[desc_col] != ""]
+    out = {}
+    for cat, grp in d.groupby(category_col):
+        vc = grp[desc_col].value_counts()
+        picks = [_truncate(t, max_len) for t in vc.index[:per_cat]]
+        out[cat] = "  ·  ".join(picks)
+    return out
+
+
+EXAMPLES_COL = "Examples of what's in this category"
 
 
 def summary_tiles(df, category_col, amount_col=None, vendor_col=None,
@@ -190,9 +244,15 @@ def _rollup(df, group_col, amount_col):
     return g.reset_index(), measure
 
 
-def spend_by_category(df, category_col, amount_col=None):
+def spend_by_category(df, category_col, amount_col=None, desc_col=None,
+                      examples_per_cat=3):
     g, _ = _rollup(df, category_col, amount_col)
-    return g.rename(columns={category_col: "Business Category"})
+    g = g.rename(columns={category_col: "Business Category"})
+    if desc_col and desc_col in df:
+        ex = category_examples(df, category_col, desc_col, per_cat=examples_per_cat)
+        g[EXAMPLES_COL] = g["Business Category"].map(ex).fillna("")
+        g.loc[g[EXAMPLES_COL] == "", EXAMPLES_COL] = "(no description text on these rows)"
+    return g
 
 
 def spend_by_department(df, dept_col, amount_col=None, top_n=25):
@@ -246,15 +306,20 @@ def consolidation_finder(df, category_col, vendor_col, amount_col=None,
     return g.reset_index().rename(columns={category_col: "Business Category"})
 
 
-def coverage(df, category_col, method_col=None):
+def coverage(df, category_col, method_col="Classification_Method"):
     total = len(df)
-    classified = int(_is_classified(df[category_col]).sum())
-    no_rule = int((df[category_col] == UNCLASSIFIED_NO_RULE).sum())
-    no_desc = int((df[category_col] == UNCLASSIFIED_NO_DESC).sum())
+    catchall = int((df[category_col] == CATCHALL).sum())
+    classified = total - catchall
+    no_rule = no_desc = 0
+    if method_col and method_col in df:
+        no_rule = int((df[method_col] == METHOD_NO_RULE).sum())
+        no_desc = int((df[method_col] == METHOD_NO_DESC).sum())
     return {
         "total": total,
         "classified": classified,
         "classified_pct": round(classified / total * 100, 1) if total else 0.0,
+        "catchall": catchall,
+        "catchall_pct": round(catchall / total * 100, 1) if total else 0.0,
         "no_rule": no_rule,
         "no_description": no_desc,
     }
@@ -499,17 +564,18 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
                       trend=None, tail=None, concentration=None) -> dict:
     has_amt = tiles.get("has_amount")
     unit = "spend" if has_amt else "transactions"
-    real = cat[~cat["Business Category"].isin([UNCLASSIFIED_NO_RULE, UNCLASSIFIED_NO_DESC])]
+    real = cat[cat["Business Category"] != CATCHALL]
     lines, steps = [], []
 
     # Opening headline — a one-sentence synthesis for a leader skimming the page.
-    unclass_pct0 = round(100 - cov["classified_pct"], 1)
+    catchall_pct0 = cov.get("catchall_pct", round(100 - cov["classified_pct"], 1))
     headline_val = _money_text(tiles.get("total_spend")) if has_amt else f"{tiles['transactions']:,} transactions"
     lines.append(
         f"Bottom line: of the {headline_val} analyzed, spend concentrates in a handful of "
         "categories" + (" and a short list of vendors" if (vend is not None and len(vend)) else "")
-        + f", while {unclass_pct0}% is still uncategorized. The fastest wins are consolidating the "
-        "most fragmented categories and widening classification coverage.")
+        + f"; {catchall_pct0}% maps to “General & Other Procurement,” a catch-all for buys that "
+        "don’t match a specific commodity rule yet. The fastest wins are consolidating the most "
+        "fragmented categories and adding rules to move spend out of General & Other.")
 
     parts = []
     if has_amt:
@@ -522,11 +588,12 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
     span = f", covering {tiles['date_min']} to {tiles['date_max']}" if "date_min" in tiles else ""
     lines.append("This report analyzes " + ", ".join(parts) + span + ".")
 
-    unclass_pct = round(100 - cov["classified_pct"], 1)
+    catchall_pct = cov.get("catchall_pct", round(100 - cov["classified_pct"], 1))
     lines.append(
-        f"{cov['classified_pct']}% of rows were automatically classified into commodity "
-        f"categories; the remaining {unclass_pct}% could not be matched to a rule and are grouped "
-        "as “Unclassified.” Classifying that remainder would widen spend visibility.")
+        f"{cov['classified_pct']}% of rows mapped to a specific commodity category; the remaining "
+        f"{catchall_pct}% sits in “General & Other Procurement” — still counted and shown, with "
+        "example descriptions so you can see what’s in it. Adding rules for the most common of "
+        "those descriptions moves that spend into specific categories.")
 
     if len(real):
         top = real.iloc[0]
@@ -576,8 +643,9 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
 
     if cov["classified_pct"] < 90:
         steps.append(
-            f"Reduce the {unclass_pct}% unclassified share by adding keyword rules for the most "
-            "common unmatched descriptions — this widens visibility with no new tools.")
+            f"Shrink the {catchall_pct}% in “General & Other Procurement” by adding keyword rules "
+            "for the most common descriptions shown in its Examples — this moves spend into "
+            "specific commodity categories with no new tools.")
     if dept_tbl is not None and len(dept_tbl) > 1:
         steps.append(
             "Coordinate purchasing across departments buying the same commodity to capture "
@@ -590,7 +658,7 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
 # Excel report (professional, brand-colored, charts)
 # ---------------------------------------------------------------------------
 def _style_data_sheet(ws, title, df, *, money_cols=(), pct_cols=(), int_cols=(),
-                      total_cols=(), add_total=True):
+                      total_cols=(), add_total=True, wrap_cols=()):
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     thin = Side(style="thin", color="BFBFBF")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
@@ -610,6 +678,7 @@ def _style_data_sheet(ws, title, df, *, money_cols=(), pct_cols=(), int_cols=(),
         cell.fill = PatternFill("solid", fgColor=NAVY)
         cell.alignment = Alignment(vertical="center", wrap_text=True)
         cell.border = border
+    has_wrap = False
     for r in range(data_first, data_last + 1):
         band = (r - data_first) % 2 == 1
         for c in range(1, ncols + 1):
@@ -624,6 +693,11 @@ def _style_data_sheet(ws, title, df, *, money_cols=(), pct_cols=(), int_cols=(),
                 cell.number_format = '0.0"%"'
             elif colname in int_cols:
                 cell.number_format = '#,##0'
+            elif colname in wrap_cols:
+                cell.alignment = Alignment(wrap_text=True, vertical="top")
+                has_wrap = True
+        if has_wrap:
+            ws.row_dimensions[r].height = 42
 
     if add_total and len(df):
         tr = data_last + 1
@@ -647,6 +721,11 @@ def _style_data_sheet(ws, title, df, *, money_cols=(), pct_cols=(), int_cols=(),
                 cell.number_format = '0.0"%"'
 
     for c in range(1, ncols + 1):
+        colname = df.columns[c - 1]
+        if colname in wrap_cols:
+            # wrapped free-text column (examples): fixed generous width
+            ws.column_dimensions[ws.cell(row=header_row, column=c).column_letter].width = 60
+            continue
         maxlen = max([len(str(df.columns[c - 1]))] +
                      [len(str(df.iloc[r, c - 1])) for r in range(len(df))], default=12)
         # allow wide first columns (department/vendor/category names) to show in full
@@ -779,10 +858,11 @@ def _write_exec_summary(ws, title, tiles, cov, es):
     row += 1
     ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
     fn = ws.cell(row=row, column=2, value=(
-        "Note: “Uncategorized” means the description didn’t match any keyword rule yet, so no "
-        "category was assigned — it is not an error and the dollars are still counted. The rule "
-        "library grows over time to shrink it. All figures are deterministic — no AI is used in "
-        "the analysis."))
+        "Note: every row lands in a real Business Category. “General & Other Procurement” is the "
+        "catch-all for buys that don’t match a specific commodity rule yet — the dollars are still "
+        "counted and the Examples column shows what’s in it. Adding rules for those descriptions "
+        "moves the spend into specific categories over time. All figures are deterministic — no AI "
+        "is used in the analysis."))
     fn.font = Font(size=9, italic=True, color=GRAY)
     fn.alignment = Alignment(wrap_text=True, vertical="top")
     ws.row_dimensions[row].height = 46
@@ -981,7 +1061,8 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
         ws = wb[s_cat]
         hr, df1, dl = _style_data_sheet(ws, "Spend by Business Category", cat_tbl,
             money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
-            total_cols=[measure] + (["Transactions"] if has_amt else []))
+            total_cols=[measure] + (["Transactions"] if has_amt else []),
+            wrap_cols=[EXAMPLES_COL])
         _bar_chart(ws, f"{measure} by Category", 1, col_idx(cat_tbl, measure), hr, df1, dl,
                    anchor(ws, cat_tbl), x_title="Business Category", y_title=ylab)
 
@@ -1046,9 +1127,10 @@ def compute_all(df, roles, max_dims=6):
     Returns a dict of every analysis the roles support; infeasible ones are None."""
     amt, ven = roles.get("amount"), roles.get("vendor")
     dep, dat = roles.get("department"), roles.get("date")
+    desc = roles.get("description")
     tiles = summary_tiles(df, "Business_Category", amt, ven, dat)
     cov = coverage(df, "Business_Category")
-    cat = spend_by_category(df, "Business_Category", amt)
+    cat = spend_by_category(df, "Business_Category", amt, desc_col=desc)
     classified_df = df[_is_classified(df["Business_Category"])]
     par, measure, n80 = pareto(classified_df, "Business_Category", amt)
     vend = top_vendors(df, ven, amt)
