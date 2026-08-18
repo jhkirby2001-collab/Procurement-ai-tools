@@ -279,3 +279,16 @@ WINDOW WASHING,contains,"Landscaping, Grounds & Irrigation",910,,broad,Window wa
 TONER,contains,"IT, Telecom & Audio/Visual",207,,broad,Printer toner/supplies — NIGP 207 — added 2026-08-07
 SNOW REMOVAL,contains,"Landscaping, Grounds & Irrigation",,,broad,Snow removal service (no snow-services class in working set) — added 2026-08-07
 FUEL,contains,Vehicles & Fleet,405,,broad,Fuel (gasoline/diesel/fleet) — NIGP 405 — added 2026-08-07
+SEWER,contains,Construction & Trades Services,913,,broad,Sewer construction/lining/rehab — spend-file mining 2026-08
+WATER MAIN,contains,Construction & Trades Services,913,,broad,Water main construction/repair — 2026-08
+REFUSE,contains,"Janitorial, Sanitation & Waste",485,,broad,Refuse/waste carts & collection — 2026-08
+RECYCLING CART,contains,"Janitorial, Sanitation & Waste",485,,broad,Recycling carts — 2026-08
+GARBAGE CART,contains,"Janitorial, Sanitation & Waste",485,,broad,Garbage carts — 2026-08
+WATER METER,contains,Construction Materials,670,,broad,Water meters (water-system hardware) — 2026-08
+BADGER METER,contains,Construction Materials,670,,broad,Badger water meters — 2026-08
+NATURAL GAS,contains,Facilities Operations & Maintenance,,,broad,Utility — natural gas — 2026-08
+BOARD UP,contains,Facilities Operations & Maintenance,,,broad,Board-up services (building security) — 2026-08
+BOARD-UP,contains,Facilities Operations & Maintenance,,,broad,Board-up services — 2026-08
+SIGN POST,contains,Construction Materials,,,broad,Sign posts (roadway hardware) — 2026-08
+BACKGROUND INVESTIGATION,contains,Professional & Administrative Services,,,broad,Background investigations service — 2026-08
+TRANSPORTATION FOR,contains,Professional & Administrative Services,,,broad,Transportation services such as migrant transport — 2026-08
