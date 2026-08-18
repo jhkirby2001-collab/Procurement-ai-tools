@@ -1180,13 +1180,35 @@ def _render_spend_report(res: dict) -> None:
         st.caption("Categories bought from more than one vendor — biggest opportunities first.")
         st.dataframe(_style_spend_df(b["cons"]), use_container_width=True, hide_index=True)
 
-    # Same item across vendors / departments (line-level fragmentation)
-    if b.get("item_consol") is not None and len(b["item_consol"]):
-        st.markdown("### Same Item — Multiple Vendors / Departments")
+    # Same item across vendors / departments (line-level fragmentation) — always shown
+    st.markdown("### Same Item — Multiple Vendors / Departments")
+    ic = b.get("item_consol")
+    if ic is not None and len(ic):
         st.caption("The **same item** (by description) bought from more than one vendor and/or "
                    "across more than one department — line-level fragmentation and the sharpest "
-                   "consolidation targets. Sorted by spend.")
-        st.dataframe(_style_spend_df(b["item_consol"]), use_container_width=True, hide_index=True)
+                   "consolidation targets. Runs on every upload. Sorted by spend.")
+        st.dataframe(_style_spend_df(ic), use_container_width=True, hide_index=True)
+    else:
+        st.caption(
+            "This check runs on every report. No single item here was bought from more than one "
+            "vendor or across more than one department — so there's nothing to consolidate at the "
+            "line level. If you expected results, make sure a **Vendor** or **Department** column "
+            "is mapped above (the check needs at least one to detect fragmentation).")
+
+    # Same commodity by NIGP code (groups differently-worded descriptions) — always shown
+    st.markdown("### Same Commodity (NIGP code) — Multiple Vendors / Departments")
+    nc = b.get("nigp_consol")
+    if nc is not None and len(nc):
+        st.caption("Groups by the **NIGP commodity code** (5-digit item where the rule assigned "
+                   "one, otherwise 3-digit class) instead of the exact wording — so two "
+                   "differently-worded descriptions of the *same commodity* roll together. The "
+                   "**Descriptions (variants)** column shows the wordings that merged. Sorted by spend.")
+        st.dataframe(_style_spend_df(nc), use_container_width=True, hide_index=True)
+    else:
+        st.caption("This view groups rows that carry a NIGP commodity code. None of the coded "
+                   "commodities here were bought from more than one vendor or department. (Only "
+                   "rows whose rule assigned a NIGP code appear here; the item view above covers "
+                   "everything by description.)")
 
     # Dimension breakdowns
     for label, tbl in b["dimensions"]:
@@ -1315,7 +1337,8 @@ def page_spend_report() -> None:
                               exec_summary=b["es"], dept_tbl=b["dept_tbl"], trend_tbl=b["trend"],
                               tail=b["tail"], concentration=b["concentration"],
                               single_multi=b["single_multi"], matrix_tbl=b["matrix"],
-                              dimensions=b["dimensions"], item_consol_tbl=b.get("item_consol"))
+                              dimensions=b["dimensions"], item_consol_tbl=b.get("item_consol"),
+                              nigp_consol_tbl=b.get("nigp_consol"))
         # Store the whole computed bundle so it survives page navigation.
         st.session_state["sr_result"] = {
             "b": b, "excel": buf.getvalue(), "file_sig": file_sig, "file_name": uploaded.name}
@@ -1418,6 +1441,10 @@ def page_spend_report_methodology() -> None:
         "departments** and sum spend; keep only items bought from >1 vendor or across >1 "
         "department, ranked by spend. Vendor and department names are shown so you can act on "
         "it. (Grouping is exact text — it doesn't fuzzy-match — so a flag is real, not inferred.)\n"
+        "- **Same Commodity (NIGP code)** = the same calculation, but grouped by the **NIGP "
+        "commodity code** (5-digit item where the rule assigned one, otherwise 3-digit class) "
+        "instead of the wording — so two differently-worded descriptions of the same commodity "
+        "roll together. Only rows carrying a NIGP code appear; the merged wordings are shown.\n"
         "- **Spend Trend** = `sum(amount)` grouped by the year of the date column, with "
         "year-over-year % change.\n"
         "- **Vendor Concentration** = the spend share of the top 1/5/10 vendors, plus an "
@@ -1509,6 +1536,11 @@ def _spend_report_methods_table() -> None:
                 <td style="padding:8px 10px;"><strong>Same Item — Multiple Vendors / Departments</strong></td>
                 <td style="padding:8px 10px;">The <em>same item</em> (by description) bought from more than one vendor and/or across more than one department — with the vendor and department names.</td>
                 <td style="padding:8px 10px;">Line-level maverick buying — the sharpest, most defensible consolidation targets.</td>
+              </tr>
+              <tr style="background:{CHI_LT_BLUE};">
+                <td style="padding:8px 10px;"><strong>Same Commodity (NIGP code)</strong></td>
+                <td style="padding:8px 10px;">Groups by the <em>NIGP commodity code</em> (5-digit item where present, else 3-digit class) so differently-worded descriptions of the same commodity roll together — shows the merged wordings.</td>
+                <td style="padding:8px 10px;">Catches split buying hidden behind wording differences.</td>
               </tr>
               <tr>
                 <td style="padding:8px 10px;"><strong>Spend Trend Over Time</strong></td>

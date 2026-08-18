@@ -195,6 +195,7 @@ def build():
             ["Top Vendors", "Largest vendors by spend and share", "Vendor rationalization targets"],
             ["Consolidation / Fragmentation", "Categories bought from many vendors (and departments)", "Where to consolidate demand — savings"],
             ["Same Item — Multiple Vendors / Depts", "The same item bought from >1 vendor and/or across >1 department, with names", "Line-level maverick buying — sharpest targets"],
+            ["Same Commodity (NIGP code)", "Groups by NIGP commodity code so differently-worded descriptions of the same commodity roll together", "Catches split buying hidden behind wording differences"],
             ["Spend Trend", "Spend by year with year-over-year change", "Is spend rising or falling; when it peaked"],
             ["Vendor Concentration", "Top-1/5/10 vendor share and an HHI score", "How dependent are we on a few suppliers"],
             ["Tail-Spend", "The many small vendors making up the last ~20%", "The classic consolidation target"],
@@ -273,6 +274,15 @@ def build():
         "department names are shown. Grouping is exact text — no fuzzy matching — so a flag is "
         "real, not inferred.",
         bold_lead="Same Item",
+    )
+    add_bullet(
+        doc,
+        "Same Commodity (NIGP code) = the same idea as Same Item, but grouped by the NIGP "
+        "commodity code (5-digit item where the rule assigned one, otherwise 3-digit class) "
+        "rather than the exact wording — so two differently-worded descriptions of the same "
+        "commodity roll together. Only rows that carry a NIGP code appear here; the variant "
+        "wordings that merged are shown so the grouping is transparent.",
+        bold_lead="Same Commodity",
     )
     add_bullet(
         doc,
