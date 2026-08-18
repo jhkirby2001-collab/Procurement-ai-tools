@@ -194,6 +194,7 @@ def build():
             ["Pareto 80/20", "The few categories that drive ~80% of spend", "Where to focus sourcing first"],
             ["Top Vendors", "Largest vendors by spend and share", "Vendor rationalization targets"],
             ["Consolidation / Fragmentation", "Categories bought from many vendors (and departments)", "Where to consolidate demand — savings"],
+            ["Same Item — Multiple Vendors / Depts", "The same item bought from >1 vendor and/or across >1 department, with names", "Line-level maverick buying — sharpest targets"],
             ["Spend Trend", "Spend by year with year-over-year change", "Is spend rising or falling; when it peaked"],
             ["Vendor Concentration", "Top-1/5/10 vendor share and an HHI score", "How dependent are we on a few suppliers"],
             ["Tail-Spend", "The many small vendors making up the last ~20%", "The classic consolidation target"],
@@ -263,6 +264,15 @@ def build():
         "department count); categories bought from more than one vendor are flagged and ranked by "
         "spend — the biggest consolidation opportunities first.",
         bold_lead="Consolidation",
+    )
+    add_bullet(
+        doc,
+        "Same Item — Multiple Vendors / Departments = group rows by the exact item description, "
+        "count distinct vendors and departments per item and sum spend, then keep only items "
+        "bought from more than one vendor or across more than one department. Vendor and "
+        "department names are shown. Grouping is exact text — no fuzzy matching — so a flag is "
+        "real, not inferred.",
+        bold_lead="Same Item",
     )
     add_bullet(
         doc,
