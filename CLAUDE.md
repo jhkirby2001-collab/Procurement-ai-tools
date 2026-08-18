@@ -4,7 +4,7 @@ This repo is the home of the **NIGP-Sourced Procurement Category Mapper**, an in
 
 **Owner:** James H. Kirby III, CSCP, MS-SCM (jhkirby2001@yahoo.com)
 **Output naming convention:** `_JHK3` suffix on every deliverable file
-**Status:** Production. Latest commit `e349d65` on `origin/main`. Active branch work `claude/github-identification-ivqudt` (2026-08-07: fence fix + interactive-robustness rule expansion 246→280 + expanded operate-and-trust guide; 2026-08-18: Spend Report path — every row now lands in a real category, the "Unclassified" bucket replaced by a single catch-all **"General & Other Procurement"**, a new **Examples** column shows representative descriptions per category, **Grants** scoped to fire only on genuine grant signals on uploads (no memorized-exact misfires), curated rules 293→305). Repo is PUBLIC.
+**Status:** Production. Latest commit `e349d65` on `origin/main`. Active branch work `claude/github-identification-ivqudt` (2026-08-07: fence fix + interactive-robustness rule expansion 246→280 + expanded operate-and-trust guide; 2026-08-18: Spend Report path — every row now lands in a real category, the "Unclassified" bucket replaced by a single catch-all **"General & Other Procurement"**, a new **Examples** column shows representative descriptions per category, **Grants** scoped to fire only on genuine grant signals on uploads (no memorized-exact misfires), curated rules 293→324). Repo is PUBLIC.
 
 ---
 
@@ -28,7 +28,7 @@ Inputs to the classifier: description text + Chicago FMPS account/object/fund co
 ## Key paths
 
 **Rule files (procurement-staff editable, version-controlled):**
-- `spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv` — 305 hand-curated rules (edit these freely)
+- `spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv` — 324 hand-curated rules (edit these freely)
 - `spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv` — 6,766 AI-mined rules (frozen — do not regenerate)
 - `spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv` — 6 subgrant account patterns
 - `spend-analysis/data/reference/business_categories_JHK3.csv` — canonical 138-row NIGP-class → Business-Category map

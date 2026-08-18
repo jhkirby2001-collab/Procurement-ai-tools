@@ -304,3 +304,22 @@ CLOUD SERVICES,contains,"IT, Telecom & Audio/Visual",,,broad,Cloud services — 
 COVID-19,contains,Medical & Health Services,,,broad,COVID-19 test kits/supplies — 2026-08
 TEST KIT,contains,Medical & Health Services,,,broad,Diagnostic test kits — 2026-08
 TRANSPORTATION SERVICES FOR,contains,Professional & Administrative Services,,,broad,Contracted transportation services — 2026-08
+CAR WASH,contains,Vehicles & Fleet,,,broad,Car wash services for fleet — 2026-08
+AUTO PARTS,contains,Vehicles & Fleet,,,broad,Auto/vehicle parts — 2026-08
+OWNED AUTOS,contains,Vehicles & Fleet,,,broad,Parts for city-owned autos & trucks — 2026-08
+WINDSHIELD,contains,Vehicles & Fleet,929,,broad,Auto glass/windshield replacement — 2026-08
+TOWING,contains,Vehicles & Fleet,,,broad,Towing service — 2026-08
+SNOW PLOW,contains,Vehicles & Fleet,,,broad,Snow plow/blower maintenance & repair — 2026-08
+DUMP TRUCK,contains,Vehicles & Fleet,,,broad,Dump trucks — 2026-08
+MEDICAL OXYGEN,contains,Medical & Health Services,430,,broad,Medical oxygen/gases — 2026-08
+LIQUID OXYGEN,contains,Medical & Health Services,430,,broad,Liquid/medical oxygen — 2026-08
+MUNICIPAL CODE,contains,Professional & Administrative Services,,,broad,Municipal code review/compliance services — 2026-08
+RECORD STORAGE,contains,Professional & Administrative Services,,,broad,Records storage services — 2026-08
+BACKGROUND SCREENING,contains,Professional & Administrative Services,,,broad,Background screening services — 2026-08
+HERBICIDE,contains,"Landscaping, Grounds & Irrigation",,,broad,Herbicide (grounds) — 2026-08
+FLOOR MAT,contains,"Janitorial, Sanitation & Waste",,,broad,Floor mat rental/service — 2026-08
+SCADA,contains,"IT, Telecom & Audio/Visual",,,broad,SCADA control system maintenance — 2026-08
+SUPERVISORY CONTROL AND DATA ACQUISITION,contains,"IT, Telecom & Audio/Visual",,,broad,SCADA (full phrase) — 2026-08
+LIBRARY BOOK,contains,"Office, Print & Marketing",,,broad,Library books — 2026-08
+BOOK MATERIAL,contains,"Office, Print & Marketing",,,broad,Book materials — 2026-08
+LIBRARY MATERIAL,contains,"Office, Print & Marketing",,,broad,Library materials — 2026-08
