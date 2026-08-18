@@ -33,7 +33,7 @@ Alias URL also resolves: `https://nigp-sourced-category-mapper.streamlit.app/` (
 | 5 | **Procurement Taxonomy Logic** | Visual explainer of the three-tier hierarchy (Executive View → Sourcing View → Audit View). | Leadership, auditors |
 | 6 | **Methodology** | How the engine decides; confidence-badge logic; AI use defensibility. | Auditors, technical reviewers |
 | 7 | **Business Categories** | Browseable list of all 17 Business Categories with definitions. | Any user learning the taxonomy |
-| 8 | **Rule Lookup** | Search across all 7,071 rules (305 hand-curated + 6,766 AI-mined) to verify how any specific phrase routes. | Anyone validating a classification decision |
+| 8 | **Rule Lookup** | Search across all 7,090 rules (324 hand-curated + 6,766 AI-mined) to verify how any specific phrase routes. | Anyone validating a classification decision |
 
 ## How It Works (One Sentence)
 
@@ -79,7 +79,7 @@ These are factual capability statements; Layer 3 turns them into strategic narra
 
 | Question | Answer |
 |---|---|
-| "How many rules?" | 7,071 total: 305 hand-curated + 6,766 AI-mined |
+| "How many rules?" | 7,090 total: 324 hand-curated + 6,766 AI-mined |
 | "What did the AI cost?" | $27 one-time (2026-04-30 Haiku 4.5 mining); $0 ongoing |
 | "How long to classify a single record?" | Sub-second |
 | "How long for the full 784,556-row file?" | ~15 minutes |
