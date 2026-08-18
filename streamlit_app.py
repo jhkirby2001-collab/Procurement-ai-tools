@@ -1100,6 +1100,11 @@ def _render_spend_report(res: dict) -> None:
         st.markdown("**Recommended first steps:**")
         for i, s in enumerate(b["es"]["steps"], 1):
             st.markdown(f"{i}. {s}")
+    if b["es"].get("consolidation_items"):
+        st.markdown("**Items you can consolidate** (same item — multiple vendors / departments):")
+        for it in b["es"]["consolidation_items"]:
+            cat = f" · _{it['category']}_" if it.get("category") else ""
+            st.markdown(f"- **{it['item']}** — {it['detail']}, {it['value']}{cat}")
 
     # Summary tiles
     st.markdown("### Summary")
@@ -1201,9 +1206,12 @@ def _render_spend_report(res: dict) -> None:
     if nc is not None and len(nc):
         st.caption("Groups by the **NIGP commodity code** (5-digit item where the rule assigned "
                    "one, otherwise 3-digit class) instead of the exact wording — so two "
-                   "differently-worded descriptions of the *same commodity* roll together. The "
-                   "**Descriptions (variants)** column shows the wordings that merged. Sorted by spend.")
-        st.dataframe(_style_spend_df(nc), use_container_width=True, hide_index=True)
+                   "differently-worded descriptions of the *same commodity* roll together. "
+                   "**Each department is its own column** (spend); the shaded blue cells show which "
+                   "departments bought it. Rows shaded **red** in *Descriptions (variants)* are the "
+                   "consolidation targets — the same commodity bought across two or more "
+                   "departments. Sorted by spend.")
+        st.dataframe(_style_nigp_matrix(nc), use_container_width=True, hide_index=True)
     else:
         st.caption("This view groups rows that carry a NIGP commodity code. None of the coded "
                    "commodities here were bought from more than one vendor or department. (Only "
@@ -1222,6 +1230,51 @@ def _render_spend_report(res: dict) -> None:
         file_name="Spend_Report_JHK3.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+def _style_nigp_matrix(df):
+    """Styler for the NIGP commodity × department matrix: money-format the department
+    columns (zeros blank), highlight the departments that actually bought each
+    commodity, and flag the multi-department consolidation targets."""
+    meta = set(getattr(sr, "NIGP_META_COLS", []))
+    variants_col = getattr(sr, "DESC_VARIANTS_COL", "Descriptions (variants)")
+    dept_cols = [c for c in df.columns if c not in meta]
+    money_cols = list(dept_cols) + [c for c in ["Total Spend"] if c in df.columns]
+
+    def _money_blank_zero(v):
+        try:
+            return f"${float(v):,.0f}" if float(v) > 0 else ""
+        except (TypeError, ValueError):
+            return v
+
+    fmt = {}
+    for c in df.columns:
+        if c in money_cols:
+            fmt[c] = _money_blank_zero
+        elif c in ("Vendors", "Departments (#)", "Total Transactions"):
+            fmt[c] = "{:,.0f}"
+
+    def _highlight(row):
+        styles = [""] * len(row)
+        nz = 0
+        for i, c in enumerate(df.columns):
+            if c in dept_cols:
+                try:
+                    v = float(row[c])
+                except (TypeError, ValueError):
+                    v = 0
+                if v > 0:
+                    styles[i] = "background-color:#D6EEF9"
+                    nz += 1
+        if nz >= 2 and variants_col in df.columns:
+            j = list(df.columns).index(variants_col)
+            styles[j] = "background-color:#FCE4E4; font-weight:700; color:#9C1006"
+        return styles
+
+    try:
+        return df.style.format(fmt, na_rep="").apply(_highlight, axis=1)
+    except Exception:  # noqa: BLE001
+        return df
 
 
 def page_spend_report() -> None:
@@ -1444,7 +1497,10 @@ def page_spend_report_methodology() -> None:
         "- **Same Commodity (NIGP code)** = the same calculation, but grouped by the **NIGP "
         "commodity code** (5-digit item where the rule assigned one, otherwise 3-digit class) "
         "instead of the wording — so two differently-worded descriptions of the same commodity "
-        "roll together. Only rows carrying a NIGP code appear; the merged wordings are shown.\n"
+        "roll together. Presented as a matrix: **each department is its own column** (spend), the "
+        "blue cells show which departments bought the commodity, and rows that span two or more "
+        "departments are flagged **red** as consolidation targets. The top consolidatable items "
+        "are also listed in the Executive Summary.\n"
         "- **Spend Trend** = `sum(amount)` grouped by the year of the date column, with "
         "year-over-year % change.\n"
         "- **Vendor Concentration** = the spend share of the top 1/5/10 vendors, plus an "

@@ -381,7 +381,7 @@ DESC_VARIANTS_COL = "Descriptions (variants)"
 
 def nigp_item_consolidation(df, desc_col, amount_col=None, vendor_col=None, dept_col=None,
                             item_col="NIGP_Item_5digit", class_col="NIGP_Class_3digit",
-                            min_group=2, top_n=50, max_examples=4):
+                            min_group=2, top_n=50, max_examples=4, dept_cap=15):
     """Like item_consolidation, but groups by the NIGP commodity CODE instead of the
     raw description — so two differently-worded descriptions of the same commodity
     roll together. Uses the most specific code present per row (5-digit Item if the
@@ -426,29 +426,54 @@ def nigp_item_consolidation(df, desc_col, amount_col=None, vendor_col=None, dept
         g[ITEM_VENDORS_COL] = work.groupby("_key")[vendor_col].agg(
             lambda s: "  ·  ".join(pd.Series(s.astype(str).str.strip()).replace("", pd.NA)
                                    .dropna().unique()[:max_examples]))
-    if has_dep:
-        g["Departments"] = work.groupby("_key")[dept_col].nunique()
-        g[ITEM_DEPTS_COL] = work.groupby("_key")[dept_col].agg(
-            lambda s: "  ·  ".join(pd.Series(s.astype(str).str.strip()).replace("", pd.NA)
-                                   .dropna().unique()[:max_examples]))
+    measure_col = "Total Spend" if has_amt else "Total Transactions"
+    g = g.rename(columns={"Spend": "Total Spend", "Transactions": "Total Transactions"})
     if "Business_Category" in work:
         g["Business Category"] = work.groupby("_key")["Business_Category"].agg(
             lambda s: s.mode().iat[0] if len(s.mode()) else "")
 
+    # Department pivot: one column per department (spend, or transactions if no amount).
+    dept_cols = []
+    if has_dep:
+        dwork = work.copy()
+        dwork["_dept"] = dwork[dept_col].fillna("").astype(str).str.strip().replace("", "(blank)")
+        g["Departments (#)"] = dwork.groupby("_key")["_dept"].nunique()
+        totals = (dwork.groupby("_dept")["_amt"].sum() if has_amt
+                  else dwork.groupby("_dept").size())
+        top_depts = list(totals.sort_values(ascending=False).head(dept_cap).index)
+        dwork["_deptcol"] = dwork["_dept"].where(dwork["_dept"].isin(top_depts), "Other Depts")
+        pv = pd.pivot_table(dwork, index="_key", columns="_deptcol",
+                            values="_amt", aggfunc="sum", fill_value=0.0)
+        dept_cols = [d for d in top_depts if d in pv.columns]
+        if "Other Depts" in pv.columns:
+            dept_cols.append("Other Depts")
+        g = g.join(pv[dept_cols])
+
+    # Keep only genuinely fragmented commodities: >1 vendor OR bought across >1 dept.
     cond = pd.Series(False, index=g.index)
     if "Vendors" in g:
         cond = cond | (g["Vendors"] >= min_group)
-    if "Departments" in g:
-        cond = cond | (g["Departments"] >= min_group)
+    if "Departments (#)" in g:
+        cond = cond | (g["Departments (#)"] >= min_group)
     g = g[cond]
     if not len(g):
         return None
-    sort_key = "Spend" if has_amt else "Transactions"
-    g = g.sort_values(sort_key, ascending=False).head(top_n).reset_index(drop=True)
-    order = [c for c in ["NIGP Code", "NIGP Level", "Business Category", DESC_VARIANTS_COL,
-                         "Spend", "Transactions", "Vendors", "Departments",
-                         ITEM_VENDORS_COL, ITEM_DEPTS_COL] if c in g.columns]
-    return g[order]
+    g = g.sort_values(measure_col, ascending=False).head(top_n).reset_index(drop=True)
+    lead = [c for c in ["NIGP Code", "NIGP Level", "Business Category", DESC_VARIANTS_COL,
+                        "Vendors", "Departments (#)", measure_col] if c in g.columns]
+    tail = [c for c in [ITEM_VENDORS_COL] if c in g.columns]
+    return g[lead + dept_cols + tail]
+
+
+# Fixed (non-department) columns of the NIGP pivot — everything else is a department column.
+NIGP_META_COLS = ["NIGP Code", "NIGP Level", "Business Category", DESC_VARIANTS_COL,
+                  "Vendors", "Departments (#)", "Total Spend", "Total Transactions",
+                  ITEM_VENDORS_COL, ITEM_DEPTS_COL]
+
+
+def nigp_dept_columns(df) -> list:
+    """The department columns of a nigp_item_consolidation table (all non-meta columns)."""
+    return [c for c in df.columns if c not in NIGP_META_COLS]
 
 
 def coverage(df, category_col, method_col="Classification_Method"):
@@ -819,7 +844,27 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
             "Coordinate purchasing across departments buying the same commodity to capture "
             "cross-department leverage.")
 
-    return {"lines": lines, "steps": steps}
+    # Explicit, ranked list of items that can be consolidated (same item, >1 vendor/department).
+    consolidation_items = []
+    if item_consol is not None and len(item_consol):
+        has_v = "Vendors" in item_consol.columns
+        has_d = "Departments" in item_consol.columns
+        for _, r in item_consol.head(8).iterrows():
+            bits = []
+            if has_v:
+                bits.append(f"{int(r['Vendors'])} vendors")
+            if has_d:
+                bits.append(f"{int(r['Departments'])} depts")
+            val = (_money_text(r["Spend"]) if ("Spend" in item_consol.columns and has_amt)
+                   else f"{int(r['Transactions']):,} txns")
+            consolidation_items.append({
+                "item": str(r.get("Item", ""))[:70],
+                "category": str(r.get("Business Category", "")),
+                "detail": ", ".join(bits),
+                "value": val,
+            })
+
+    return {"lines": lines, "steps": steps, "consolidation_items": consolidation_items}
 
 
 # ---------------------------------------------------------------------------
@@ -1022,6 +1067,26 @@ def _write_exec_summary(ws, title, tiles, cov, es):
         c.font = Font(size=11)
         ws.row_dimensions[row].height = 32
         row += 1
+
+    items = (es or {}).get("consolidation_items") or []
+    if items:
+        row += 1
+        h3 = ws.cell(row=row, column=2,
+                     value="Items you can consolidate (same item — multiple vendors / departments)")
+        h3.font = Font(size=13, bold=True, color=NAVY)
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
+        row += 1
+        for it in items:
+            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
+            c = ws.cell(row=row, column=2)
+            tail = f"  —  {it['detail']}, {it['value']}"
+            if it.get("category"):
+                tail += f"  ({it['category']})"
+            c.value = "•  " + it["item"] + tail
+            c.alignment = Alignment(wrap_text=True, vertical="top")
+            c.font = Font(size=11)
+            ws.row_dimensions[row].height = 30
+            row += 1
 
     row += 1
     ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
@@ -1296,12 +1361,44 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
                 money_cols=money, int_cols=int_c, add_total=False, wrap_cols=wrap_c)
 
         if s_nigp:
+            from openpyxl.styles import Alignment, Font, PatternFill
             ws = wb[s_nigp]
-            int_c = [c for c in ["Vendors", "Departments", "Transactions"] if c in nigp_consol_tbl.columns]
-            wrap_c = [c for c in [DESC_VARIANTS_COL, ITEM_VENDORS_COL, ITEM_DEPTS_COL]
-                      if c in nigp_consol_tbl.columns]
-            _style_data_sheet(ws, "Same Commodity (NIGP code) — Multiple Vendors / Departments",
-                nigp_consol_tbl, money_cols=money, int_cols=int_c, add_total=False, wrap_cols=wrap_c)
+            cols_list = list(nigp_consol_tbl.columns)
+            dept_cols = nigp_dept_columns(nigp_consol_tbl)
+            total_c = [c for c in ["Total Spend", "Total Transactions"] if c in cols_list]
+            int_c = [c for c in ["Vendors", "Departments (#)"] if c in cols_list]
+            wrap_c = [c for c in [DESC_VARIANTS_COL, ITEM_VENDORS_COL] if c in cols_list]
+            hr, dfirst, dlast = _style_data_sheet(
+                ws, "Same Commodity (NIGP code) — Multiple Vendors / Departments, by department",
+                nigp_consol_tbl, money_cols=(total_c if has_amt else []),
+                int_cols=int_c + ([] if has_amt else total_c), add_total=False, wrap_cols=wrap_c)
+            dept_idx = [cols_list.index(c) + 1 for c in dept_cols]
+            var_idx = cols_list.index(DESC_VARIANTS_COL) + 1 if DESC_VARIANTS_COL in cols_list else None
+            zero_fmt = '$#,##0;-$#,##0;""' if has_amt else '#,##0;;""'
+            # compact, wrapped department headers so the matrix stays readable
+            for ci in dept_idx:
+                ws.column_dimensions[ws.cell(row=hr, column=ci).column_letter].width = 15
+                hc = ws.cell(row=hr, column=ci)
+                hc.alignment = Alignment(horizontal="center", vertical="bottom", wrap_text=True)
+            ws.row_dimensions[hr].height = 46
+            # highlight which departments buy each commodity, and flag multi-dept rows
+            for r in range(dfirst, dlast + 1):
+                nonzero = 0
+                for ci in dept_idx:
+                    cell = ws.cell(row=r, column=ci)
+                    cell.number_format = zero_fmt
+                    cell.alignment = Alignment(horizontal="right")
+                    try:
+                        v = float(cell.value or 0)
+                    except (TypeError, ValueError):
+                        v = 0
+                    if v > 0:
+                        cell.fill = PatternFill("solid", fgColor="D6EEF9")  # light-blue: bought here
+                        nonzero += 1
+                if nonzero >= 2 and var_idx:
+                    vc = ws.cell(row=r, column=var_idx)
+                    vc.fill = PatternFill("solid", fgColor="FCE4E4")  # light-red: consolidation target
+                    vc.font = Font(bold=True, color="9C1006")
 
         for snm, label, dfd in dim_sheets:
             ws = wb[snm]
