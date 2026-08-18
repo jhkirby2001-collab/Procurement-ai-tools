@@ -1085,94 +1085,11 @@ def _style_spend_df(df, money_all_but_first=False):
         return df
 
 
-def page_spend_report() -> None:
-    st.title("Spend Report")
-    st.markdown(
-        "Upload a spend file. The mapper classifies every line into a Business Category, "
-        "then builds a spend analysis — spend by category, Pareto 80/20, top vendors, and "
-        "vendor consolidation — that you can download as an Excel report. "
-        "**Runs on rules only — no AI, and your file stays in this session.**"
-    )
-
-    uploaded = st.file_uploader(
-        "Upload a spend file (CSV or Excel).",
-        type=["csv", "xlsx", "xls"],
-        accept_multiple_files=False,
-    )
-    if uploaded is None:
-        st.info("Awaiting file upload…")
-        return
-
-    try:
-        df_in = read_uploaded_table(uploaded)
-    except Exception as e:  # noqa: BLE001
-        st.error(f"Could not read the file: {e}")
-        return
-    df_in.columns = [str(c).strip() for c in df_in.columns]
-
-    st.success(f"Loaded {len(df_in):,} rows × {len(df_in.columns)} columns.")
-    st.dataframe(df_in.head(), use_container_width=True, hide_index=True)
-
-    profile = sr.profile_columns(df_in)
-    roles = dict(profile["roles"])
-    cols = list(df_in.columns)
-    NONE = "— none —"
-
-    def _opt_idx(val):
-        return cols.index(val) + 1 if val in cols else 0
-
-    st.markdown("#### Detected columns")
-    st.caption(
-        "The tool inspected **every column** and guessed each one's role — it adapts to any "
-        "file, whatever the format. In most cases just click **Generate** below; only change a "
-        "box if a guess is wrong. Only **Description** is required.")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        desc_col = st.selectbox("Description (required)", cols,
-            index=cols.index(roles["description"]) if roles.get("description") in cols else 0)
-        amount_col = st.selectbox("Amount / spend", [NONE] + cols, index=_opt_idx(roles.get("amount")))
-    with c2:
-        vendor_col = st.selectbox("Vendor", [NONE] + cols, index=_opt_idx(roles.get("vendor")))
-        dept_col = st.selectbox("Department", [NONE] + cols, index=_opt_idx(roles.get("department")))
-    with c3:
-        date_col = st.selectbox("Date", [NONE] + cols, index=_opt_idx(roles.get("date")))
-        dims_sel = st.multiselect(
-            "Breakdown dimensions (contract flags, status, etc.)",
-            options=cols, default=roles.get("dimensions", [])[:6],
-            help="Any low-cardinality column becomes a 'Spend by …' breakdown.")
-    amount_col = None if amount_col == NONE else amount_col
-    vendor_col = None if vendor_col == NONE else vendor_col
-    dept_col = None if dept_col == NONE else dept_col
-    date_col = None if date_col == NONE else date_col
-
-    roles.update({"description": desc_col, "amount": amount_col, "vendor": vendor_col,
-                  "department": dept_col, "date": date_col, "dimensions": dims_sel})
-
-    with st.expander("What the tool will analyze for this file (and what it will skip)"):
-        for p in sr.plan_analyses({"roles": roles}):
-            if p["feasible"]:
-                st.markdown(f"✅ **{p['label']}**")
-            else:
-                st.markdown(f"⤫ {p['label']} — _skipped: {p['reason']}_")
-
-    max_rows = len(df_in)
-    if len(df_in) > 25000:
-        st.warning(
-            f"Large file ({len(df_in):,} rows). Classifying every row can take a couple of "
-            "minutes. You can cap the row count for a faster first look.")
-        max_rows = st.number_input(
-            "Rows to analyze", min_value=1000, max_value=len(df_in),
-            value=min(25000, len(df_in)), step=5000)
-
-    if not st.button("Generate spend report", type="primary"):
-        return
-
-    work = df_in.head(int(max_rows)).copy()
-    with st.spinner(f"Classifying {len(work):,} rows (rules only)…"):
-        cls = sr.classify_series(work[desc_col], get_rules())
-        work = pd.concat([work.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
-
-    b = sr.compute_all(work, roles)
+def _render_spend_report(res: dict) -> None:
+    """Render a previously computed report bundle. Reading from a stored bundle
+    (not local variables) is what lets the report survive page navigation."""
+    b = res["b"]
+    excel_bytes = res["excel"]
     tiles, cov, cat, measure = b["tiles"], b["cov"], b["cat"], b["measure"]
 
     # Executive summary
@@ -1268,20 +1185,142 @@ def page_spend_report() -> None:
         st.markdown(f"### {label}")
         st.dataframe(_style_spend_df(tbl), use_container_width=True, hide_index=True)
 
-    # Excel download — the full leadership workbook
-    buf = io.BytesIO()
-    sr.build_excel_report(buf, tiles=tiles, cat_tbl=cat, pareto_tbl=b["par"],
-                          vendors_tbl=b["vend"], consolidation_tbl=b["cons"], cov=cov,
-                          exec_summary=b["es"], dept_tbl=b["dept_tbl"], trend_tbl=b["trend"],
-                          tail=b["tail"], concentration=b["concentration"],
-                          single_multi=b["single_multi"], matrix_tbl=b["matrix"],
-                          dimensions=b["dimensions"])
+    # Excel download — the full leadership workbook (bytes were built once, at generation)
     st.download_button(
         "⬇  Download full spend report (Excel)",
-        data=buf.getvalue(),
+        data=excel_bytes,
         file_name="Spend_Report_JHK3.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+def page_spend_report() -> None:
+    st.title("Spend Report")
+    st.markdown(
+        "Upload a spend file. The mapper classifies every line into a Business Category, "
+        "then builds a spend analysis — spend by category, Pareto 80/20, top vendors, and "
+        "vendor consolidation — that you can download as an Excel report. "
+        "**Runs on rules only — no AI, and your file stays in this session.**"
+    )
+
+    uploaded = st.file_uploader(
+        "Upload a spend file (CSV or Excel).",
+        type=["csv", "xlsx", "xls"],
+        accept_multiple_files=False,
+        key="sr_upload",
+    )
+    result = st.session_state.get("sr_result")
+
+    # No file in the uploader (e.g. you navigated back to this page): keep showing
+    # the last report you generated, so nothing is lost when you switch pages.
+    if uploaded is None:
+        if result is not None:
+            st.success(
+                f"Showing your most recent report — **{result.get('file_name', 'your file')}**. "
+                "It stays here while you move between pages. Upload a new file to replace it.")
+            if st.button("Clear this report"):
+                del st.session_state["sr_result"]
+                st.rerun()
+            _render_spend_report(result)
+        else:
+            st.info("Awaiting file upload…")
+        return
+
+    try:
+        df_in = read_uploaded_table(uploaded)
+    except Exception as e:  # noqa: BLE001
+        st.error(f"Could not read the file: {e}")
+        return
+    df_in.columns = [str(c).strip() for c in df_in.columns]
+    file_sig = f"{uploaded.name}:{getattr(uploaded, 'size', len(df_in))}"
+
+    st.success(f"Loaded {len(df_in):,} rows × {len(df_in.columns)} columns.")
+    st.dataframe(df_in.head(), use_container_width=True, hide_index=True)
+
+    profile = sr.profile_columns(df_in)
+    roles = dict(profile["roles"])
+    cols = list(df_in.columns)
+    NONE = "— none —"
+
+    def _opt_idx(val):
+        return cols.index(val) + 1 if val in cols else 0
+
+    st.markdown("#### Detected columns")
+    st.caption(
+        "The tool inspected **every column** and guessed each one's role — it adapts to any "
+        "file, whatever the format. In most cases just click **Generate** below; only change a "
+        "box if a guess is wrong. Only **Description** is required.")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        desc_col = st.selectbox("Description (required)", cols,
+            index=cols.index(roles["description"]) if roles.get("description") in cols else 0,
+            key="sr_desc")
+        amount_col = st.selectbox("Amount / spend", [NONE] + cols,
+            index=_opt_idx(roles.get("amount")), key="sr_amount")
+    with c2:
+        vendor_col = st.selectbox("Vendor", [NONE] + cols,
+            index=_opt_idx(roles.get("vendor")), key="sr_vendor")
+        dept_col = st.selectbox("Department", [NONE] + cols,
+            index=_opt_idx(roles.get("department")), key="sr_dept")
+    with c3:
+        date_col = st.selectbox("Date", [NONE] + cols,
+            index=_opt_idx(roles.get("date")), key="sr_date")
+        dims_sel = st.multiselect(
+            "Breakdown dimensions (contract flags, status, etc.)",
+            options=cols, default=roles.get("dimensions", [])[:6],
+            help="Any low-cardinality column becomes a 'Spend by …' breakdown.",
+            key="sr_dims")
+    amount_col = None if amount_col == NONE else amount_col
+    vendor_col = None if vendor_col == NONE else vendor_col
+    dept_col = None if dept_col == NONE else dept_col
+    date_col = None if date_col == NONE else date_col
+
+    roles.update({"description": desc_col, "amount": amount_col, "vendor": vendor_col,
+                  "department": dept_col, "date": date_col, "dimensions": dims_sel})
+
+    with st.expander("What the tool will analyze for this file (and what it will skip)"):
+        for p in sr.plan_analyses({"roles": roles}):
+            if p["feasible"]:
+                st.markdown(f"✅ **{p['label']}**")
+            else:
+                st.markdown(f"⤫ {p['label']} — _skipped: {p['reason']}_")
+
+    max_rows = len(df_in)
+    if len(df_in) > 25000:
+        st.warning(
+            f"Large file ({len(df_in):,} rows). Classifying every row can take a couple of "
+            "minutes. You can cap the row count for a faster first look.")
+        max_rows = st.number_input(
+            "Rows to analyze", min_value=1000, max_value=len(df_in),
+            value=min(25000, len(df_in)), step=5000, key="sr_maxrows")
+
+    if st.button("Generate spend report", type="primary"):
+        work = df_in.head(int(max_rows)).copy()
+        with st.spinner(f"Classifying {len(work):,} rows (rules only)…"):
+            cls = sr.classify_series(work[desc_col], get_rules())
+            work = pd.concat([work.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
+
+        b = sr.compute_all(work, roles)
+        buf = io.BytesIO()
+        sr.build_excel_report(buf, tiles=b["tiles"], cat_tbl=b["cat"], pareto_tbl=b["par"],
+                              vendors_tbl=b["vend"], consolidation_tbl=b["cons"], cov=b["cov"],
+                              exec_summary=b["es"], dept_tbl=b["dept_tbl"], trend_tbl=b["trend"],
+                              tail=b["tail"], concentration=b["concentration"],
+                              single_multi=b["single_multi"], matrix_tbl=b["matrix"],
+                              dimensions=b["dimensions"])
+        # Store the whole computed bundle so it survives page navigation.
+        st.session_state["sr_result"] = {
+            "b": b, "excel": buf.getvalue(), "file_sig": file_sig, "file_name": uploaded.name}
+        result = st.session_state["sr_result"]
+
+    # Render if we have a report for THIS uploaded file (freshly generated or saved).
+    if result is not None and result.get("file_sig") == file_sig:
+        _render_spend_report(result)
+    elif result is not None:
+        st.caption(
+            "You've uploaded a different file. Click **Generate spend report** to analyze it. "
+            "Your previous report is still saved — it reappears if you navigate away, or if you "
+            "re-upload that file.")
 
 
 # =========================================================================
