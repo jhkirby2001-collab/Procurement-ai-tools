@@ -41,6 +41,7 @@ Inputs to the classifier: description text + Chicago FMPS account/object/fund co
 - `spend-analysis/scripts/spend_report_JHK3.py` — reusable, **adaptive** spend-report engine: `profile_columns` (assigns a role to every column via name+content heuristics) + `plan_analyses` + vectorized `classify_series` + `compute_all` orchestrator. Analyzers: spend-by-category, Pareto, top vendors, consolidation, spend-by-department, spend-trend, tail-spend, vendor-concentration (HHI), single-vs-multi-source, category×department matrix, spend-by-any-dimension (contract/diversity/status). Data-driven executive summary + brand-colored multi-tab Excel builder with charts. Powers the Spend Report page. Deterministic, rules-only, schema/format-agnostic. **Every row lands in a real Business Category** — anything the rules don't map to a specific commodity goes to the single catch-all `CATCHALL = "General & Other Procurement"` (never an "Unclassified" gap); the Spend-by-Category output carries an **Examples** column (`category_examples`) showing representative descriptions per category. On uploads, **Grants (`GRANTS_CATEGORY`) fires only on strong grant signals** (program-tag prefixes + grant keywords) — memorized full-description `exact` rules are skipped so they don't misfire on arbitrary files.
 - `spend-analysis/scripts/build_leadership_deliverables_JHK3.py` — regenerates Word/Excel summaries
 - `spend-analysis/scripts/build_sop_JHK3.py` — regenerates the SOP .docx
+- `spend-analysis/scripts/build_spend_report_howto_docx_JHK3.py` — regenerates the Spend Report how-to Word doc (`outputs/HOW_TO_Spend_Report_JHK3.docx`)
 - `spend-analysis/scripts/audit_classifier_coverage_JHK3.py` — 63-phrase plain-English regression test
 - `spend-analysis/scripts/fix_ai_rule_category_mismatches_JHK3.py` — idempotent integrity fix
 - `spend-analysis/scripts/ai_topup_uncovered_JHK3.py` — targeted AI top-up (held in reserve, requires API key — not part of standard runtime)
@@ -54,6 +55,7 @@ Inputs to the classifier: description text + Chicago FMPS account/object/fund co
 - `outputs/NIGP_Methodology_for_Leadership_JHK3.docx` — full methodology, leadership-formatted
 - `outputs/NIGP_SOP_JHK3.docx` — Standard Operating Procedure (Operations / Data Processing / Taxonomy Governance)
 - `outputs/HOW_TO_USE_NIGP_Mapping_JHK3.md` — staff-facing usage guide
+- `outputs/HOW_TO_Spend_Report_JHK3.docx` — leadership-formatted Spend Report how-to & methodology (Word)
 - `outputs/NIGP_Web_App_Factsheet_JHK3.md` — short Layer-1 factual brief about the web app
 
 **Documentation:**
