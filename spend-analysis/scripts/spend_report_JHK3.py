@@ -306,6 +306,77 @@ def consolidation_finder(df, category_col, vendor_col, amount_col=None,
     return g.reset_index().rename(columns={category_col: "Business Category"})
 
 
+ITEM_VENDORS_COL = "Vendors (examples)"
+ITEM_DEPTS_COL = "Departments (examples)"
+
+
+def _normalize_item(s: pd.Series) -> pd.Series:
+    """Collapse a description into a comparable 'item' key: uppercase, trimmed,
+    internal whitespace collapsed. Deliberately conservative — it does not stem
+    or fuzzy-match, so two rows only group when the text truly matches."""
+    x = s.fillna("").astype(str).str.upper().str.strip()
+    return x.str.replace(r"\s+", " ", regex=True)
+
+
+def item_consolidation(df, desc_col, amount_col=None, vendor_col=None, dept_col=None,
+                       category_col="Business_Category", min_group=2, top_n=50,
+                       max_examples=4):
+    """Item-level fragmentation: the SAME item (by description) bought from more
+    than one vendor and/or across more than one department — the strongest
+    consolidation signal. Excludes the General & Other catch-all (not a commodity).
+    Needs a description plus at least a vendor or a department to be meaningful."""
+    if not desc_col or desc_col not in df:
+        return None
+    has_ven = bool(vendor_col and vendor_col in df)
+    has_dep = bool(dept_col and dept_col in df)
+    if not (has_ven or has_dep):
+        return None
+    work = df.copy()
+    if category_col in work:
+        work = work[_is_classified(work[category_col])]
+    work["_item"] = _normalize_item(work[desc_col])
+    work = work[work["_item"] != ""]
+    if not len(work):
+        return None
+    has_amt = bool(amount_col and amount_col in work)
+    work["_amt"] = clean_amount(work[amount_col]).fillna(0.0) if has_amt else 1.0
+
+    parts = {"Transactions": ("_item", "size")}
+    if has_amt:
+        parts["Spend"] = ("_amt", "sum")
+    g = work.groupby("_item").agg(**parts)
+    if has_ven:
+        g["Vendors"] = work.groupby("_item")[vendor_col].nunique()
+        g[ITEM_VENDORS_COL] = work.groupby("_item")[vendor_col].agg(
+            lambda s: "  ·  ".join(pd.Series(s.astype(str).str.strip()).replace("", pd.NA)
+                                   .dropna().unique()[:max_examples]))
+    if has_dep:
+        g["Departments"] = work.groupby("_item")[dept_col].nunique()
+        g[ITEM_DEPTS_COL] = work.groupby("_item")[dept_col].agg(
+            lambda s: "  ·  ".join(pd.Series(s.astype(str).str.strip()).replace("", pd.NA)
+                                   .dropna().unique()[:max_examples]))
+    if category_col in work:
+        g["Business Category"] = work.groupby("_item")[category_col].agg(
+            lambda s: s.mode().iat[0] if len(s.mode()) else "")
+
+    # Keep only genuinely fragmented items: >1 vendor OR >1 department.
+    cond = pd.Series(False, index=g.index)
+    if "Vendors" in g:
+        cond = cond | (g["Vendors"] >= min_group)
+    if "Departments" in g:
+        cond = cond | (g["Departments"] >= min_group)
+    g = g[cond]
+    if not len(g):
+        return None
+    sort_key = "Spend" if has_amt else "Transactions"
+    g = g.sort_values(sort_key, ascending=False).head(top_n).reset_index()
+    g = g.rename(columns={"_item": "Item"})
+    order = [c for c in ["Item", "Business Category", "Spend", "Transactions",
+                         "Vendors", "Departments", ITEM_VENDORS_COL, ITEM_DEPTS_COL]
+             if c in g.columns]
+    return g[order]
+
+
 def coverage(df, category_col, method_col="Classification_Method"):
     total = len(df)
     catchall = int((df[category_col] == CATCHALL).sum())
@@ -439,6 +510,9 @@ def plan_analyses(profile: dict) -> list:
     add("top_vendors", "Top Vendors", has("vendor"), "" if has("vendor") else "no vendor column")
     add("consolidation", "Vendor Consolidation / Fragmentation", has("vendor"),
         "" if has("vendor") else "no vendor column")
+    add("item_consolidation", "Same Item — Multiple Vendors / Departments",
+        has("vendor") or has("department"),
+        "" if (has("vendor") or has("department")) else "needs a vendor or department column")
     add("department", "Spend by Department", has("department"),
         "" if has("department") else "no department column")
     add("trend", "Spend Trend Over Time", has("date"),
@@ -561,7 +635,7 @@ def _money_text(v):
 
 
 def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
-                      trend=None, tail=None, concentration=None) -> dict:
+                      trend=None, tail=None, concentration=None, item_consol=None) -> dict:
     has_amt = tiles.get("has_amount")
     unit = "spend" if has_amt else "transactions"
     real = cat[cat["Business Category"] != CATCHALL]
@@ -621,6 +695,23 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
         lines.append(
             f"The largest single vendor is {tv['Vendor']} at {val} ({tv['% of Total']}% of total).")
         steps.append("Review the top vendors for volume-based pricing, contract compliance, and overlap.")
+
+    if item_consol is not None and len(item_consol):
+        it = item_consol.iloc[0]
+        detail = []
+        if "Vendors" in item_consol.columns:
+            detail.append(f"{int(it['Vendors'])} vendors")
+        if "Departments" in item_consol.columns:
+            detail.append(f"{int(it['Departments'])} departments")
+        val = _money_text(it["Spend"]) if ("Spend" in item_consol.columns and has_amt) \
+            else f"{int(it['Transactions']):,} transactions"
+        lines.append(
+            f"Same-item fragmentation exists at the line level: e.g., “{str(it['Item'])[:60]}” was "
+            f"bought across {', '.join(detail)} ({val}). {len(item_consol)} such items are listed — "
+            "the same thing sourced from more than one vendor or department.")
+        steps.append(
+            "Review the Same-Item report: standardize and consolidate the top line items bought "
+            "from multiple vendors or across departments onto a single source/agreement.")
 
     if trend is not None and "Spend" in trend.columns and len(trend) >= 2:
         peak = trend.loc[trend["Spend"].idxmax()]
@@ -982,13 +1073,14 @@ _TAB_WHY = {
     "Spend by Department": "Which departments spend, and on what — surfaces cross-department demand.",
     "Category x Dept Matrix": "A cross-tab of category by department — the same commodity bought across many departments.",
     "Consolidation": "Categories bought from many vendors — the clearest consolidation (savings) opportunities.",
+    "Same Item - Vendors_Depts": "The SAME item bought from more than one vendor and/or across more than one department — line-level maverick/fragmented buying and the sharpest consolidation targets.",
 }
 
 
 def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
                        consolidation_tbl, cov, exec_summary=None, dept_tbl=None,
                        trend_tbl=None, tail=None, concentration=None, single_multi=None,
-                       matrix_tbl=None, dimensions=None,
+                       matrix_tbl=None, dimensions=None, item_consol_tbl=None,
                        report_title="Procurement Spend Analysis") -> str:
     has_amt = tiles.get("has_amount")
     measure = "Spend" if has_amt else "Transactions"
@@ -1028,6 +1120,10 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
         if consolidation_tbl is not None:
             s_con = _safe_sheet_name("Consolidation", used)
             consolidation_tbl.to_excel(xl, sheet_name=s_con, index=False, startrow=1)
+        s_item = None
+        if item_consol_tbl is not None and len(item_consol_tbl):
+            s_item = _safe_sheet_name("Same Item - Vendors_Depts", used)
+            item_consol_tbl.to_excel(xl, sheet_name=s_item, index=False, startrow=1)
         dim_sheets = []
         for label, dfd in (dimensions or []):
             if dfd is None or not len(dfd):
@@ -1046,7 +1142,7 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
         for snm, key in [(s_cat, "Spend by Category"), (s_trend, "Spend Trend"),
                          (s_par, "Pareto 80-20"), (s_ven, "Top Vendors"),
                          (s_dep, "Spend by Department"), (s_mat, "Category x Dept Matrix"),
-                         (s_con, "Consolidation")]:
+                         (s_con, "Consolidation"), (s_item, "Same Item - Vendors_Depts")]:
             if snm:
                 entries.append((snm, _TAB_WHY[key]))
         for snm, label, _dfd in dim_sheets:
@@ -1108,6 +1204,13 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
                 money_cols=money, int_cols=int_c,
                 total_cols=(["Spend", "Transactions"] if has_amt else ["Transactions"]))
 
+        if s_item:
+            ws = wb[s_item]
+            int_c = [c for c in ["Vendors", "Departments", "Transactions"] if c in item_consol_tbl.columns]
+            wrap_c = [c for c in ["Item", ITEM_VENDORS_COL, ITEM_DEPTS_COL] if c in item_consol_tbl.columns]
+            _style_data_sheet(ws, "Same Item — Multiple Vendors / Departments", item_consol_tbl,
+                money_cols=money, int_cols=int_c, add_total=False, wrap_cols=wrap_c)
+
         for snm, label, dfd in dim_sheets:
             ws = wb[snm]
             hr, df1, dl = _style_data_sheet(ws, label, dfd,
@@ -1136,6 +1239,7 @@ def compute_all(df, roles, max_dims=6):
     vend = top_vendors(df, ven, amt)
     dept_tbl = spend_by_department(df, dep, amt)
     cons = consolidation_finder(df, "Business_Category", ven, amt, dep)
+    item_consol = item_consolidation(df, desc, amt, ven, dep)
     trend = spend_trend(df, dat, amt)
     tail = tail_spend(df, ven, amt)
     conc = vendor_concentration(df, ven, amt)
@@ -1154,10 +1258,12 @@ def compute_all(df, roles, max_dims=6):
             dims.append((label, tbl))
 
     es = executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl,
-                           trend=trend, tail=tail, concentration=conc)
+                           trend=trend, tail=tail, concentration=conc,
+                           item_consol=item_consol)
     return dict(tiles=tiles, cov=cov, cat=cat, par=par, measure=measure, n80=n80,
-                vend=vend, dept_tbl=dept_tbl, cons=cons, trend=trend, tail=tail,
-                concentration=conc, single_multi=sm, matrix=matrix, dimensions=dims, es=es)
+                vend=vend, dept_tbl=dept_tbl, cons=cons, item_consol=item_consol,
+                trend=trend, tail=tail, concentration=conc, single_multi=sm,
+                matrix=matrix, dimensions=dims, es=es)
 
 
 # ---------------------------------------------------------------------------
@@ -1207,7 +1313,7 @@ def run(path, desc=None, amount=None, vendor=None, dept=None, out=None, sample=N
                        exec_summary=b["es"], dept_tbl=b["dept_tbl"], trend_tbl=b["trend"],
                        tail=b["tail"], concentration=b["concentration"],
                        single_multi=b["single_multi"], matrix_tbl=b["matrix"],
-                       dimensions=b["dimensions"])
+                       dimensions=b["dimensions"], item_consol_tbl=b.get("item_consol"))
     print(f"\nWrote Excel report: {out}")
     return out
 

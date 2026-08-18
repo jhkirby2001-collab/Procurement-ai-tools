@@ -1180,6 +1180,14 @@ def _render_spend_report(res: dict) -> None:
         st.caption("Categories bought from more than one vendor — biggest opportunities first.")
         st.dataframe(_style_spend_df(b["cons"]), use_container_width=True, hide_index=True)
 
+    # Same item across vendors / departments (line-level fragmentation)
+    if b.get("item_consol") is not None and len(b["item_consol"]):
+        st.markdown("### Same Item — Multiple Vendors / Departments")
+        st.caption("The **same item** (by description) bought from more than one vendor and/or "
+                   "across more than one department — line-level fragmentation and the sharpest "
+                   "consolidation targets. Sorted by spend.")
+        st.dataframe(_style_spend_df(b["item_consol"]), use_container_width=True, hide_index=True)
+
     # Dimension breakdowns
     for label, tbl in b["dimensions"]:
         st.markdown(f"### {label}")
@@ -1307,7 +1315,7 @@ def page_spend_report() -> None:
                               exec_summary=b["es"], dept_tbl=b["dept_tbl"], trend_tbl=b["trend"],
                               tail=b["tail"], concentration=b["concentration"],
                               single_multi=b["single_multi"], matrix_tbl=b["matrix"],
-                              dimensions=b["dimensions"])
+                              dimensions=b["dimensions"], item_consol_tbl=b.get("item_consol"))
         # Store the whole computed bundle so it survives page navigation.
         st.session_state["sr_result"] = {
             "b": b, "excel": buf.getvalue(), "file_sig": file_sig, "file_name": uploaded.name}
@@ -1405,6 +1413,11 @@ def page_spend_report_methodology() -> None:
         "- **Consolidation / Fragmentation** = for each category, the **distinct vendor "
         "count** (and department count); categories bought from more than one vendor are "
         "flagged and ranked by spend — the biggest consolidation opportunities first.\n"
+        "- **Same Item — Multiple Vendors / Departments** = group rows by the *exact item "
+        "description*, then for each item count the **distinct vendors** and **distinct "
+        "departments** and sum spend; keep only items bought from >1 vendor or across >1 "
+        "department, ranked by spend. Vendor and department names are shown so you can act on "
+        "it. (Grouping is exact text — it doesn't fuzzy-match — so a flag is real, not inferred.)\n"
         "- **Spend Trend** = `sum(amount)` grouped by the year of the date column, with "
         "year-over-year % change.\n"
         "- **Vendor Concentration** = the spend share of the top 1/5/10 vendors, plus an "
@@ -1491,6 +1504,11 @@ def _spend_report_methods_table() -> None:
                 <td style="padding:8px 10px;"><strong>Consolidation / Fragmentation</strong></td>
                 <td style="padding:8px 10px;">Categories bought from many vendors (and departments).</td>
                 <td style="padding:8px 10px;">The savings story — where to consolidate demand.</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 10px;"><strong>Same Item — Multiple Vendors / Departments</strong></td>
+                <td style="padding:8px 10px;">The <em>same item</em> (by description) bought from more than one vendor and/or across more than one department — with the vendor and department names.</td>
+                <td style="padding:8px 10px;">Line-level maverick buying — the sharpest, most defensible consolidation targets.</td>
               </tr>
               <tr>
                 <td style="padding:8px 10px;"><strong>Spend Trend Over Time</strong></td>
