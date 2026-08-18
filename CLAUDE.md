@@ -28,7 +28,7 @@ Inputs to the classifier: description text + Chicago FMPS account/object/fund co
 ## Key paths
 
 **Rule files (procurement-staff editable, version-controlled):**
-- `spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv` — 280 hand-curated rules (edit these freely)
+- `spend-analysis/data/reference/keyword_rules_DRAFT_JHK3.csv` — 293 hand-curated rules (edit these freely)
 - `spend-analysis/data/reference/keyword_rules_from_ai_JHK3.csv` — 6,766 AI-mined rules (frozen — do not regenerate)
 - `spend-analysis/data/reference/account_patterns_DRAFT_JHK3.csv` — 6 subgrant account patterns
 - `spend-analysis/data/reference/business_categories_JHK3.csv` — canonical 138-row NIGP-class → Business-Category map

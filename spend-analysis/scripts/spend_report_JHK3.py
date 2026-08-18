@@ -32,8 +32,8 @@ from classifier_JHK3 import (  # noqa: E402
     LOWINFO_RE,
 )
 
-UNCLASSIFIED_NO_RULE = "Unclassified — No Rule Match"
-UNCLASSIFIED_NO_DESC = "Unclassified — No Description"
+UNCLASSIFIED_NO_RULE = "Uncategorized (no matching rule yet)"
+UNCLASSIFIED_NO_DESC = "Uncategorized (no description provided)"
 
 AMOUNT_HINTS = ["amount", "spend", "cost", "price", "total", "value", "paid",
                 "billed", "ordered", "award", "expenditure", "payment"]
@@ -502,6 +502,15 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
     real = cat[~cat["Business Category"].isin([UNCLASSIFIED_NO_RULE, UNCLASSIFIED_NO_DESC])]
     lines, steps = [], []
 
+    # Opening headline — a one-sentence synthesis for a leader skimming the page.
+    unclass_pct0 = round(100 - cov["classified_pct"], 1)
+    headline_val = _money_text(tiles.get("total_spend")) if has_amt else f"{tiles['transactions']:,} transactions"
+    lines.append(
+        f"Bottom line: of the {headline_val} analyzed, spend concentrates in a handful of "
+        "categories" + (" and a short list of vendors" if (vend is not None and len(vend)) else "")
+        + f", while {unclass_pct0}% is still uncategorized. The fastest wins are consolidating the "
+        "most fragmented categories and widening classification coverage.")
+
     parts = []
     if has_amt:
         parts.append(f"{_money_text(tiles.get('total_spend'))} in spend")
@@ -640,13 +649,16 @@ def _style_data_sheet(ws, title, df, *, money_cols=(), pct_cols=(), int_cols=(),
     for c in range(1, ncols + 1):
         maxlen = max([len(str(df.columns[c - 1]))] +
                      [len(str(df.iloc[r, c - 1])) for r in range(len(df))], default=12)
-        ws.column_dimensions[ws.cell(row=header_row, column=c).column_letter].width = min(max(maxlen + 3, 12), 46)
+        # allow wide first columns (department/vendor/category names) to show in full
+        cap = 60 if c == 1 else 46
+        ws.column_dimensions[ws.cell(row=header_row, column=c).column_letter].width = min(max(maxlen + 3, 12), cap)
     ws.freeze_panes = ws.cell(row=data_first, column=1)
     ws.sheet_view.showGridLines = False
     return header_row, data_first, data_last
 
 
-def _bar_chart(ws, title, cat_col, val_col, header_row, data_first, data_last, anchor):
+def _bar_chart(ws, title, cat_col, val_col, header_row, data_first, data_last, anchor,
+               x_title="", y_title=""):
     from openpyxl.chart import BarChart, Reference
     ch = BarChart()
     ch.type = "col"
@@ -659,10 +671,16 @@ def _bar_chart(ws, title, cat_col, val_col, header_row, data_first, data_last, a
     ch.add_data(data, titles_from_data=True)
     ch.set_categories(cats)
     ch.legend = None
+    ch.x_axis.title = x_title
+    ch.y_axis.title = y_title
+    ch.x_axis.delete = False   # ensure axis + its title actually render
+    ch.y_axis.delete = False
+    ch.gapWidth = 60
     ws.add_chart(ch, anchor)
 
 
-def _pareto_chart(ws, cat_col, spend_col, cum_col, header_row, data_first, data_last, anchor):
+def _pareto_chart(ws, cat_col, spend_col, cum_col, header_row, data_first, data_last, anchor,
+                  x_title="Business Category", y_title="Spend ($)"):
     from openpyxl.chart import BarChart, LineChart, Reference
     bar = BarChart()
     bar.type = "col"
@@ -675,12 +693,17 @@ def _pareto_chart(ws, cat_col, spend_col, cum_col, header_row, data_first, data_
     bar.add_data(d, titles_from_data=True)
     bar.set_categories(cats)
     bar.legend = None
+    bar.x_axis.title = x_title
+    bar.y_axis.title = y_title
+    bar.x_axis.delete = False
+    bar.y_axis.delete = False
     line = LineChart()
     dl = Reference(ws, min_col=cum_col, min_row=header_row, max_row=data_last)
     line.add_data(dl, titles_from_data=True)
     line.y_axis.axId = 200
     line.y_axis.title = "Cumulative %"
     line.y_axis.crosses = "max"
+    line.y_axis.delete = False
     bar += line
     ws.add_chart(bar, anchor)
 
@@ -756,9 +779,10 @@ def _write_exec_summary(ws, title, tiles, cov, es):
     row += 1
     ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
     fn = ws.cell(row=row, column=2, value=(
-        "Note: “Unclassified — No Rule Match” means the description did not match any "
-        "keyword rule, so no category was assigned (not an error). Adding rules for recurring "
-        "items reduces it. All figures are deterministic — no AI is used in the analysis."))
+        "Note: “Uncategorized” means the description didn’t match any keyword rule yet, so no "
+        "category was assigned — it is not an error and the dollars are still counted. The rule "
+        "library grows over time to shrink it. All figures are deterministic — no AI is used in "
+        "the analysis."))
     fn.font = Font(size=9, italic=True, color=GRAY)
     fn.alignment = Alignment(wrap_text=True, vertical="top")
     ws.row_dimensions[row].height = 46
@@ -829,6 +853,58 @@ def _write_analytics_sheet(ws, tail, conc, sm):
     n.alignment = Alignment(wrap_text=True)
 
 
+def _write_contents_sheet(ws, entries):
+    """entries: list of (tab_name, why-it-matters)."""
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    thin = Side(style="thin", color="BFBFBF")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    ws.sheet_view.showGridLines = False
+    ws.column_dimensions["A"].width = 2.5
+    ws.column_dimensions["B"].width = 30
+    ws.column_dimensions["C"].width = 82
+    ws.merge_cells("B2:C2")
+    t = ws["B2"]
+    t.value = "Contents — what's in this report, and why it matters"
+    t.font = Font(size=14, bold=True, color=WHITE)
+    t.fill = PatternFill("solid", fgColor=NAVY)
+    t.alignment = Alignment(vertical="center", indent=1)
+    ws.row_dimensions[2].height = 24
+    for j, head in enumerate(["Tab", "Why this matters in a spend analysis"], start=2):
+        c = ws.cell(row=4, column=j, value=head)
+        c.font = Font(bold=True, color=WHITE)
+        c.fill = PatternFill("solid", fgColor=NAVY)
+        c.border = border
+        c.alignment = Alignment(vertical="center")
+    r = 5
+    for name, why in entries:
+        band = (r % 2 == 1)
+        a = ws.cell(row=r, column=2, value=name)
+        b = ws.cell(row=r, column=3, value=why)
+        a.font = Font(bold=True, size=11, color=NAVY)
+        b.font = Font(size=11)
+        b.alignment = Alignment(wrap_text=True, vertical="top")
+        a.alignment = Alignment(vertical="top")
+        for cc in (a, b):
+            cc.border = border
+            if band:
+                cc.fill = PatternFill("solid", fgColor=LT_BLUE)
+        ws.row_dimensions[r].height = 30
+        r += 1
+
+
+_TAB_WHY = {
+    "Executive Summary": "The headline findings in plain language, plus the recommended first steps — read this first.",
+    "Vendor Analytics": "Supplier concentration (HHI), tail spend, and single- vs multi-source — where supply risk and consolidation opportunity live.",
+    "Spend by Category": "Where the money goes by WHAT is bought — the core view for category management.",
+    "Spend Trend": "Spend by year with year-over-year change — is spend rising or falling, and when did it peak?",
+    "Pareto 80-20": "The few categories that drive ~80% of spend — where to focus sourcing effort first.",
+    "Top Vendors": "The largest suppliers by spend — rationalization and negotiation targets.",
+    "Spend by Department": "Which departments spend, and on what — surfaces cross-department demand.",
+    "Category x Dept Matrix": "A cross-tab of category by department — the same commodity bought across many departments.",
+    "Consolidation": "Categories bought from many vendors — the clearest consolidation (savings) opportunities.",
+}
+
+
 def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
                        consolidation_tbl, cov, exec_summary=None, dept_tbl=None,
                        trend_tbl=None, tail=None, concentration=None, single_multi=None,
@@ -844,6 +920,8 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
 
     def anchor(ws, df):
         return ws.cell(row=2, column=df.shape[1] + 2).coordinate
+
+    ylab = "Spend ($)" if has_amt else "Transactions"
 
     with pd.ExcelWriter(path, engine="openpyxl") as xl:
         s_cat = _safe_sheet_name("Spend by Category", used)
@@ -881,41 +959,61 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
         wb = xl.book
         es = wb.create_sheet("Executive Summary", 0)
         _write_exec_summary(es, report_title, tiles, cov, exec_summary)
+        # Contents at position 1 (right after the summary)
+        entries = [("Executive Summary", _TAB_WHY["Executive Summary"])]
         if tail or concentration or single_multi:
-            an = wb.create_sheet("Vendor Analytics", 1)
+            entries.append(("Vendor Analytics", _TAB_WHY["Vendor Analytics"]))
+        for snm, key in [(s_cat, "Spend by Category"), (s_trend, "Spend Trend"),
+                         (s_par, "Pareto 80-20"), (s_ven, "Top Vendors"),
+                         (s_dep, "Spend by Department"), (s_mat, "Category x Dept Matrix"),
+                         (s_con, "Consolidation")]:
+            if snm:
+                entries.append((snm, _TAB_WHY[key]))
+        for snm, label, _dfd in dim_sheets:
+            entries.append((snm, f"Spend broken down by “{label}” — e.g., on- vs off-contract, "
+                                 "supplier diversity, or process status, depending on the column."))
+        contents = wb.create_sheet("Contents", 1)
+        _write_contents_sheet(contents, entries)
+        if tail or concentration or single_multi:
+            an = wb.create_sheet("Vendor Analytics", 2)
             _write_analytics_sheet(an, tail, concentration, single_multi)
 
         ws = wb[s_cat]
         hr, df1, dl = _style_data_sheet(ws, "Spend by Business Category", cat_tbl,
             money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
             total_cols=[measure] + (["Transactions"] if has_amt else []))
-        _bar_chart(ws, f"{measure} by Category", 1, col_idx(cat_tbl, measure), hr, df1, dl, anchor(ws, cat_tbl))
+        _bar_chart(ws, f"{measure} by Category", 1, col_idx(cat_tbl, measure), hr, df1, dl,
+                   anchor(ws, cat_tbl), x_title="Business Category", y_title=ylab)
 
         if s_trend:
             ws = wb[s_trend]
             hr, df1, dl = _style_data_sheet(ws, "Spend Trend Over Time", trend_tbl,
                 money_cols=money, pct_cols=[c for c in ["YoY %"] if c in trend_tbl.columns],
                 int_cols=["Transactions"], add_total=False)
-            _bar_chart(ws, f"{measure} by Year", 1, col_idx(trend_tbl, measure), hr, df1, dl, anchor(ws, trend_tbl))
+            _bar_chart(ws, f"{measure} by Year", 1, col_idx(trend_tbl, measure), hr, df1, dl,
+                       anchor(ws, trend_tbl), x_title="Year", y_title=ylab)
 
         ws = wb[s_par]
         hr, df1, dl = _style_data_sheet(ws, "Pareto 80/20 (classified spend)", pareto_tbl,
             money_cols=money, pct_cols=["% of Total", "Cumulative %"], int_cols=["Transactions"], add_total=False)
-        _pareto_chart(ws, 1, col_idx(pareto_tbl, measure), col_idx(pareto_tbl, "Cumulative %"), hr, df1, dl, anchor(ws, pareto_tbl))
+        _pareto_chart(ws, 1, col_idx(pareto_tbl, measure), col_idx(pareto_tbl, "Cumulative %"),
+                      hr, df1, dl, anchor(ws, pareto_tbl), x_title="Business Category", y_title=ylab)
 
         if s_ven:
             ws = wb[s_ven]
             hr, df1, dl = _style_data_sheet(ws, "Top Vendors by Spend", vendors_tbl,
                 money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
                 total_cols=[measure] + (["Transactions"] if has_amt else []))
-            _bar_chart(ws, f"Top Vendors by {measure}", 1, col_idx(vendors_tbl, measure), hr, df1, dl, anchor(ws, vendors_tbl))
+            _bar_chart(ws, f"Top Vendors by {measure}", 1, col_idx(vendors_tbl, measure), hr, df1, dl,
+                       anchor(ws, vendors_tbl), x_title="Vendor", y_title=ylab)
 
         if s_dep:
             ws = wb[s_dep]
             hr, df1, dl = _style_data_sheet(ws, "Spend by Department", dept_tbl,
                 money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
                 total_cols=[measure] + (["Transactions"] if has_amt else []))
-            _bar_chart(ws, f"{measure} by Department", 1, col_idx(dept_tbl, measure), hr, df1, dl, anchor(ws, dept_tbl))
+            _bar_chart(ws, f"{measure} by Department", 1, col_idx(dept_tbl, measure), hr, df1, dl,
+                       anchor(ws, dept_tbl), x_title="Department", y_title=ylab)
 
         if s_mat:
             ws = wb[s_mat]
@@ -934,7 +1032,8 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
             hr, df1, dl = _style_data_sheet(ws, label, dfd,
                 money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
                 total_cols=[measure] + (["Transactions"] if has_amt else []))
-            _bar_chart(ws, label[:40], 1, col_idx(dfd, measure), hr, df1, dl, anchor(ws, dfd))
+            _bar_chart(ws, label[:40], 1, col_idx(dfd, measure), hr, df1, dl, anchor(ws, dfd),
+                       x_title=str(dfd.columns[0]), y_title=ylab)
 
     return path
 
