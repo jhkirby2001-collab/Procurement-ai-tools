@@ -1067,7 +1067,7 @@ def _fmt_money(v) -> str:
 
 # Bump when the stored Spend Report bundle shape changes, so a report saved by an
 # older app version is discarded instead of crashing the render.
-_SR_RESULT_SCHEMA = 4
+_SR_RESULT_SCHEMA = 5
 
 
 def _arrow_safe(df):
@@ -1107,6 +1107,52 @@ def _style_spend_df(df, money_all_but_first=False):
         return df
 
 
+def _build_excel_bytes(b: dict) -> bytes:
+    """Rebuild the full Excel workbook from a computed bundle (used at generation
+    time and after a live savings-rate change)."""
+    buf = io.BytesIO()
+    sr.build_excel_report(buf, tiles=b["tiles"], cat_tbl=b["cat"], pareto_tbl=b["par"],
+                          vendors_tbl=b["vend"], consolidation_tbl=b["cons"], cov=b["cov"],
+                          exec_summary=b["es"], dept_tbl=b["dept_tbl"], trend_tbl=b["trend"],
+                          tail=b["tail"], concentration=b["concentration"],
+                          single_multi=b["single_multi"], matrix_tbl=b["matrix"],
+                          dimensions=b["dimensions"], item_consol_tbl=b.get("item_consol"),
+                          nigp_consol_tbl=b.get("nigp_consol"), savings=b.get("savings"),
+                          opps_tbl=b.get("opps"))
+    return buf.getvalue()
+
+
+_SAVINGS_SLIDER_DEFAULTS = {"sv_pv": 3.0, "sv_pd": 2.0, "sv_cap": 15.0, "sv_tail": 5.0, "sv_hard": 40.0}
+
+
+def _savings_sliders(cur: dict) -> dict:
+    """Render the adjustable savings-rate sliders and return the chosen rates dict.
+    Seeds session_state so the values persist and can be reset."""
+    seed = {"sv_pv": cur["per_vendor"] * 100, "sv_pd": cur["per_dept"] * 100,
+            "sv_cap": cur["cap"] * 100, "sv_tail": cur["tail"] * 100,
+            "sv_hard": cur["hard_fraction"] * 100}
+    for k, v in seed.items():
+        st.session_state.setdefault(k, float(v))
+    if st.button("Reset to defaults", key="sv_reset"):
+        for k, v in _SAVINGS_SLIDER_DEFAULTS.items():
+            st.session_state[k] = v
+        st.rerun()
+    c = st.columns(5)
+    pv = c[0].slider("Per extra vendor %", 0.0, 10.0, step=0.5, key="sv_pv")
+    pd_ = c[1].slider("Per extra dept %", 0.0, 10.0, step=0.5, key="sv_pd")
+    cap = c[2].slider("Rate cap %", 1.0, 40.0, step=1.0, key="sv_cap")
+    tail = c[3].slider("Tail-spend %", 0.0, 15.0, step=0.5, key="sv_tail")
+    hard = c[4].slider("Hard (cashable) %", 0.0, 100.0, step=5.0, key="sv_hard")
+    return {"per_vendor": round(pv / 100, 4), "per_dept": round(pd_ / 100, 4),
+            "cap": round(cap / 100, 4), "tail": round(tail / 100, 4),
+            "hard_fraction": round(hard / 100, 4)}
+
+
+def _rates_differ(a: dict, b: dict) -> bool:
+    keys = ("per_vendor", "per_dept", "cap", "tail", "hard_fraction")
+    return any(round(a.get(k, 0), 4) != round(b.get(k, 0), 4) for k in keys)
+
+
 def _render_spend_report(res: dict) -> None:
     """Render a previously computed report bundle. Reading from a stored bundle
     (not local variables) is what lets the report survive page navigation."""
@@ -1117,6 +1163,22 @@ def _render_spend_report(res: dict) -> None:
     has_amt = tiles.get("has_amount")
     ylab = "Spend ($)" if has_amt else "Transactions"
     sv = b.get("savings")
+
+    # Adjustable savings assumptions — live recompute (no re-classification).
+    # Must run BEFORE anything that reads savings, so the whole report reflects the change.
+    if sv and sv.get("identified") and has_amt and b.get("_work") is not None:
+        with st.expander("⚙️ Savings assumptions — drag to adjust the rates (updates the whole report live)"):
+            st.caption("Defaults are conservative, commonly-cited ranges (see Sources & Methodology "
+                       "below). Adjusting these recomputes the savings only — classification is not re-run.")
+            new_rates = _savings_sliders(sv.get("rates", {}))
+        if _rates_differ(new_rates, sv.get("rates", {})):
+            with st.spinner("Recomputing savings…"):
+                opps, savings, es = sr.recompute_savings(b, new_rates)
+                b["opps"], b["savings"], b["es"] = opps, savings, es
+                res["excel"] = _build_excel_bytes(b)
+                st.session_state["sr_result"] = res
+            sv = savings
+    excel_bytes = res["excel"]
 
     # Executive summary
     st.markdown("### Executive Summary")
@@ -1514,18 +1576,10 @@ def page_spend_report() -> None:
             work = pd.concat([work.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
 
         b = sr.compute_all(work, roles)
-        buf = io.BytesIO()
-        sr.build_excel_report(buf, tiles=b["tiles"], cat_tbl=b["cat"], pareto_tbl=b["par"],
-                              vendors_tbl=b["vend"], consolidation_tbl=b["cons"], cov=b["cov"],
-                              exec_summary=b["es"], dept_tbl=b["dept_tbl"], trend_tbl=b["trend"],
-                              tail=b["tail"], concentration=b["concentration"],
-                              single_multi=b["single_multi"], matrix_tbl=b["matrix"],
-                              dimensions=b["dimensions"], item_consol_tbl=b.get("item_consol"),
-                              nigp_consol_tbl=b.get("nigp_consol"), savings=b.get("savings"),
-                              opps_tbl=b.get("opps"))
+        excel_bytes = _build_excel_bytes(b)
         # Store the whole computed bundle so it survives page navigation.
         st.session_state["sr_result"] = {
-            "schema": _SR_RESULT_SCHEMA, "b": b, "excel": buf.getvalue(),
+            "schema": _SR_RESULT_SCHEMA, "b": b, "excel": excel_bytes,
             "file_sig": file_sig, "file_name": uploaded.name}
         result = st.session_state["sr_result"]
 
@@ -1623,7 +1677,10 @@ def page_spend_report_methodology() -> None:
         "avoidance** — default **40% / 60%** — because industry practice is to report the two "
         "separately (hard reduces the budget; cost avoidance prevents future cost).\n"
         "- Figures are **annualized** (÷ the years the data spans) and shown as a **3-year "
-        "projection**.\n\n"
+        "projection**.\n"
+        "- Every rate is a **live slider** on the Spend Report page (⚙️ *Savings assumptions*): "
+        "drag it and the whole report — headline, recommendations, opportunities table, charts, "
+        "and the Excel download — recomputes instantly, without re-classifying the file.\n\n"
         "**These are planning estimates, not realized savings** — the addressable spend is computed "
         "exactly from your data, but the savings *percentage* is a transparent, adjustable "
         "assumption. Your files carry totals, not unit price × quantity, so this is not "
