@@ -360,7 +360,7 @@ def page_classify() -> None:
         st.markdown("### Recent classifications (this session)")
         st.caption("The last 10 descriptions you classified during this browser session.")
         hist_df = pd.DataFrame(st.session_state.history)
-        st.dataframe(hist_df, use_container_width=True, hide_index=True)
+        st.dataframe(_arrow_safe(hist_df), use_container_width=True, hide_index=True)
         if st.button("Clear history"):
             st.session_state.history = []
             st.rerun()
@@ -458,7 +458,7 @@ def page_bulk() -> None:
 
     st.success(f"Loaded {len(df_in):,} rows × {len(df_in.columns)} columns.")
     st.markdown("**Preview (first 5 rows):**")
-    st.dataframe(df_in.head(), use_container_width=True, hide_index=True)
+    st.dataframe(_arrow_safe(df_in.head()), use_container_width=True, hide_index=True)
 
     desc_col = st.selectbox(
         "Which column contains the description text?",
@@ -478,13 +478,13 @@ def page_bulk() -> None:
         result_df = pd.DataFrame(results)
         out_df = pd.concat([df_in.reset_index(drop=True), result_df], axis=1)
         st.markdown(f"**Classified {len(out_df):,} rows.** Preview:")
-        st.dataframe(out_df.head(20), use_container_width=True, hide_index=True)
+        st.dataframe(_arrow_safe(out_df.head(20)), use_container_width=True, hide_index=True)
         _render_bulk_result(out_df, "csv_results")
 
 
 def _render_bulk_result(df: pd.DataFrame, key: str) -> None:
     st.markdown("### Results")
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(_arrow_safe(df), use_container_width=True, hide_index=True)
     csv_bytes = df.to_csv(index=False).encode("utf-8")
     st.download_button(
         label="Download results as CSV",
@@ -1052,7 +1052,7 @@ def page_rule_lookup() -> None:
         "source": "Source",
         "notes": "Notes",
     })
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(_arrow_safe(display), use_container_width=True, hide_index=True)
 
 
 # =========================================================================
@@ -1070,11 +1070,26 @@ def _fmt_money(v) -> str:
 _SR_RESULT_SCHEMA = 3
 
 
+def _arrow_safe(df):
+    """pandas 3.0 defaults string columns to a new `str` dtype that some Streamlit /
+    pyarrow builds cannot Arrow-convert (st.dataframe then raises). Cast those columns
+    back to classic `object` so every table renders regardless of the deployed stack."""
+    if not hasattr(df, "columns"):
+        return df
+    out = df.copy()
+    for c in out.columns:
+        dt = str(out[c].dtype)
+        if dt == "str" or dt == "string" or dt.startswith("string"):
+            out[c] = out[c].astype(object)
+    return out
+
+
 def _style_spend_df(df, money_all_but_first=False):
     """Return a Styler that shows $ + commas on spend, % on percent columns, and
     thousands separators on counts — for on-screen display in the app."""
     if not hasattr(df, "columns"):
         return df
+    df = _arrow_safe(df)
     fmt = {}
     for i, col in enumerate(df.columns):
         cl = str(col)
@@ -1135,14 +1150,14 @@ def _render_spend_report(res: dict) -> None:
                "descriptions from each one — including the General & Other catch-all.")
     st.dataframe(_style_spend_df(cat), use_container_width=True, hide_index=True)
     _chart_col = measure if measure in cat.columns else cat.columns[1]
-    st.bar_chart(cat.set_index("Business Category")[_chart_col])
+    st.bar_chart(_arrow_safe(cat).set_index("Business Category")[_chart_col])
 
     # Spend trend
     if b["trend"] is not None:
         st.markdown("### Spend Trend Over Time")
         st.dataframe(_style_spend_df(b["trend"]), use_container_width=True, hide_index=True)
         if measure in b["trend"].columns:
-            st.bar_chart(b["trend"].set_index("Year")[measure])
+            st.bar_chart(_arrow_safe(b["trend"]).set_index("Year")[measure])
 
     # Pareto
     st.markdown("### Pareto 80/20")
@@ -1177,7 +1192,7 @@ def _render_spend_report(res: dict) -> None:
     if b["dept_tbl"] is not None:
         st.markdown("### Spend by Department")
         st.dataframe(_style_spend_df(b["dept_tbl"]), use_container_width=True, hide_index=True)
-        st.bar_chart(b["dept_tbl"].set_index("Department")[
+        st.bar_chart(_arrow_safe(b["dept_tbl"]).set_index("Department")[
             measure if measure in b["dept_tbl"].columns else b["dept_tbl"].columns[1]])
 
     # Category × department matrix
@@ -1243,6 +1258,7 @@ def _style_nigp_matrix(df):
     """Styler for the NIGP commodity × department matrix: money-format the department
     columns (zeros blank), highlight the departments that actually bought each
     commodity, and flag the multi-department consolidation targets."""
+    df = _arrow_safe(df)
     meta = set(getattr(sr, "NIGP_META_COLS", []))
     variants_col = getattr(sr, "DESC_VARIANTS_COL", "Descriptions (variants)")
     dept_cols = [c for c in df.columns if c not in meta]
@@ -1336,7 +1352,7 @@ def page_spend_report() -> None:
     file_sig = f"{uploaded.name}:{getattr(uploaded, 'size', len(df_in))}"
 
     st.success(f"Loaded {len(df_in):,} rows × {len(df_in.columns)} columns.")
-    st.dataframe(df_in.head(), use_container_width=True, hide_index=True)
+    st.dataframe(_arrow_safe(df_in.head()), use_container_width=True, hide_index=True)
 
     profile = sr.profile_columns(df_in)
     roles = dict(profile["roles"])
@@ -1418,7 +1434,10 @@ def page_spend_report() -> None:
 
     # Render if we have a report for THIS uploaded file (freshly generated or saved).
     if result is not None and result.get("file_sig") == file_sig:
-        _render_spend_report(result)
+        try:
+            _render_spend_report(result)
+        except Exception as e:  # noqa: BLE001
+            st.error(f"Could not render the report: {e}")
     elif result is not None:
         st.caption(
             "You've uploaded a different file. Click **Generate spend report** to analyze it. "
