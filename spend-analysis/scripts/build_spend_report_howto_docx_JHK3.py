@@ -42,7 +42,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = REPO_ROOT / "outputs"
 OUT_PATH = OUT_DIR / "HOW_TO_Spend_Report_JHK3.docx"
 
-DOC_VERSION = "Version 2026-08-18  •  General & Other + Examples edition"
+DOC_VERSION = "Version 2026-08-20  •  Savings & cost-avoidance edition"
 AUTHOR_LINE = (
     "Independent public-sector procurement tool  •  "
     "Prepared by James H. Kirby III, CSCP, MS-SCM  •  " + DOC_VERSION
@@ -207,28 +207,52 @@ def build():
         col_widths_cm=[4.2, 7.3, 5.0],
     )
 
-    # ------------------------------------------------------------ 4. General & Other
-    add_h1(doc, "4.  Every row lands in a real category")
-    add_body(
-        doc,
-        "There is no \"Unclassified\" line in a spend report. Every row is placed in one of the 17 "
-        "Business Categories, or — when its description doesn't match a specific-commodity rule yet "
-        "— in a single, honest catch-all called \"General & Other Procurement.\" The dollars are "
-        "always counted, so the report total reconciles to your file exactly.",
-    )
+    # ------------------------------------------------------------ 3b. Savings & cost avoidance
+    add_h1(doc, "4.  Savings & cost avoidance — how the money is estimated")
     add_callout_box(
         doc,
-        label="WHAT “GENERAL & OTHER PROCUREMENT” MEANS",
+        label="THE FORMULA (SAME ONE, EVERY OPPORTUNITY)",
         body_text=(
-            "It is the catch-all for purchases whose description doesn't yet map to a specific "
-            "commodity — often invoice-reconciliation lines, one-off administrative entries, or "
-            "descriptions the rule library hasn't learned. It is a real reporting category, not an "
-            "error. The Spend by Category table includes an Examples column that shows "
-            "representative descriptions from every category — including this one — so leadership "
-            "can see exactly what sits inside it. To move spend out of it, add keyword rules for "
-            "the most common descriptions shown in its Examples; those buys then flow into specific "
-            "commodity categories."
+            "Estimated savings = ADDRESSABLE spend × a benchmark rate. Addressable spend is the "
+            "spend on commodities that are fragmented — bought from more than one vendor and/or "
+            "across more than one department. Single-source, single-department spend is not "
+            "addressable. The rate rewards fragmentation: +3% per additional vendor + 2% per "
+            "additional department, capped at 15%; tail-spend consolidation adds a 5% lever. Every "
+            "rate is adjustable in the app."
         ),
+    )
+    add_bullet(
+        doc,
+        "Hard (cashable) savings reduce the budget against a baseline; cost avoidance prevents or "
+        "defers future cost. Each identified opportunity is split into both — default 40% hard / "
+        "60% cost avoidance — because finance expects the two reported separately.",
+        bold_lead="Hard vs cost avoidance",
+    )
+    add_bullet(
+        doc,
+        "The Savings Opportunity Summary leads the report: addressable spend, identified savings "
+        "(hard + cost avoidance), a breakdown by opportunity type, the annualized figure, and a "
+        "3-year projection. The Top Consolidation Opportunities table lists each fragmented "
+        "commodity with its addressable spend, rate, estimated savings, and a recommended action.",
+        bold_lead="Where it appears",
+    )
+    add_body(
+        doc,
+        "These are planning estimates, not realized savings. The addressable spend is computed "
+        "exactly from your data; the savings percentage is a transparent, adjustable assumption. "
+        "Your files carry totals, not unit price × quantity, so this is not price-variance math. "
+        "The full basis and real reference sources are on the Sources & Methodology tab.",
+    )
+
+    # ------------------------------------------------------------ 4b. Every row in a real category
+    add_h1(doc, "5.  Every row lands in a real category")
+    add_body(
+        doc,
+        "There is no \"Unclassified\" or catch-all line in the report. Rows whose description "
+        "doesn't match a specific-commodity rule are assigned to their closest of the 17 Business "
+        "Categories (best-fit), so every row lands in a real category and the report total "
+        "reconciles to your file exactly. The Spend by Category table carries an Examples column "
+        "showing representative descriptions per category.",
     )
     add_body(
         doc,
@@ -239,7 +263,7 @@ def build():
     )
 
     # ------------------------------------------------------------ 5. How numbers are calculated
-    add_h1(doc, "5.  How the numbers are calculated — no black box")
+    add_h1(doc, "6.  How the numbers are calculated — no black box")
     add_bullet(
         doc,
         "Spend by Category = sum(amount) and row count grouped by Business Category, with each "
@@ -250,8 +274,7 @@ def build():
     add_bullet(
         doc,
         "Pareto 80/20 = the specific-commodity category totals sorted high-to-low with a running "
-        "cumulative %; the report names how many categories reach 80%. The General & Other "
-        "catch-all is excluded here — it isn't a single commodity to focus sourcing on.",
+        "cumulative %; the report names how many categories reach 80%.",
         bold_lead="Pareto",
     )
     add_bullet(
@@ -318,23 +341,45 @@ def build():
     )
 
     # ------------------------------------------------------------ 6. Why trust it
-    add_h1(doc, "6.  Why you can trust it")
+    add_h1(doc, "7.  Why you can trust it")
     add_bullet(doc, "Deterministic — every figure is plain arithmetic you can reproduce by hand.", bold_lead="Deterministic")
     add_bullet(doc, "No AI at runtime — classification uses the same frozen rule library as the batch engine.", bold_lead="Rules-only")
     add_bullet(doc, "Private — your file is processed in the session and is not stored or sent anywhere.", bold_lead="Private")
     add_bullet(doc, "Reconciles — every row is counted, so the report total equals your file's total.", bold_lead="Reconciles")
     add_bullet(doc, "Auditable — the Examples column and the downloadable rule library show why any line landed where it did.", bold_lead="Auditable")
 
-    # ------------------------------------------------------------ 7. Limits
-    add_h1(doc, "7.  Honest limits")
+    # ------------------------------------------------------------ 8. Sources & methodology
+    add_h1(doc, "8.  Sources & methodology — who uses this math")
     add_body(
         doc,
-        "The rules were tuned on one agency's vocabulary, so on a very different dataset the "
-        "General & Other share can be larger at first. That is expected and fixable: the Examples "
-        "column points to the most common unmatched descriptions, and adding a few keyword rules "
-        "for them moves that spend into specific categories with no new tools and no AI. The tool "
-        "classifies from description text only — it does not read vendor names or any prior codes — "
-        "which is what keeps the classification independent and defensible.",
+        "The report is built on standard spend-analysis and strategic-sourcing methods used across "
+        "both public and private procurement. The addressable spend is computed from your data; "
+        "the savings percentages are transparent, adjustable planning assumptions calibrated to "
+        "conservative, commonly-cited ranges — not figures attributed to any single proprietary "
+        "report.",
+    )
+    try:
+        import spend_report_JHK3 as _sr
+        for heading, lines in _sr.SOURCES_SECTIONS:
+            add_h2(doc, heading)
+            for ln in lines:
+                add_bullet(doc, ln)
+        add_h2(doc, "Reference organizations & sources")
+        for name, url, note in _sr.SOURCES_REFERENCES:
+            add_bullet(doc, f"{name} — {note}  ({url})")
+    except Exception:  # noqa: BLE001
+        add_body(doc, "See the Sources & Methodology tab in the Excel report for full references.")
+
+    # ------------------------------------------------------------ 9. Limits
+    add_h1(doc, "9.  Honest limits")
+    add_body(
+        doc,
+        "The rules were tuned on one agency's vocabulary, so on a very different dataset more rows "
+        "start out best-fit rather than directly rule-matched. That is expected and improves as "
+        "curated rules are added. Savings are ADDRESSABLE-spend, benchmark-rate ESTIMATES (cost "
+        "avoidance plus a cashable hard portion), not price-variance math — your files carry totals, "
+        "not unit price × quantity. The tool classifies from description text only — not vendor "
+        "names or prior codes — which keeps the classification independent and defensible.",
     )
 
     doc.save(OUT_PATH)

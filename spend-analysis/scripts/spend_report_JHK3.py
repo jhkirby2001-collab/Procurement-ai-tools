@@ -476,6 +476,335 @@ def nigp_dept_columns(df) -> list:
     return [c for c in df.columns if c not in NIGP_META_COLS]
 
 
+# ---------------------------------------------------------------------------
+# Best-fit absorption — assign every catch-all row to a real Business Category
+# ---------------------------------------------------------------------------
+BESTFIT_DEFAULT = "Professional & Administrative Services"
+# Ordered specific → general; first hit wins. Broad "services" fall through to default.
+BESTFIT_HINTS = [
+    ("Vehicles & Fleet", ["vehicle", "truck", "auto ", "autos", "fleet", "tire", "fuel", "towing",
+                           "windshield", "forklift", "snow plow", "dump truck", "car wash"]),
+    ("Janitorial, Sanitation & Waste", ["janitor", "cleaning", "sanitation", "refuse", "recycl",
+                                        "garbage", "trash", "waste", "disposal", "sweeping", "floor mat"]),
+    ("Chemicals & Water Treatment", ["chemical", "water treatment", "chlorine", "sulfate", "phosphate",
+                                     "fluor", "corrosion", "rock salt"]),
+    ("Medical & Health Services", ["medical", "health", "clinical", "laborator", "nursing", "pharma",
+                                   "dental", "oxygen", "vaccine", "covid", "hospital"]),
+    ("IT, Telecom & Audio/Visual", ["software", "hardware", "computer", "server", "network", "license",
+                                    "cloud", "telecom", "audio", "video", "camera", "scada", "gis"]),
+    ("Construction & Trades Services", ["construction", "concrete", "asphalt", "paving", "sewer",
+                                        "water main", "excavat", "demolition", "guardrail", "restoration",
+                                        "electrical work", "carpentry", "masonry", "roofing"]),
+    ("Construction Materials", ["pipe", "steel", "lumber", "aggregate", "gravel", "rebar",
+                                "street light pole", "traffic signal", "sign post", "fitting"]),
+    ("Landscaping, Grounds & Irrigation", ["landscap", "tree", "stump", "lawn", "irrigation", "grounds",
+                                           "mulch", "herbicide", "fence", "fencing"]),
+    ("Public Safety, Uniforms & PPE", ["uniform", "police", "fire department", "ppe", "protective",
+                                       "ammunition", "body armor", "badge"]),
+    ("Furniture & Furnishings", ["furniture", "chair", "desk", "cabinet", "furnishing", "cubicle"]),
+    ("Heavy Equipment & Machinery", ["generator", "compressor", "loader", "excavator", "crane",
+                                     "machinery", "heavy equipment"]),
+    ("Equipment Rental & Leasing", ["rental", "lease", " rent "]),
+    ("Animal Care & Veterinary", ["animal", "veterinar", "canine", "k-9", "livestock"]),
+    ("Office, Print & Marketing", ["office supply", "office supplies", "paper", "printing", "print ",
+                                   "marketing", "advertis", "stationery", "book", "publication", "media"]),
+    ("Facilities Operations & Maintenance", ["repair", "maintenance", "hvac", "plumb", "electric",
+                                             "facility", "building", "paint", "roof", "door", "elevator",
+                                             "boiler", "janitorial supplies", "graffiti"]),
+    # Professional & Administrative is the default; explicit hints kept minimal on purpose.
+    ("Professional & Administrative Services", ["consult", "training", "legal", "audit", "staffing",
+                                                "engineering", "architect", "design", "study", "inspection",
+                                                "security guard", "translation", "records", "management"]),
+]
+
+
+def assign_best_fit(desc_series: pd.Series) -> pd.Series:
+    """Assign each description to its closest of the 17 Business Categories using the
+    strongest keyword signal available; anything unmatched → BESTFIT_DEFAULT."""
+    u = desc_series.fillna("").astype(str).str.upper()
+    out = pd.Series(BESTFIT_DEFAULT, index=desc_series.index)
+    assigned = pd.Series(False, index=desc_series.index)
+    for cat, hints in BESTFIT_HINTS:
+        pat = "|".join(re.escape(h.upper()) for h in hints)
+        m = (~assigned) & u.str.contains(pat, regex=True, na=False)
+        out[m] = cat
+        assigned |= m
+    return out
+
+
+def absorb_catchall(df, desc_col):
+    """Fold every 'General & Other Procurement' row into a real Business Category via
+    best-fit assignment, so no visible catch-all remains. Marks Classification_Method
+    'best_fit' for transparency/audit."""
+    if "Business_Category" not in df:
+        return df
+    mask = (df["Business_Category"] == CATCHALL)
+    if not mask.any():
+        return df
+    df = df.copy()
+    src = df[desc_col] if (desc_col and desc_col in df) else pd.Series("", index=df.index)
+    df.loc[mask, "Business_Category"] = assign_best_fit(src[mask]).values
+    if "Classification_Method" in df.columns:
+        df.loc[mask, "Classification_Method"] = "best_fit"
+    return df
+
+
+# ---------------------------------------------------------------------------
+# Savings / cost-avoidance engine (addressable-spend methodology, benchmark rates)
+# ---------------------------------------------------------------------------
+# Transparent, adjustable planning rates. Estimated figures are COST AVOIDANCE
+# (a negotiated/consolidation opportunity), not realized hard budget savings.
+DEFAULT_SAVINGS_RATES = {
+    "per_vendor": 0.03,     # +3% of addressable spend per additional vendor on a commodity
+    "per_dept": 0.02,       # +2% of addressable spend per additional department buying it
+    "cap": 0.15,            # maximum consolidation rate applied to any one opportunity
+    "tail": 0.05,           # savings rate applied to tail-spend consolidation
+    "hard_fraction": 0.40,  # share of identified savings that is HARD (cashable, budget-reducing);
+                            # the remainder is COST AVOIDANCE (soft / non-cashable)
+}
+
+
+def _commodity_group(df, desc_col, item_col="NIGP_Item_5digit", class_col="NIGP_Class_3digit"):
+    """Return (key, level, normalized_desc): group by NIGP 5-digit item, else 3-digit
+    class, else the normalized description — so the same commodity groups together."""
+    item5 = (df[item_col].astype(str).str.strip().replace({"nan": "", "None": ""})
+             if item_col in df else pd.Series("", index=df.index))
+    class3 = (df[class_col].astype(str).str.strip().replace({"nan": "", "None": ""})
+              if class_col in df else pd.Series("", index=df.index))
+    desc = _normalize_item(df[desc_col]) if (desc_col and desc_col in df) else pd.Series("", index=df.index)
+    key = pd.Series("", index=df.index)
+    level = pd.Series("", index=df.index)
+    key = key.mask(item5 != "", "I:" + item5)
+    level = level.mask(item5 != "", "NIGP 5-digit item")
+    key = key.mask((key == "") & (class3 != ""), "C:" + class3)
+    level = level.mask((level == "") & (class3 != ""), "NIGP 3-digit class")
+    key = key.mask(key == "", "D:" + desc)
+    level = level.mask(level == "", "Description")
+    return key, level, desc
+
+
+def consolidation_opportunities(df, desc_col, amount_col, vendor_col=None, dept_col=None,
+                                rates=None, top_n=40):
+    """One row per commodity that is fragmented across vendors and/or departments,
+    on an ADDRESSABLE-SPEND basis, with an estimated COST AVOIDANCE and a plain-English
+    recommended action. Savings = addressable spend × benchmark rate (rate rewards
+    fragmentation). Needs an amount column plus a vendor or department column."""
+    if not amount_col or amount_col not in df:
+        return None
+    has_ven = bool(vendor_col and vendor_col in df)
+    has_dep = bool(dept_col and dept_col in df)
+    if not (has_ven or has_dep):
+        return None
+    r = {**DEFAULT_SAVINGS_RATES, **(rates or {})}
+    work = df.copy()
+    key, level, desc = _commodity_group(work, desc_col)
+    work["_key"], work["_level"], work["_desc"] = key, level, desc
+    work = work[work["_desc"] != ""]
+    if not len(work):
+        return None
+    work["_amt"] = clean_amount(work[amount_col]).fillna(0.0)
+
+    g = work.groupby("_key").agg(**{"Addressable Spend": ("_amt", "sum"),
+                                    "Transactions": ("_amt", "size")})
+    g["Commodity"] = work.groupby("_key")["_desc"].agg(
+        lambda s: s.mode().iat[0] if len(s.mode()) else (s.iloc[0] if len(s) else ""))
+    g["Grouped by"] = work.groupby("_key")["_level"].first()
+    if has_ven:
+        g["Vendors"] = work.groupby("_key")[vendor_col].nunique()
+    if has_dep:
+        g["Departments"] = work.groupby("_key")[dept_col].nunique()
+    if "Business_Category" in work:
+        g["Business Category"] = work.groupby("_key")["Business_Category"].agg(
+            lambda s: s.mode().iat[0] if len(s.mode()) else "")
+
+    frag = pd.Series(False, index=g.index)
+    if "Vendors" in g:
+        frag = frag | (g["Vendors"] >= 2)
+    if "Departments" in g:
+        frag = frag | (g["Departments"] >= 2)
+    g = g[frag]
+    if not len(g):
+        return None
+
+    vv = (g["Vendors"] - 1).clip(lower=0) if "Vendors" in g else 0
+    dd = (g["Departments"] - 1).clip(lower=0) if "Departments" in g else 0
+    rate = (r["per_vendor"] * vv + r["per_dept"] * dd).clip(upper=r["cap"])
+    hf = r["hard_fraction"]
+    total_sav = (g["Addressable Spend"] * rate).round(0)
+    g["Savings Rate %"] = (rate * 100).round(1)
+    g["Est. Total Savings"] = total_sav
+    g["Hard Savings"] = (total_sav * hf).round(0)
+    g["Cost Avoidance"] = (total_sav * (1 - hf)).round(0)
+
+    def _opp(row):
+        mv = ("Vendors" in g) and row.get("Vendors", 0) >= 2
+        md = ("Departments" in g) and row.get("Departments", 0) >= 2
+        return ("Multi-vendor & cross-department" if (mv and md)
+                else "Multi-vendor" if mv else "Cross-department" if md else "")
+
+    def _action(row):
+        bits = []
+        if ("Vendors" in g) and row.get("Vendors", 0) >= 2:
+            bits.append(f"{int(row['Vendors'])} vendors")
+        if ("Departments" in g) and row.get("Departments", 0) >= 2:
+            bits.append(f"{int(row['Departments'])} departments")
+        frag_txt = " across ".join(bits) if bits else "multiple sources"
+        return (f"Consolidate “{str(row['Commodity'])[:48]}” ({frag_txt}) onto a single "
+                "competitively-bid agreement; aggregate demand and standardize specifications.")
+
+    g["Opportunity"] = g.apply(_opp, axis=1)
+    g["Recommended Action"] = g.apply(_action, axis=1)
+    g = g.sort_values("Est. Total Savings", ascending=False).head(top_n).reset_index(drop=True)
+    order = [c for c in ["Commodity", "Business Category", "Grouped by", "Opportunity",
+                         "Vendors", "Departments", "Addressable Spend", "Savings Rate %",
+                         "Est. Total Savings", "Hard Savings", "Cost Avoidance",
+                         "Recommended Action"] if c in g.columns]
+    return g[order]
+
+
+def savings_summary(opps, tiles, tail=None, rates=None, years=1):
+    """Portfolio roll-up of the cost-avoidance opportunity (addressable-spend basis)."""
+    r = {**DEFAULT_SAVINGS_RATES, **(rates or {})}
+    hf = r["hard_fraction"]
+    total_spend = float(tiles.get("total_spend") or 0.0)
+    has_opps = opps is not None and len(opps)
+    addressable = float(opps["Addressable Spend"].sum()) if has_opps else 0.0
+    identified = float(opps["Est. Total Savings"].sum()) if has_opps else 0.0
+    hard = float(opps["Hard Savings"].sum()) if has_opps else 0.0
+    avoidance = float(opps["Cost Avoidance"].sum()) if has_opps else 0.0
+    by_type = (opps.groupby("Opportunity")["Est. Total Savings"].sum().round(0).to_dict()
+               if has_opps else {})
+    tail_addr = float(tail["tail_value"]) if tail else 0.0
+    tail_total = round(tail_addr * r["tail"]) if tail else 0.0
+    tail_hard = round(tail_total * hf)
+    tail_avoid = tail_total - tail_hard
+    yrs = max(1, int(years or 1))
+    return {
+        "total_spend": total_spend,
+        "addressable": addressable,
+        "addressable_pct": round(addressable / total_spend * 100, 1) if total_spend else 0.0,
+        "identified": identified,           # total identified savings opportunity
+        "hard": hard,                       # cashable / budget-reducing portion
+        "avoidance": avoidance,             # cost-avoidance (soft) portion
+        "identified_pct_addr": round(identified / addressable * 100, 1) if addressable else 0.0,
+        "identified_pct_total": round(identified / total_spend * 100, 1) if total_spend else 0.0,
+        "hard_fraction": hf,
+        "by_type": by_type,
+        "tail_addressable": tail_addr,
+        "tail_total": tail_total,
+        "tail_hard": tail_hard,
+        "tail_avoidance": tail_avoid,
+        "n_opportunities": (len(opps) if has_opps else 0),
+        "years": yrs,
+        "annual_identified": identified / yrs,
+        "annual_hard": hard / yrs,
+        "annual_avoidance": avoidance / yrs,
+        "three_year": (identified / yrs) * 3,
+        "rates": r,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Sources & Methodology content (single source of truth for Excel + the app)
+# ---------------------------------------------------------------------------
+def savings_rate_card(rates=None):
+    r = {**DEFAULT_SAVINGS_RATES, **(rates or {})}
+    hp = int(round(r["hard_fraction"] * 100))
+    return [
+        ("Per additional vendor on a commodity", f"+{int(r['per_vendor'] * 100)}% of addressable spend"),
+        ("Per additional department buying it", f"+{int(r['per_dept'] * 100)}% of addressable spend"),
+        ("Maximum rate per opportunity (cap)", f"{int(r['cap'] * 100)}%"),
+        ("Tail-spend consolidation", f"{int(r['tail'] * 100)}% of tail spend"),
+        ("Hard (cashable) share of identified savings", f"{hp}% (remainder {100 - hp}% = cost avoidance)"),
+    ]
+
+
+SOURCES_SECTIONS = [
+    ("What this analysis does", [
+        "It measures ADDRESSABLE spend — the portion realistically influenceable through "
+        "consolidation — and estimates the savings from acting on it. Addressable spend is "
+        "computed directly from your data; the savings percentage is a transparent, adjustable "
+        "planning assumption, not a figure pulled from your invoices.",
+    ]),
+    ("The methods used here, and who uses them", [
+        "Spend analysis / the “spend cube” — grouping spend by commodity, supplier, and "
+        "department to find opportunity. Foundational category-management practice taught by ISM "
+        "and CIPS and used by every major sourcing consultancy.",
+        "Pareto (80/20) & ABC analysis — the few categories and vendors that drive most spend. A "
+        "classic tool in both public and private procurement.",
+        "Demand aggregation / consolidation — combining fragmented buys into one competitively-bid "
+        "agreement. This is the core mechanism of public cooperative purchasing (NASPO ValuePoint, "
+        "NIGP, GSA, Sourcewell, OMNIA Partners, E&I) and of corporate strategic sourcing.",
+        "Tail-spend management — consolidating the many small suppliers that make up the last ~20% "
+        "of spend.",
+        "Vendor rationalization — reducing overlapping suppliers within a commodity to concentrate "
+        "volume and improve leverage.",
+        "Supplier concentration (HHI) — the Herfindahl-Hirschman Index, from antitrust economics "
+        "(US DOJ / FTC), applied here to measure reliance on a few suppliers.",
+    ]),
+    ("Addressable-spend methodology", [
+        "Savings are applied ONLY to addressable spend — commodities that are fragmented across "
+        "more than one vendor and/or department — never to total spend. Single-vendor, "
+        "single-department, and sole-source spend is treated as non-addressable.",
+    ]),
+    ("Hard savings vs cost avoidance", [
+        "Hard (cashable) savings reduce the budget against a baseline — real, measurable dollars. "
+        "Cost avoidance prevents or defers future cost (negotiated reductions vs market, avoided "
+        "increases, process/administrative savings). Industry guidance is to report the two "
+        "separately so finance can see what was reduced vs prevented.",
+        "This report splits each identified opportunity into a hard portion and a cost-avoidance "
+        "portion (default 40% / 60%, adjustable). The split is a planning convention, not a "
+        "realized result.",
+    ]),
+    ("Where the benchmark rates come from", [
+        "The rates are conservative, commonly-cited strategic-sourcing / consolidation ranges. "
+        "Public-sector cooperative-purchasing bodies (e.g., NIGP) cite savings of up to ~15% "
+        "annually from aggregation; some analyses cite more. This tool caps any single opportunity "
+        "at 15% and scales the rate with fragmentation, so estimates stay deliberately conservative.",
+        "These are PLANNING ESTIMATES, not guarantees. Actual results depend on execution, market "
+        "conditions, contract terms, and your true baseline. Calibrate the rates to your agency’s "
+        "realized savings over time.",
+    ]),
+    ("Public and private — both do this", [
+        "Public sector: cooperative purchasing and category management are built on exactly this "
+        "demand-aggregation math (NASPO, NIGP, GSA, regional co-ops).",
+        "Private sector: strategic sourcing and category management by corporate procurement teams "
+        "and advisory firms use the same spend-analysis → consolidation → savings approach.",
+    ]),
+    ("Honest limits", [
+        "Your file carries total amounts, not unit price × quantity, so this is NOT price-variance "
+        "(actual overpayment) math — it is an addressable-spend, benchmark-rate estimate. Adding "
+        "unit price and quantity would enable true price-variance savings.",
+        "Estimates are only as good as the classification and the rates. Review the opportunities "
+        "and adjust the rates before presenting any hard-dollar commitment.",
+    ]),
+]
+
+SOURCES_REFERENCES = [
+    ("NIGP — Cooperative Purchasing Programs",
+     "https://www.nigp.org/our-profession/cooperative-purchasing-programs",
+     "Public-procurement standards body; demand aggregation and spend analysis via NIGP codes."),
+    ("NASPO ValuePoint — Why Use Cooperative Purchasing",
+     "https://naspovaluepoint.org/cooperative-contracts/",
+     "“Cooperative procurement is a form of strategic sourcing that aggregates the spend of public bodies.”"),
+    ("NASPO — An Introduction to Cooperative Purchasing (PDF)",
+     "https://naspovaluepoint.org/wp-content/uploads/2020/08/Cooperative_Purchasing0410update.pdf",
+     "Primer on demand aggregation and where savings come from."),
+    ("SpendHQ — Tracking Cost Savings and Cost Avoidance",
+     "https://www.spendhq.com/blog/tracking-cost-savings-and-cost-avoidance-to-measure-procurements-performance/",
+     "Definitions; report hard savings and cost avoidance separately."),
+    ("ProcureAbility — Hard and Soft Cost Savings in Procurement",
+     "https://procureability.com/hard-soft-savings-procurement-guide/",
+     "Hard (cashable) vs soft (cost-avoidance) savings, defined."),
+    ("Institute for Supply Management (ISM)", "https://www.ismworld.org/",
+     "Professional body; category management and spend-analysis standards."),
+    ("Chartered Institute of Procurement & Supply (CIPS)", "https://www.cips.org/",
+     "Global procurement body; Kraljic, category management, sourcing methodology."),
+    ("GFOA — Government Finance Officers Association", "https://www.gfoa.org/",
+     "Best practices for public procurement and strategic sourcing."),
+]
+
+
 def coverage(df, category_col, method_col="Classification_Method"):
     total = len(df)
     catchall = int((df[category_col] == CATCHALL).sum())
@@ -737,21 +1066,32 @@ def _money_text(v):
 
 
 def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
-                      trend=None, tail=None, concentration=None, item_consol=None) -> dict:
+                      trend=None, tail=None, concentration=None, item_consol=None,
+                      savings=None, opps=None) -> dict:
     has_amt = tiles.get("has_amount")
     unit = "spend" if has_amt else "transactions"
-    real = cat[cat["Business Category"] != CATCHALL]
+    real = cat
     lines, steps = [], []
 
-    # Opening headline — a one-sentence synthesis for a leader skimming the page.
-    catchall_pct0 = cov.get("catchall_pct", round(100 - cov["classified_pct"], 1))
+    # Opening headline — lead with the money: the cost-avoidance opportunity.
     headline_val = _money_text(tiles.get("total_spend")) if has_amt else f"{tiles['transactions']:,} transactions"
-    lines.append(
-        f"Bottom line: of the {headline_val} analyzed, spend concentrates in a handful of "
-        "categories" + (" and a short list of vendors" if (vend is not None and len(vend)) else "")
-        + f"; {catchall_pct0}% maps to “General & Other Procurement,” a catch-all for buys that "
-        "don’t match a specific commodity rule yet. The fastest wins are consolidating the most "
-        "fragmented categories and adding rules to move spend out of General & Other.")
+    if savings and savings.get("identified", 0) > 0:
+        lines.append(
+            f"Bottom line: of the {headline_val} analyzed, "
+            f"{_money_text(savings['addressable'])} ({savings['addressable_pct']}%) is addressable "
+            f"through consolidation, representing an estimated {_money_text(savings['identified'])} "
+            f"in total savings ({savings['identified_pct_addr']}% of addressable) across "
+            f"{savings['n_opportunities']} opportunities — split into "
+            f"{_money_text(savings['hard'])} hard (cashable) savings and "
+            f"{_money_text(savings['avoidance'])} cost avoidance. Annualized that is about "
+            f"{_money_text(savings['annual_identified'])} per year, or "
+            f"{_money_text(savings['three_year'])} over three years. Figures are planning estimates "
+            "using the rates and definitions on the Sources & Methodology tab.")
+    else:
+        lines.append(
+            f"Bottom line: of the {headline_val} analyzed, spend concentrates in a handful of "
+            "categories" + (" and a short list of vendors" if (vend is not None and len(vend)) else "")
+            + ". The fastest wins are consolidating the most fragmented commodities and vendors.")
 
     parts = []
     if has_amt:
@@ -764,12 +1104,12 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
     span = f", covering {tiles['date_min']} to {tiles['date_max']}" if "date_min" in tiles else ""
     lines.append("This report analyzes " + ", ".join(parts) + span + ".")
 
-    catchall_pct = cov.get("catchall_pct", round(100 - cov["classified_pct"], 1))
-    lines.append(
-        f"{cov['classified_pct']}% of rows mapped to a specific commodity category; the remaining "
-        f"{catchall_pct}% sits in “General & Other Procurement” — still counted and shown, with "
-        "example descriptions so you can see what’s in it. Adding rules for the most common of "
-        "those descriptions moves that spend into specific categories.")
+    bestfit_pct = cov.get("catchall_pct", 0.0)
+    if bestfit_pct:
+        lines.append(
+            f"{cov['classified_pct']}% of rows matched a specific commodity rule directly; the "
+            f"remaining {bestfit_pct}% were assigned to their closest Business Category (best-fit), "
+            "so every row lands in one of the 17 categories — no “unclassified” gap.")
 
     if len(real):
         top = real.iloc[0]
@@ -779,6 +1119,20 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
             f"{'y' if n80 == 1 else 'ies'} drive about 80%. The largest is "
             f"“{top['Business Category']}” at {val} ({top['% of Total']}%).")
 
+    # Clear, upfront, money-ranked recommendations — the first thing leadership reads.
+    if opps is not None and len(opps):
+        for _, o in opps.head(3).iterrows():
+            steps.append(
+                f"{o['Recommended Action']} → est. {_money_text(o['Est. Total Savings'])} total "
+                f"savings on {_money_text(o['Addressable Spend'])} addressable ({o['Savings Rate %']}%): "
+                f"{_money_text(o['Hard Savings'])} hard + {_money_text(o['Cost Avoidance'])} cost avoidance.")
+    if savings and savings.get("tail_total", 0) > 0:
+        steps.append(
+            f"Consolidate the long tail of small vendors → est. {_money_text(savings['tail_total'])} "
+            f"total ({_money_text(savings['tail_hard'])} hard + {_money_text(savings['tail_avoidance'])} "
+            f"cost avoidance) on {_money_text(savings['tail_addressable'])} of tail spend "
+            f"({int(savings['rates']['tail'] * 100)}%).")
+
     if cons is not None and len(cons):
         frag = cons.head(3)
         names = ", ".join(f"{r['Business Category']} ({int(r['Vendors'])} vendors)"
@@ -786,10 +1140,6 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
         lines.append(
             f"The most fragmented categories — bought from many vendors — are {names}. "
             "These are the clearest consolidation opportunities.")
-        steps.append(
-            "Target the most fragmented high-spend categories for consolidation ("
-            + ", ".join(frag["Business Category"].tolist())
-            + "): aggregate demand and reduce the vendor count.")
 
     if vend is not None and len(vend):
         tv = vend.iloc[0]
@@ -834,37 +1184,196 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
             f"vendors) accounts for only {tail['tail_pct_of_value']}% of {unit} — prime consolidation "
             "territory.")
 
-    if cov["classified_pct"] < 90:
-        steps.append(
-            f"Shrink the {catchall_pct}% in “General & Other Procurement” by adding keyword rules "
-            "for the most common descriptions shown in its Examples — this moves spend into "
-            "specific commodity categories with no new tools.")
     if dept_tbl is not None and len(dept_tbl) > 1:
         steps.append(
             "Coordinate purchasing across departments buying the same commodity to capture "
             "cross-department leverage.")
 
-    # Explicit, ranked list of items that can be consolidated (same item, >1 vendor/department).
+    # Explicit, ranked list of the top cost-avoidance opportunities (each with the math).
     consolidation_items = []
-    if item_consol is not None and len(item_consol):
-        has_v = "Vendors" in item_consol.columns
-        has_d = "Departments" in item_consol.columns
-        for _, r in item_consol.head(8).iterrows():
+    if opps is not None and len(opps):
+        has_v = "Vendors" in opps.columns
+        has_d = "Departments" in opps.columns
+        for _, r in opps.head(10).iterrows():
             bits = []
-            if has_v:
+            if has_v and int(r.get("Vendors", 0)) >= 2:
                 bits.append(f"{int(r['Vendors'])} vendors")
-            if has_d:
+            if has_d and int(r.get("Departments", 0)) >= 2:
                 bits.append(f"{int(r['Departments'])} depts")
-            val = (_money_text(r["Spend"]) if ("Spend" in item_consol.columns and has_amt)
-                   else f"{int(r['Transactions']):,} txns")
             consolidation_items.append({
-                "item": str(r.get("Item", ""))[:70],
+                "item": str(r.get("Commodity", ""))[:70],
                 "category": str(r.get("Business Category", "")),
                 "detail": ", ".join(bits),
-                "value": val,
+                "addressable": _money_text(r["Addressable Spend"]),
+                "rate": f"{r['Savings Rate %']}%",
+                "total": _money_text(r["Est. Total Savings"]),
+                "hard": _money_text(r["Hard Savings"]),
+                "avoidance": _money_text(r["Cost Avoidance"]),
             })
 
     return {"lines": lines, "steps": steps, "consolidation_items": consolidation_items}
+
+
+# ---------------------------------------------------------------------------
+# Professional charts (matplotlib → PNG bytes; used by both Excel and the app)
+# ---------------------------------------------------------------------------
+CHART_NAVY = "#002F6C"
+CHART_BLUE = "#41B6E6"
+CHART_RED = "#DA291C"
+CHART_GREEN = "#2E7D32"
+CHART_GRAY = "#6B7280"
+
+
+def _plt():
+    """Lazy matplotlib import (Agg backend) so the module loads even without it."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    return plt
+
+
+def _money_fmt(v, _pos=None):
+    v = float(v)
+    a = abs(v)
+    if a >= 1e9:
+        return f"${v/1e9:.1f}B"
+    if a >= 1e6:
+        return f"${v/1e6:.1f}M"
+    if a >= 1e3:
+        return f"${v/1e3:.0f}K"
+    return f"${v:,.0f}"
+
+
+def _fig_png(fig):
+    import io
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
+    _plt().close(fig)
+    return buf.getvalue()
+
+
+def _short(labels, n=32):
+    return [(str(x) if len(str(x)) <= n else str(x)[:n - 1] + "…") for x in labels]
+
+
+def barh_png(labels, values, title, value_label="Spend ($)", money=True,
+             color=CHART_NAVY, highlight_idx=None):
+    """Horizontal bar chart, largest at top, with data labels and a readable axis."""
+    plt = _plt()
+    from matplotlib.ticker import FuncFormatter
+    labels = _short(labels)
+    n = len(labels)
+    fig, ax = plt.subplots(figsize=(9, max(2.4, 0.46 * n + 1.1)))
+    ypos = range(n)
+    colors = [color] * n
+    if highlight_idx is not None:
+        for i in highlight_idx:
+            if 0 <= i < n:
+                colors[i] = CHART_RED
+    ax.barh(list(ypos), list(values), color=colors, edgecolor="#1a1a1a", linewidth=0.4, zorder=3)
+    ax.set_yticks(list(ypos))
+    ax.set_yticklabels(labels, fontsize=9)
+    ax.invert_yaxis()
+    ax.set_xlabel(value_label, fontsize=10, color=CHART_NAVY)
+    ax.set_title(title, fontsize=13, fontweight="bold", color=CHART_NAVY, pad=10, loc="left")
+    if money:
+        ax.xaxis.set_major_formatter(FuncFormatter(_money_fmt))
+    ax.grid(axis="x", color="#D9D9D9", linewidth=0.7, zorder=0)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    for s in ("left", "bottom"):
+        ax.spines[s].set_color("#9AA0A6")
+    vmax = max(values) if len(values) and max(values) else 1
+    for i, v in enumerate(values):
+        ax.text(v + vmax * 0.01, i, _money_fmt(v) if money else f"{v:,.0f}",
+                va="center", ha="left", fontsize=8.5, color="#222")
+    ax.set_xlim(0, vmax * 1.16)
+    fig.tight_layout()
+    return _fig_png(fig)
+
+
+def pareto_png(labels, values, cum_pct, title, value_label="Spend ($)"):
+    plt = _plt()
+    from matplotlib.ticker import FuncFormatter
+    labels = _short(labels, 22)
+    n = len(labels)
+    fig, ax = plt.subplots(figsize=(max(7, 0.7 * n + 2), 4.6))
+    x = range(n)
+    ax.bar(list(x), list(values), color=CHART_NAVY, edgecolor="#1a1a1a", linewidth=0.4, zorder=3)
+    ax.set_ylabel(value_label, fontsize=10, color=CHART_NAVY)
+    ax.yaxis.set_major_formatter(FuncFormatter(_money_fmt))
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(labels, rotation=40, ha="right", fontsize=8.5)
+    ax.set_title(title, fontsize=13, fontweight="bold", color=CHART_NAVY, pad=10, loc="left")
+    ax.grid(axis="y", color="#D9D9D9", linewidth=0.7, zorder=0)
+    ax2 = ax.twinx()
+    ax2.plot(list(x), list(cum_pct), color=CHART_RED, marker="o", markersize=4, linewidth=2, zorder=4)
+    ax2.axhline(80, color=CHART_GRAY, linestyle="--", linewidth=1)
+    ax2.set_ylabel("Cumulative %", fontsize=10, color=CHART_RED)
+    ax2.set_ylim(0, 105)
+    ax2.yaxis.set_major_formatter(FuncFormatter(lambda v, p: f"{v:.0f}%"))
+    for s in ("top",):
+        ax.spines[s].set_visible(False)
+        ax2.spines[s].set_visible(False)
+    fig.tight_layout()
+    return _fig_png(fig)
+
+
+def line_png(x_labels, values, title, value_label="Spend ($)"):
+    plt = _plt()
+    from matplotlib.ticker import FuncFormatter
+    fig, ax = plt.subplots(figsize=(8, 4.2))
+    x = range(len(x_labels))
+    ax.plot(list(x), list(values), color=CHART_NAVY, marker="o", markersize=6, linewidth=2.4, zorder=3)
+    ax.fill_between(list(x), list(values), color=CHART_BLUE, alpha=0.18, zorder=2)
+    ax.set_xticks(list(x))
+    ax.set_xticklabels([str(l) for l in x_labels], fontsize=9)
+    ax.set_ylabel(value_label, fontsize=10, color=CHART_NAVY)
+    ax.yaxis.set_major_formatter(FuncFormatter(_money_fmt))
+    ax.set_title(title, fontsize=13, fontweight="bold", color=CHART_NAVY, pad=10, loc="left")
+    ax.grid(axis="y", color="#D9D9D9", linewidth=0.7, zorder=0)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    for i, v in enumerate(values):
+        ax.text(i, v, "  " + _money_fmt(v), va="bottom", ha="center", fontsize=8.5, color="#222")
+    fig.tight_layout()
+    return _fig_png(fig)
+
+
+def savings_split_png(hard, avoidance, title="Estimated Savings — Hard vs Cost Avoidance"):
+    """Single stacked bar showing hard (cashable) vs cost-avoidance split."""
+    plt = _plt()
+    from matplotlib.ticker import FuncFormatter
+    fig, ax = plt.subplots(figsize=(8, 2.2))
+    ax.barh([0], [hard], color=CHART_GREEN, edgecolor="#1a1a1a", linewidth=0.4, label="Hard (cashable)", zorder=3)
+    ax.barh([0], [avoidance], left=[hard], color=CHART_BLUE, edgecolor="#1a1a1a", linewidth=0.4,
+            label="Cost avoidance", zorder=3)
+    total = hard + avoidance
+    if hard:
+        ax.text(hard / 2, 0, f"Hard\n{_money_fmt(hard)}", va="center", ha="center", fontsize=9,
+                color="white", fontweight="bold")
+    if avoidance:
+        ax.text(hard + avoidance / 2, 0, f"Cost avoidance\n{_money_fmt(avoidance)}", va="center",
+                ha="center", fontsize=9, color="#0b3d5c", fontweight="bold")
+    ax.set_xlim(0, total * 1.02 if total else 1)
+    ax.set_yticks([])
+    ax.xaxis.set_major_formatter(FuncFormatter(_money_fmt))
+    ax.set_title(f"{title}   (total {_money_fmt(total)})", fontsize=12.5, fontweight="bold",
+                 color=CHART_NAVY, pad=10, loc="left")
+    for s in ("top", "right", "left"):
+        ax.spines[s].set_visible(False)
+    ax.grid(axis="x", color="#E3E3E3", linewidth=0.6, zorder=0)
+    fig.tight_layout()
+    return _fig_png(fig)
+
+
+def _embed_png(ws, png_bytes, anchor_cell):
+    """Place a matplotlib PNG onto a worksheet at anchor_cell (e.g. 'A20')."""
+    if not png_bytes:
+        return
+    import io
+    from openpyxl.drawing.image import Image as XLImage
+    ws.add_image(XLImage(io.BytesIO(png_bytes)), anchor_cell)
 
 
 # ---------------------------------------------------------------------------
@@ -1072,17 +1581,17 @@ def _write_exec_summary(ws, title, tiles, cov, es):
     if items:
         row += 1
         h3 = ws.cell(row=row, column=2,
-                     value="Items you can consolidate (same item — multiple vendors / departments)")
+                     value="Top consolidation opportunities (estimated hard savings + cost avoidance)")
         h3.font = Font(size=13, bold=True, color=NAVY)
         ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
         row += 1
         for it in items:
             ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
             c = ws.cell(row=row, column=2)
-            tail = f"  —  {it['detail']}, {it['value']}"
-            if it.get("category"):
-                tail += f"  ({it['category']})"
-            c.value = "•  " + it["item"] + tail
+            detail = f" ({it['detail']})" if it.get("detail") else ""
+            tail = (f"  —  {it['addressable']} addressable @ {it['rate']} → {it.get('total', '')} "
+                    f"(hard {it.get('hard', '')} + avoidance {it.get('avoidance', '')})")
+            c.value = "•  " + it["item"] + detail + tail
             c.alignment = Alignment(wrap_text=True, vertical="top")
             c.font = Font(size=11)
             ws.row_dimensions[row].height = 30
@@ -1099,6 +1608,149 @@ def _write_exec_summary(ws, title, tiles, cov, es):
     fn.font = Font(size=9, italic=True, color=GRAY)
     fn.alignment = Alignment(wrap_text=True, vertical="top")
     ws.row_dimensions[row].height = 46
+
+
+def _write_savings_sheet(ws, savings, has_amt):
+    from openpyxl.styles import Font, PatternFill, Alignment
+    GREEN, TEAL = "2E7D32", "0B6FA4"
+    ws.sheet_view.showGridLines = False
+    ws.column_dimensions["A"].width = 2.5
+    for c in "BCDEFG":
+        ws.column_dimensions[c].width = 19
+    ws.merge_cells("B2:G2")
+    t = ws["B2"]
+    t.value = "Savings Opportunity Summary"
+    t.font = Font(size=18, bold=True, color=WHITE)
+    t.fill = PatternFill("solid", fgColor=NAVY)
+    t.alignment = Alignment(vertical="center", indent=1)
+    ws.row_dimensions[2].height = 34
+    ws.merge_cells("B3:G3")
+    ws["B3"].value = ("Addressable-spend methodology · benchmark rates · hard (cashable) savings + "
+                      "cost avoidance — planning estimates, see Sources & Methodology")
+    ws["B3"].font = Font(size=10, italic=True, color=NAVY)
+    if not savings or not has_amt or not savings.get("identified"):
+        ws["B5"].value = ("Savings modeling needs an amount column plus a vendor or department "
+                          "column, and at least one fragmented commodity.")
+        ws["B5"].font = Font(size=12, color=RED)
+        return
+    s = savings
+    tiles_data = [
+        ("Total spend", _money_text(s["total_spend"]), NAVY),
+        ("Addressable", f"{_money_text(s['addressable'])} ({s['addressable_pct']}%)", NAVY),
+        ("Identified savings", _money_text(s["identified"]), RED),
+        ("Hard (cashable)", _money_text(s["hard"]), GREEN),
+        ("Cost avoidance", _money_text(s["avoidance"]), TEAL),
+        ("Per year", _money_text(s["annual_identified"]), NAVY),
+    ]
+    col = 2
+    for label, val, color in tiles_data:
+        v = ws.cell(row=5, column=col, value=val)
+        v.font = Font(size=13, bold=True, color=color)
+        v.alignment = Alignment(horizontal="center")
+        v.fill = PatternFill("solid", fgColor=LT_BLUE)
+        d = ws.cell(row=6, column=col, value=label)
+        d.font = Font(size=9.5, color=NAVY)
+        d.alignment = Alignment(horizontal="center")
+        d.fill = PatternFill("solid", fgColor=LT_BLUE)
+        col += 1
+    ws.merge_cells("B8:G8")
+    c = ws["B8"]
+    c.value = (f"Three-year projection: {_money_text(s['three_year'])}   ·   "
+               f"{s['n_opportunities']} consolidation opportunities   ·   {s['years']} year(s) of data")
+    c.font = Font(size=12, bold=True, color=RED)
+    _embed_png(ws, savings_split_png(s["hard"], s["avoidance"]), "B10")
+
+    row = 24
+    ws.cell(row=row, column=2, value="Estimated savings by opportunity type").font = Font(size=12, bold=True, color=NAVY)
+    row += 1
+    for j, htxt in ((2, "Opportunity type"), (3, "Est. total savings")):
+        hc = ws.cell(row=row, column=j, value=htxt)
+        hc.font = Font(bold=True, color=WHITE)
+        hc.fill = PatternFill("solid", fgColor=NAVY)
+    row += 1
+    for k, v in sorted(s["by_type"].items(), key=lambda kv: -kv[1]):
+        ws.cell(row=row, column=2, value=k)
+        mc = ws.cell(row=row, column=3, value=v)
+        mc.number_format = '$#,##0'
+        row += 1
+    if s.get("tail_total"):
+        ws.cell(row=row, column=2, value="Tail-spend consolidation (additional lever)")
+        mc = ws.cell(row=row, column=3, value=s["tail_total"])
+        mc.number_format = '$#,##0'
+        row += 1
+    row += 1
+    ws.cell(row=row, column=2, value="Rates applied (adjustable — see Sources & Methodology)").font = Font(size=11, bold=True, color=NAVY)
+    row += 1
+    for label, val in savings_rate_card(s.get("rates")):
+        ws.cell(row=row, column=2, value=label).font = Font(size=10)
+        ws.cell(row=row, column=4, value=val).font = Font(size=10, bold=True, color=NAVY)
+        row += 1
+    row += 1
+    ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
+    n = ws.cell(row=row, column=2, value=(
+        "Figures are planning estimates — a cashable hard portion plus cost avoidance — applied to "
+        "addressable spend only, not realized savings and not price-variance (your file has totals, "
+        "not unit prices). See the Sources & Methodology tab for the full basis."))
+    n.font = Font(size=9, italic=True, color=GRAY)
+    n.alignment = Alignment(wrap_text=True, vertical="top")
+    ws.row_dimensions[row].height = 42
+
+
+def _write_sources_sheet(ws, rates=None):
+    from openpyxl.styles import Font, PatternFill, Alignment
+    TEAL = "0B6FA4"
+    ws.sheet_view.showGridLines = False
+    ws.column_dimensions["A"].width = 2.5
+    ws.column_dimensions["B"].width = 42
+    ws.column_dimensions["C"].width = 74
+    ws.merge_cells("B2:C2")
+    t = ws["B2"]
+    t.value = "Sources & Methodology"
+    t.font = Font(size=18, bold=True, color=WHITE)
+    t.fill = PatternFill("solid", fgColor=NAVY)
+    t.alignment = Alignment(vertical="center", indent=1)
+    ws.row_dimensions[2].height = 34
+    row = 4
+    for heading, lines in SOURCES_SECTIONS:
+        h = ws.cell(row=row, column=2, value=heading)
+        h.font = Font(size=12, bold=True, color=NAVY)
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
+        row += 1
+        for ln in lines:
+            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
+            c = ws.cell(row=row, column=2, value="•  " + ln)
+            c.font = Font(size=10)
+            c.alignment = Alignment(wrap_text=True, vertical="top")
+            ws.row_dimensions[row].height = 14 * (1 + len(ln) // 95)
+            row += 1
+        row += 1
+    ws.cell(row=row, column=2, value="Rates used in this report (adjustable in the app)").font = Font(size=12, bold=True, color=NAVY)
+    row += 1
+    for label, val in savings_rate_card(rates):
+        ws.cell(row=row, column=2, value=label).font = Font(size=10)
+        ws.cell(row=row, column=3, value=val).font = Font(size=10, bold=True, color=NAVY)
+        row += 1
+    row += 1
+    ws.cell(row=row, column=2, value="Reference organizations & sources").font = Font(size=12, bold=True, color=NAVY)
+    row += 1
+    for name, url, note in SOURCES_REFERENCES:
+        nc = ws.cell(row=row, column=2, value=name)
+        nc.font = Font(size=10, bold=True, color=TEAL, underline="single")
+        nc.hyperlink = url
+        d = ws.cell(row=row, column=3, value=note)
+        d.font = Font(size=9, color=GRAY)
+        d.alignment = Alignment(wrap_text=True, vertical="top")
+        ws.row_dimensions[row].height = 28
+        row += 1
+    row += 1
+    ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
+    n = ws.cell(row=row, column=2, value=(
+        "Note: the specific savings percentages are this tool’s transparent planning assumptions, "
+        "calibrated to conservative, commonly-cited ranges — not figures attributed to any single "
+        "proprietary report. Adjust them to your agency’s realized savings."))
+    n.font = Font(size=9, italic=True, color=GRAY)
+    n.alignment = Alignment(wrap_text=True, vertical="top")
+    ws.row_dimensions[row].height = 44
 
 
 def _safe_sheet_name(name, used):
@@ -1217,6 +1869,9 @@ _TAB_WHY = {
     "Consolidation": "Categories bought from many vendors — the clearest consolidation (savings) opportunities.",
     "Same Item - Vendors_Depts": "The SAME item bought from more than one vendor and/or across more than one department — line-level maverick/fragmented buying and the sharpest consolidation targets.",
     "Same Commodity NIGP - Vendors_Depts": "The same NIGP commodity code (5-digit item where present, else 3-digit class) bought from more than one vendor and/or across more than one department — groups differently-worded descriptions of the same commodity.",
+    "Savings Opportunity Summary": "The headline: addressable spend, identified savings split into hard (cashable) and cost avoidance, by opportunity type, annualized and projected three years.",
+    "Top Consolidation Opportunities": "Each fragmented commodity with its addressable spend, savings rate, estimated hard + cost-avoidance savings, and a plain-English recommended action.",
+    "Sources & Methodology": "Where the math and benchmark rates come from, who uses them (public and private), the addressable-spend and hard-vs-avoidance definitions, and reference sources.",
 }
 
 
@@ -1224,7 +1879,7 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
                        consolidation_tbl, cov, exec_summary=None, dept_tbl=None,
                        trend_tbl=None, tail=None, concentration=None, single_multi=None,
                        matrix_tbl=None, dimensions=None, item_consol_tbl=None,
-                       nigp_consol_tbl=None,
+                       nigp_consol_tbl=None, savings=None, opps_tbl=None,
                        report_title="Procurement Spend Analysis") -> str:
     has_amt = tiles.get("has_amount")
     measure = "Spend" if has_amt else "Transactions"
@@ -1272,6 +1927,10 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
         if nigp_consol_tbl is not None and len(nigp_consol_tbl):
             s_nigp = _safe_sheet_name("Same Commodity NIGP - Vendors_Depts", used)
             nigp_consol_tbl.to_excel(xl, sheet_name=s_nigp, index=False, startrow=1)
+        s_opps = None
+        if opps_tbl is not None and len(opps_tbl):
+            s_opps = _safe_sheet_name("Top Consolidation Opportunities", used)
+            opps_tbl.to_excel(xl, sheet_name=s_opps, index=False, startrow=1)
         dim_sheets = []
         for label, dfd in (dimensions or []):
             if dfd is None or not len(dfd):
@@ -1283,8 +1942,20 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
         wb = xl.book
         es = wb.create_sheet("Executive Summary", 0)
         _write_exec_summary(es, report_title, tiles, cov, exec_summary)
-        # Contents at position 1 (right after the summary)
+        # Savings Opportunity Summary — the hero — right after the executive summary.
+        s_save = None
+        if savings and has_amt and savings.get("identified"):
+            sv = wb.create_sheet("Savings Opportunity Summary", 1)
+            _write_savings_sheet(sv, savings, has_amt)
+            s_save = "Savings Opportunity Summary"
+        contents_idx = 2 if s_save else 1
+        analytics_idx = contents_idx + 1
+        # Contents
         entries = [("Executive Summary", _TAB_WHY["Executive Summary"])]
+        if s_save:
+            entries.append(("Savings Opportunity Summary", _TAB_WHY["Savings Opportunity Summary"]))
+        if s_opps:
+            entries.append((s_opps, _TAB_WHY["Top Consolidation Opportunities"]))
         if tail or concentration or single_multi:
             entries.append(("Vendor Analytics", _TAB_WHY["Vendor Analytics"]))
         for snm, key in [(s_cat, "Spend by Category"), (s_trend, "Spend Trend"),
@@ -1297,49 +1968,61 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
         for snm, label, _dfd in dim_sheets:
             entries.append((snm, f"Spend broken down by “{label}” — e.g., on- vs off-contract, "
                                  "supplier diversity, or process status, depending on the column."))
-        contents = wb.create_sheet("Contents", 1)
+        entries.append(("Sources & Methodology", _TAB_WHY["Sources & Methodology"]))
+        contents = wb.create_sheet("Contents", contents_idx)
         _write_contents_sheet(contents, entries)
         if tail or concentration or single_multi:
-            an = wb.create_sheet("Vendor Analytics", 2)
+            an = wb.create_sheet("Vendor Analytics", analytics_idx)
             _write_analytics_sheet(an, tail, concentration, single_multi)
+        # Sources & Methodology — always last.
+        src = wb.create_sheet("Sources & Methodology")
+        _write_sources_sheet(src, savings.get("rates") if savings else None)
+
+        def _below(dl):
+            return f"A{dl + 3}"
 
         ws = wb[s_cat]
         hr, df1, dl = _style_data_sheet(ws, "Spend by Business Category", cat_tbl,
             money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
             total_cols=[measure] + (["Transactions"] if has_amt else []),
             wrap_cols=[EXAMPLES_COL])
-        _bar_chart(ws, f"{measure} by Category", 1, col_idx(cat_tbl, measure), hr, df1, dl,
-                   anchor(ws, cat_tbl), x_title="Business Category", y_title=ylab)
+        _embed_png(ws, barh_png(cat_tbl["Business Category"].tolist(), cat_tbl[measure].tolist(),
+                                f"{measure} by Business Category", value_label=ylab, money=has_amt),
+                   _below(dl))
 
         if s_trend:
             ws = wb[s_trend]
             hr, df1, dl = _style_data_sheet(ws, "Spend Trend Over Time", trend_tbl,
                 money_cols=money, pct_cols=[c for c in ["YoY %"] if c in trend_tbl.columns],
                 int_cols=["Transactions"], add_total=False)
-            _bar_chart(ws, f"{measure} by Year", 1, col_idx(trend_tbl, measure), hr, df1, dl,
-                       anchor(ws, trend_tbl), x_title="Year", y_title=ylab)
+            _embed_png(ws, line_png(trend_tbl["Year"].tolist(), trend_tbl[measure].tolist(),
+                                    f"{measure} by Year", value_label=ylab), _below(dl))
 
         ws = wb[s_par]
         hr, df1, dl = _style_data_sheet(ws, "Pareto 80/20 (classified spend)", pareto_tbl,
             money_cols=money, pct_cols=["% of Total", "Cumulative %"], int_cols=["Transactions"], add_total=False)
-        _pareto_chart(ws, 1, col_idx(pareto_tbl, measure), col_idx(pareto_tbl, "Cumulative %"),
-                      hr, df1, dl, anchor(ws, pareto_tbl), x_title="Business Category", y_title=ylab)
+        _pcat = "Group" if "Group" in pareto_tbl.columns else pareto_tbl.columns[0]
+        _embed_png(ws, pareto_png(pareto_tbl[_pcat].tolist(), pareto_tbl[measure].tolist(),
+                                  pareto_tbl["Cumulative %"].tolist(), "Pareto 80/20", value_label=ylab),
+                   _below(dl))
 
         if s_ven:
             ws = wb[s_ven]
             hr, df1, dl = _style_data_sheet(ws, "Top Vendors by Spend", vendors_tbl,
                 money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
                 total_cols=[measure] + (["Transactions"] if has_amt else []))
-            _bar_chart(ws, f"Top Vendors by {measure}", 1, col_idx(vendors_tbl, measure), hr, df1, dl,
-                       anchor(ws, vendors_tbl), x_title="Vendor", y_title=ylab)
+            _embed_png(ws, barh_png(vendors_tbl["Vendor"].tolist(), vendors_tbl[measure].tolist(),
+                                    f"Top Vendors by {measure}", value_label=ylab, money=has_amt),
+                       _below(dl))
 
         if s_dep:
             ws = wb[s_dep]
             hr, df1, dl = _style_data_sheet(ws, "Spend by Department", dept_tbl,
                 money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
                 total_cols=[measure] + (["Transactions"] if has_amt else []))
-            _bar_chart(ws, f"{measure} by Department", 1, col_idx(dept_tbl, measure), hr, df1, dl,
-                       anchor(ws, dept_tbl), x_title="Department", y_title=ylab)
+            _embed_png(ws, barh_png(dept_tbl["Department"].tolist(), dept_tbl[measure].tolist(),
+                                    f"{measure} by Department", value_label=ylab, money=has_amt),
+                       _below(dl))
 
         if s_mat:
             ws = wb[s_mat]
@@ -1400,13 +2083,25 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
                     vc.fill = PatternFill("solid", fgColor="FCE4E4")  # light-red: consolidation target
                     vc.font = Font(bold=True, color="9C1006")
 
+        if s_opps:
+            ws = wb[s_opps]
+            ocols = list(opps_tbl.columns)
+            money_c = [c for c in ["Addressable Spend", "Est. Total Savings", "Hard Savings",
+                                   "Cost Avoidance"] if c in ocols]
+            int_c = [c for c in ["Vendors", "Departments"] if c in ocols]
+            pct_c = [c for c in ["Savings Rate %"] if c in ocols]
+            wrap_c = [c for c in ["Commodity", "Recommended Action"] if c in ocols]
+            _style_data_sheet(ws, "Top Consolidation Opportunities — estimated hard savings + cost avoidance",
+                opps_tbl, money_cols=money_c, int_cols=int_c, pct_cols=pct_c,
+                total_cols=money_c, add_total=True, wrap_cols=wrap_c)
+
         for snm, label, dfd in dim_sheets:
             ws = wb[snm]
             hr, df1, dl = _style_data_sheet(ws, label, dfd,
                 money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
                 total_cols=[measure] + (["Transactions"] if has_amt else []))
-            _bar_chart(ws, label[:40], 1, col_idx(dfd, measure), hr, df1, dl, anchor(ws, dfd),
-                       x_title=str(dfd.columns[0]), y_title=ylab)
+            _embed_png(ws, barh_png([str(x) for x in dfd.iloc[:, 0].tolist()], dfd[measure].tolist(),
+                                    label[:48], value_label=ylab, money=has_amt), _below(dl))
 
     return path
 
@@ -1420,8 +2115,10 @@ def compute_all(df, roles, max_dims=6):
     amt, ven = roles.get("amount"), roles.get("vendor")
     dep, dat = roles.get("department"), roles.get("date")
     desc = roles.get("description")
+    # Absorb the catch-all so every row lands in a real Business Category.
+    cov = coverage(df, "Business_Category")  # capture best-fit count before folding
+    df = absorb_catchall(df, desc)
     tiles = summary_tiles(df, "Business_Category", amt, ven, dat)
-    cov = coverage(df, "Business_Category")
     cat = spend_by_category(df, "Business_Category", amt, desc_col=desc)
     classified_df = df[_is_classified(df["Business_Category"])]
     par, measure, n80 = pareto(classified_df, "Business_Category", amt)
@@ -1435,6 +2132,10 @@ def compute_all(df, roles, max_dims=6):
     conc = vendor_concentration(df, ven, amt)
     sm = single_vs_multi_source(df, "Business_Category", ven, amt) if ven else None
     matrix = category_department_matrix(df, "Business_Category", dep, amt)
+    # Savings / cost-avoidance engine
+    opps = consolidation_opportunities(df, desc, amt, ven, dep)
+    years = len(trend) if (trend is not None and len(trend) >= 1) else 1
+    savings = savings_summary(opps, tiles, tail=tail, years=years)
 
     subs = roles.get("dimension_subtypes", {})
     dim_names = sorted(roles.get("dimensions", []), key=lambda d: 0 if subs.get(d) else 1)
@@ -1449,11 +2150,12 @@ def compute_all(df, roles, max_dims=6):
 
     es = executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl,
                            trend=trend, tail=tail, concentration=conc,
-                           item_consol=item_consol)
+                           item_consol=item_consol, savings=savings, opps=opps)
     return dict(tiles=tiles, cov=cov, cat=cat, par=par, measure=measure, n80=n80,
                 vend=vend, dept_tbl=dept_tbl, cons=cons, item_consol=item_consol,
                 nigp_consol=nigp_consol, trend=trend, tail=tail, concentration=conc,
-                single_multi=sm, matrix=matrix, dimensions=dims, es=es)
+                single_multi=sm, matrix=matrix, dimensions=dims,
+                opps=opps, savings=savings, es=es)
 
 
 # ---------------------------------------------------------------------------
@@ -1504,7 +2206,8 @@ def run(path, desc=None, amount=None, vendor=None, dept=None, out=None, sample=N
                        tail=b["tail"], concentration=b["concentration"],
                        single_multi=b["single_multi"], matrix_tbl=b["matrix"],
                        dimensions=b["dimensions"], item_consol_tbl=b.get("item_consol"),
-                       nigp_consol_tbl=b.get("nigp_consol"))
+                       nigp_consol_tbl=b.get("nigp_consol"), savings=b.get("savings"),
+                       opps_tbl=b.get("opps"))
     print(f"\nWrote Excel report: {out}")
     return out
 

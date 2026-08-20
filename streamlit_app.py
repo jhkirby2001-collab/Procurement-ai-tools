@@ -1067,7 +1067,7 @@ def _fmt_money(v) -> str:
 
 # Bump when the stored Spend Report bundle shape changes, so a report saved by an
 # older app version is discarded instead of crashing the render.
-_SR_RESULT_SCHEMA = 3
+_SR_RESULT_SCHEMA = 4
 
 
 def _arrow_safe(df):
@@ -1114,62 +1114,111 @@ def _render_spend_report(res: dict) -> None:
     excel_bytes = res["excel"]
     tiles, cov, cat, measure = b["tiles"], b["cov"], b["cat"], b["measure"]
 
+    has_amt = tiles.get("has_amount")
+    ylab = "Spend ($)" if has_amt else "Transactions"
+    sv = b.get("savings")
+
     # Executive summary
     st.markdown("### Executive Summary")
     for ln in b["es"]["lines"]:
         st.markdown(f"- {ln}")
+
+    # Savings hero — the money, front and center
+    if sv and sv.get("identified") and has_amt:
+        st.markdown("### 💡 Savings Opportunity")
+        h = st.columns(4)
+        h[0].metric("Addressable spend", _fmt_money(sv["addressable"]), f"{sv['addressable_pct']}% of total")
+        h[1].metric("Identified savings", _fmt_money(sv["identified"]), f"{sv['identified_pct_addr']}% of addressable")
+        h[2].metric("Hard (cashable)", _fmt_money(sv["hard"]))
+        h[3].metric("Cost avoidance", _fmt_money(sv["avoidance"]))
+        h2 = st.columns(3)
+        h2[0].metric("Annualized", _fmt_money(sv["annual_identified"]) + " /yr")
+        h2[1].metric("3-year projection", _fmt_money(sv["three_year"]))
+        h2[2].metric("Opportunities", f"{sv['n_opportunities']:,}")
+        try:
+            st.image(sr.savings_split_png(sv["hard"], sv["avoidance"]), use_container_width=True)
+        except Exception:  # noqa: BLE001
+            pass
+        st.caption("Planning estimates on **addressable** spend — hard (cashable) savings + cost "
+                   "avoidance. Rates and full basis are in **Sources & Methodology** at the bottom.")
+
     if b["es"]["steps"]:
-        st.markdown("**Recommended first steps:**")
+        st.markdown("**Recommended actions (ranked by savings):**")
         for i, s in enumerate(b["es"]["steps"], 1):
             st.markdown(f"{i}. {s}")
-    if b["es"].get("consolidation_items"):
-        st.markdown("**Items you can consolidate** (same item — multiple vendors / departments):")
-        for it in b["es"]["consolidation_items"]:
-            cat_note = f"  ({it['category']})" if it.get("category") else ""
-            st.markdown(f"- **{it['item']}** — {it['detail']}, {it['value']}{cat_note}")
 
     # Summary tiles
     st.markdown("### Summary")
     m = st.columns(4)
-    m[0].metric("Total spend", _fmt_money(tiles["total_spend"]) if tiles["has_amount"] else "n/a")
+    m[0].metric("Total spend", _fmt_money(tiles["total_spend"]) if has_amt else "n/a")
     m[1].metric("Transactions", f"{tiles['transactions']:,}")
     m[2].metric("Categories", tiles["categories"])
     m[3].metric("Vendors", f"{tiles['vendors']:,}" if tiles["vendors"] is not None else "n/a")
 
     st.info(
         f"**Coverage:** {cov['classified']:,} of {cov['total']:,} rows "
-        f"({cov['classified_pct']}%) mapped to a specific commodity category. The remaining "
-        f"{cov['catchall']:,} ({cov['catchall_pct']}%) sit in **General & Other Procurement** — "
-        "still counted and shown, with example descriptions so you can see what's in it. "
-        "Add keyword rules for the most common of those descriptions to move that spend into "
-        "specific categories.")
+        f"({cov['classified_pct']}%) matched a specific commodity rule directly; the remaining "
+        f"{cov['catchall']:,} ({cov['catchall_pct']}%) were assigned to their closest Business "
+        "Category (best-fit). Every row lands in one of the 17 categories — no “unclassified” gap.")
+
+    # Top Consolidation Opportunities — the prescriptive core
+    opps = b.get("opps")
+    if opps is not None and len(opps):
+        st.markdown("### 🎯 Top Consolidation Opportunities")
+        st.caption("Each fragmented commodity with its **addressable spend**, the benchmark **rate** "
+                   "applied, estimated **hard savings + cost avoidance**, and a plain-English "
+                   "**recommended action**. Sorted by total savings.")
+        st.dataframe(_style_opps_df(opps), use_container_width=True, hide_index=True)
 
     # Spend by category
     st.markdown("### Spend by Business Category")
-    st.caption("Every row lands in a real category. The **Examples** column shows representative "
-               "descriptions from each one — including the General & Other catch-all.")
+    st.caption("Every row lands in a real category (General & Other absorbed via best-fit). The "
+               "**Examples** column shows representative descriptions from each.")
     st.dataframe(_style_spend_df(cat), use_container_width=True, hide_index=True)
-    _chart_col = measure if measure in cat.columns else cat.columns[1]
-    st.bar_chart(_arrow_safe(cat).set_index("Business Category")[_chart_col])
+    try:
+        st.image(sr.barh_png(cat["Business Category"].tolist(), cat[measure].tolist(),
+                             f"{measure} by Business Category", value_label=ylab, money=has_amt),
+                 use_container_width=True)
+    except Exception:  # noqa: BLE001
+        _chart_col = measure if measure in cat.columns else cat.columns[1]
+        st.bar_chart(_arrow_safe(cat).set_index("Business Category")[_chart_col])
 
     # Spend trend
     if b["trend"] is not None:
         st.markdown("### Spend Trend Over Time")
         st.dataframe(_style_spend_df(b["trend"]), use_container_width=True, hide_index=True)
         if measure in b["trend"].columns:
-            st.bar_chart(_arrow_safe(b["trend"]).set_index("Year")[measure])
+            try:
+                st.image(sr.line_png(b["trend"]["Year"].tolist(), b["trend"][measure].tolist(),
+                                     f"{measure} by Year", value_label=ylab), use_container_width=True)
+            except Exception:  # noqa: BLE001
+                st.bar_chart(_arrow_safe(b["trend"]).set_index("Year")[measure])
 
     # Pareto
     st.markdown("### Pareto 80/20")
     if len(b["par"]):
         st.caption(f"**{b['n80']}** categor{'y' if b['n80'] == 1 else 'ies'} drive 80% of "
-                   f"{'spend' if tiles['has_amount'] else 'transactions'} (classified rows).")
+                   f"{'spend' if has_amt else 'transactions'} (classified rows).")
         st.dataframe(_style_spend_df(b["par"]), use_container_width=True, hide_index=True)
+        _pc = "Group" if "Group" in b["par"].columns else b["par"].columns[0]
+        if "Cumulative %" in b["par"].columns:
+            try:
+                st.image(sr.pareto_png(b["par"][_pc].tolist(), b["par"][measure].tolist(),
+                                       b["par"]["Cumulative %"].tolist(), "Pareto 80/20",
+                                       value_label=ylab), use_container_width=True)
+            except Exception:  # noqa: BLE001
+                pass
 
     # Top vendors
     if b["vend"] is not None:
         st.markdown("### Top Vendors")
         st.dataframe(_style_spend_df(b["vend"]), use_container_width=True, hide_index=True)
+        try:
+            st.image(sr.barh_png(b["vend"]["Vendor"].tolist(), b["vend"][measure].tolist(),
+                                 f"Top Vendors by {measure}", value_label=ylab, money=has_amt),
+                     use_container_width=True)
+        except Exception:  # noqa: BLE001
+            pass
 
     # Vendor analytics
     if b["concentration"] or b["tail"] or b["single_multi"]:
@@ -1192,8 +1241,13 @@ def _render_spend_report(res: dict) -> None:
     if b["dept_tbl"] is not None:
         st.markdown("### Spend by Department")
         st.dataframe(_style_spend_df(b["dept_tbl"]), use_container_width=True, hide_index=True)
-        st.bar_chart(_arrow_safe(b["dept_tbl"]).set_index("Department")[
-            measure if measure in b["dept_tbl"].columns else b["dept_tbl"].columns[1]])
+        try:
+            st.image(sr.barh_png(b["dept_tbl"]["Department"].tolist(), b["dept_tbl"][measure].tolist(),
+                                 f"{measure} by Department", value_label=ylab, money=has_amt),
+                     use_container_width=True)
+        except Exception:  # noqa: BLE001
+            st.bar_chart(_arrow_safe(b["dept_tbl"]).set_index("Department")[
+                measure if measure in b["dept_tbl"].columns else b["dept_tbl"].columns[1]])
 
     # Category × department matrix
     if b["matrix"] is not None:
@@ -1252,6 +1306,48 @@ def _render_spend_report(res: dict) -> None:
         file_name="Spend_Report_JHK3.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+    # Sources & Methodology — where the math and benchmarks come from
+    _render_sources_methodology(b.get("savings"))
+
+
+def _render_sources_methodology(savings=None) -> None:
+    st.markdown("---")
+    st.markdown("### 📚 Sources & Methodology")
+    st.caption("Where the math and the benchmark rates come from, who uses them, and the honest limits.")
+    with st.expander("Open Sources & Methodology", expanded=False):
+        for heading, lines in getattr(sr, "SOURCES_SECTIONS", []):
+            st.markdown(f"**{heading}**")
+            for ln in lines:
+                st.markdown(f"- {ln}")
+        rates = (savings or {}).get("rates") if savings else None
+        st.markdown("**Rates used in this report** (adjustable)")
+        st.table(pd.DataFrame(sr.savings_rate_card(rates), columns=["Lever", "Rate"]))
+        st.markdown("**Reference organizations & sources**")
+        for name, url, note in getattr(sr, "SOURCES_REFERENCES", []):
+            st.markdown(f"- [{name}]({url}) — {note}")
+        st.caption("Specific savings percentages are this tool's transparent planning assumptions, "
+                   "calibrated to conservative, commonly-cited ranges — not figures attributed to any "
+                   "single proprietary report. Calibrate them to your agency's realized savings.")
+
+
+def _style_opps_df(df):
+    """Format the Top Consolidation Opportunities table for on-screen display."""
+    df = _arrow_safe(df)
+    money_cols = [c for c in ["Addressable Spend", "Est. Total Savings", "Hard Savings",
+                              "Cost Avoidance"] if c in df.columns]
+    fmt = {}
+    for c in df.columns:
+        if c in money_cols:
+            fmt[c] = "${:,.0f}"
+        elif "%" in str(c):
+            fmt[c] = "{:.1f}%"
+        elif c in ("Vendors", "Departments"):
+            fmt[c] = "{:,.0f}"
+    try:
+        return df.style.format(fmt, na_rep="—")
+    except Exception:  # noqa: BLE001
+        return df
 
 
 def _style_nigp_matrix(df):
@@ -1425,7 +1521,8 @@ def page_spend_report() -> None:
                               tail=b["tail"], concentration=b["concentration"],
                               single_multi=b["single_multi"], matrix_tbl=b["matrix"],
                               dimensions=b["dimensions"], item_consol_tbl=b.get("item_consol"),
-                              nigp_consol_tbl=b.get("nigp_consol"))
+                              nigp_consol_tbl=b.get("nigp_consol"), savings=b.get("savings"),
+                              opps_tbl=b.get("opps"))
         # Store the whole computed bundle so it survives page navigation.
         st.session_state["sr_result"] = {
             "schema": _SR_RESULT_SCHEMA, "b": b, "excel": buf.getvalue(),
@@ -1512,17 +1609,37 @@ def page_spend_report_methodology() -> None:
                "one the data supports and skips the rest.")
     _spend_report_methods_table()
 
+    st.subheader("Savings & cost avoidance — how the money is estimated")
+    st.markdown(
+        "The report leads with a **Savings Opportunity Summary**. The math is deliberately simple "
+        "and transparent:\n"
+        "- **Addressable spend** = the spend on commodities that are *fragmented* — bought from more "
+        "than one vendor and/or across more than one department. Single-source and single-department "
+        "spend is **not** addressable. Savings are only ever applied to addressable spend.\n"
+        "- **Estimated savings = addressable spend × a benchmark rate**, where the rate rewards "
+        "fragmentation: **+3% per additional vendor + 2% per additional department, capped at 15%** "
+        "(all adjustable). Tail-spend consolidation adds a **5%** lever.\n"
+        "- Each identified opportunity is split into **hard (cashable) savings** and **cost "
+        "avoidance** — default **40% / 60%** — because industry practice is to report the two "
+        "separately (hard reduces the budget; cost avoidance prevents future cost).\n"
+        "- Figures are **annualized** (÷ the years the data spans) and shown as a **3-year "
+        "projection**.\n\n"
+        "**These are planning estimates, not realized savings** — the addressable spend is computed "
+        "exactly from your data, but the savings *percentage* is a transparent, adjustable "
+        "assumption. Your files carry totals, not unit price × quantity, so this is not "
+        "price-variance math. The full basis, the definitions, and real reference sources are on "
+        "the **Sources & Methodology** section of the Spend Report (and its own tab in the Excel)."
+    )
+
     st.subheader("How the numbers are calculated (no black box)")
     st.markdown(
         "- **Spend by Category** = `sum(amount)` and row count grouped by Business Category, "
         "with each category's **% of total** and an **Examples** column of representative "
-        "descriptions. Every row lands in a real category — anything without a specific-commodity "
-        "rule match falls into **General & Other Procurement**, so the total always reconciles to "
-        "your file.\n"
-        "- **Pareto 80/20** = the specific-commodity category totals sorted high-to-low, with a "
-        "running **cumulative %**; the report names how many categories it takes to reach 80%. "
-        "*The General & Other catch-all is excluded here* — it isn't a single commodity to focus "
-        "sourcing on.\n"
+        "descriptions. Every row lands in one of the 17 real categories — rows without a direct "
+        "commodity-rule match are assigned to their **closest** category (best-fit), so the total "
+        "always reconciles to your file and there is no “unclassified” line.\n"
+        "- **Pareto 80/20** = the category totals sorted high-to-low, with a running "
+        "**cumulative %**; the report names how many categories it takes to reach 80%.\n"
         "- **Top Vendors** = `sum(amount)` grouped by vendor, sorted, with % of total.\n"
         "- **Consolidation / Fragmentation** = for each category, the **distinct vendor "
         "count** (and department count); categories bought from more than one vendor are "
@@ -1548,9 +1665,11 @@ def page_spend_report_methodology() -> None:
         "- **Spend by Dimension** = `sum(amount)` grouped by any categorical column found "
         "(contract flag, diversity, status). Contract/diversity flags are recognized and "
         "labeled automatically.\n"
-        "- **Coverage** = how many rows mapped to a specific commodity category vs. fell into "
-        "**General & Other Procurement** (the catch-all). This is the report's honesty check — "
-        "and the Examples column shows exactly what's in the catch-all."
+        "- **Top Consolidation Opportunities** = each fragmented commodity with its addressable "
+        "spend, the benchmark rate applied, estimated **hard savings + cost avoidance**, and a "
+        "recommended action (see *Savings & cost avoidance* above).\n"
+        "- **Coverage** = how many rows matched a specific commodity rule directly vs. were "
+        "assigned to their closest category (best-fit). This is the report's honesty check."
     )
     st.markdown(
         "Currency text is cleaned automatically (`$`, commas, and parenthesized negatives "
@@ -1601,6 +1720,16 @@ def _spend_report_methods_table() -> None:
               </tr>
             </thead>
             <tbody>
+              <tr style="background:{CHI_LT_BLUE};">
+                <td style="padding:8px 10px;"><strong>Savings Opportunity Summary</strong></td>
+                <td style="padding:8px 10px;">Addressable spend, identified savings split into hard (cashable) + cost avoidance, by type, annualized and 3-year projection.</td>
+                <td style="padding:8px 10px;">The headline — how much is on the table and how much is cashable.</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 10px;"><strong>Top Consolidation Opportunities</strong></td>
+                <td style="padding:8px 10px;">Each fragmented commodity with addressable $, rate, hard + cost-avoidance savings, and a recommended action.</td>
+                <td style="padding:8px 10px;">What to consolidate first, and the math behind it.</td>
+              </tr>
               <tr style="background:{CHI_LT_BLUE};">
                 <td style="padding:8px 10px;"><strong>Summary tiles</strong></td>
                 <td style="padding:8px 10px;">Total spend, transactions, categories, vendors.</td>
