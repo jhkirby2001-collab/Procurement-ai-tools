@@ -1065,9 +1065,16 @@ def _fmt_money(v) -> str:
         return "—"
 
 
+# Bump when the stored Spend Report bundle shape changes, so a report saved by an
+# older app version is discarded instead of crashing the render.
+_SR_RESULT_SCHEMA = 3
+
+
 def _style_spend_df(df, money_all_but_first=False):
     """Return a Styler that shows $ + commas on spend, % on percent columns, and
     thousands separators on counts — for on-screen display in the app."""
+    if not hasattr(df, "columns"):
+        return df
     fmt = {}
     for i, col in enumerate(df.columns):
         cl = str(col)
@@ -1293,6 +1300,11 @@ def page_spend_report() -> None:
         key="sr_upload",
     )
     result = st.session_state.get("sr_result")
+    # Discard a report saved by an older version of the app — its bundle shape may
+    # no longer match this code, which would otherwise crash on render.
+    if result is not None and result.get("schema") != _SR_RESULT_SCHEMA:
+        st.session_state.pop("sr_result", None)
+        result = None
 
     # No file in the uploader (e.g. you navigated back to this page): keep showing
     # the last report you generated, so nothing is lost when you switch pages.
@@ -1304,7 +1316,13 @@ def page_spend_report() -> None:
             if st.button("Clear this report"):
                 del st.session_state["sr_result"]
                 st.rerun()
-            _render_spend_report(result)
+            try:
+                _render_spend_report(result)
+            except Exception as e:  # noqa: BLE001
+                st.session_state.pop("sr_result", None)
+                st.warning(
+                    "Your saved report couldn't be displayed (it may have been created by an "
+                    f"earlier version). Please upload the file again to regenerate it. [{e}]")
         else:
             st.info("Awaiting file upload…")
         return
@@ -1394,7 +1412,8 @@ def page_spend_report() -> None:
                               nigp_consol_tbl=b.get("nigp_consol"))
         # Store the whole computed bundle so it survives page navigation.
         st.session_state["sr_result"] = {
-            "b": b, "excel": buf.getvalue(), "file_sig": file_sig, "file_name": uploaded.name}
+            "schema": _SR_RESULT_SCHEMA, "b": b, "excel": buf.getvalue(),
+            "file_sig": file_sig, "file_name": uploaded.name}
         result = st.session_state["sr_result"]
 
     # Render if we have a report for THIS uploaded file (freshly generated or saved).
