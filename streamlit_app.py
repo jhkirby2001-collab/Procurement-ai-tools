@@ -1125,8 +1125,8 @@ def _render_spend_report(res: dict) -> None:
     if b["es"].get("consolidation_items"):
         st.markdown("**Items you can consolidate** (same item — multiple vendors / departments):")
         for it in b["es"]["consolidation_items"]:
-            cat = f" · _{it['category']}_" if it.get("category") else ""
-            st.markdown(f"- **{it['item']}** — {it['detail']}, {it['value']}{cat}")
+            cat_note = f"  ({it['category']})" if it.get("category") else ""
+            st.markdown(f"- **{it['item']}** — {it['detail']}, {it['value']}{cat_note}")
 
     # Summary tiles
     st.markdown("### Summary")
