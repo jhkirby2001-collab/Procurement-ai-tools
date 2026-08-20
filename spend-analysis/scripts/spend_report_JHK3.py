@@ -2155,7 +2155,28 @@ def compute_all(df, roles, max_dims=6):
                 vend=vend, dept_tbl=dept_tbl, cons=cons, item_consol=item_consol,
                 nigp_consol=nigp_consol, trend=trend, tail=tail, concentration=conc,
                 single_multi=sm, matrix=matrix, dimensions=dims,
-                opps=opps, savings=savings, es=es)
+                opps=opps, savings=savings, es=es, _work=df, _roles=dict(roles))
+
+
+def recompute_savings(b, rates):
+    """Re-run ONLY the savings layer (opportunities, summary, executive narrative)
+    against the already-classified data in bundle `b`, using new benchmark `rates`.
+    Returns (opps, savings, es). Classification is not re-run — instant for sliders."""
+    work = b.get("_work")
+    roles = b.get("_roles") or {}
+    if work is None:
+        return b.get("opps"), b.get("savings"), b.get("es")
+    amt, ven = roles.get("amount"), roles.get("vendor")
+    dep, desc = roles.get("department"), roles.get("description")
+    opps = consolidation_opportunities(work, desc, amt, ven, dep, rates=rates)
+    trend = b.get("trend")
+    years = len(trend) if (trend is not None and len(trend) >= 1) else 1
+    savings = savings_summary(opps, b["tiles"], tail=b.get("tail"), rates=rates, years=years)
+    es = executive_summary(b["tiles"], b["cat"], b["n80"], b["vend"], b["cons"], b["cov"],
+                           b["dept_tbl"], trend=trend, tail=b.get("tail"),
+                           concentration=b.get("concentration"), item_consol=b.get("item_consol"),
+                           savings=savings, opps=opps)
+    return opps, savings, es
 
 
 # ---------------------------------------------------------------------------
