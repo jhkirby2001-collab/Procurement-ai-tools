@@ -43,7 +43,16 @@ DEPT_SHORT = {
     "CHICAGO POLICE DEPARTMENT": "CPD",
     "CHICAGO DEPARTMENT OF PUBLIC HEALTH": "CDPH",
     "DEPARTMENT OF PROCUREMENT SERVICES": "DPS",
+    "DEPARTMENT OF WATER MANAGEMENT": "DWM",
+    "DEPARTMENT OF STREETS AND SANITATION": "DSS",
+    "DEPARTMENT OF ASSETS INFORMATION AND SERVICES": "AIS",
 }
+
+
+def short_depts(series):
+    """Every department in the group, not just the first - a sourcing effort can span several."""
+    names = sorted({s(x).strip() for x in series if s(x).strip()})
+    return ", ".join(DEPT_SHORT.get(n, n[:18]) for n in names)
 
 
 def banner(ws, title, subtitle, ncols):
@@ -107,10 +116,13 @@ def build_proof(res):
     rows = []
     for key, g in c.groupby("SOURCING_KEY"):
         f = g.iloc[0]
-        dept = s(g["Department Description"].iloc[0])
+        depts = short_depts(g["Department Description"])
         rows.append({
-            "Exhibit B Item": s(f["Requisition Description"])[:95],
-            "Department": DEPT_SHORT.get(dept, dept),
+            # Identity comes from the AWARDED CONTRACT, which names the commodity cleanly.
+            # Exhibit B descriptions are invoice-level free text - often a single invoice number
+            # and a dollar figure that is NOT the group total, which reads as a contradiction.
+            "What Was Being Bought": s(f["AW_DESC"])[:95],
+            "Exhibit B Dept(s)": depts,
             "Exhibit B Reqs": len(g),
             "Exhibit B Spend": round(g["Requisition Amount"].sum(), 2),
             "First Exhibit B": g["EB_Date"].min(),
@@ -130,8 +142,10 @@ def build_proof(res):
 def tab_summary(wb, proof, res):
     ws = wb.create_sheet("Summary")
     widths(ws, {"A": 3, "B": 46, "C": 20, "D": 62})
+    eb_lo, eb_hi = res["EB_Date"].min(), res["EB_Date"].max()
     banner(ws, "EXHIBIT B SPEND VERIFIED AS MOVED TO AN AWARDED CONTRACT",
-           f"January 1 - August 21, 2026   |   only conversions that can be independently proven", 4)
+           f"Exhibit B activity {eb_lo:%b %-d} - {eb_hi:%b %-d, %Y}   |   "
+           f"only conversions that can be independently proven", 4)
     n = len(proof)
     last = 5 + n  # proof table data rows live at rows 6..(5+n) on the proof tab
     P = f"'Verified Conversions'!"
@@ -166,9 +180,10 @@ def tab_summary(wb, proof, res):
     r += 1
     lines = [
         ("Exhibit B items converted", f'=COUNTA({P}$B$6:$B${last})', "#,##0",
-         "One per sourcing effort - the item being put under contract"),
+         "One per sourcing effort - the commodity being put under contract"),
         ("Requisitions behind them", f'=SUM({P}$D$6:$D${last})', "#,##0",
-         "Individual Exhibit B requisitions that rolled into those items"),
+         "Individual Exhibit B requisitions rolled into those items. Two carry a $0 amount, "
+         "so 20 of the 22 contribute dollars - the spend total is unaffected"),
         ("Maverick spend eliminated", f'=SUM({P}$E$6:$E${last})', MONEY,
          "Exhibit B dollars now covered by an awarded contract"),
         # Distinct count without array functions: each value contributes 1/(its occurrence count).
@@ -245,8 +260,9 @@ def tab_summary(wb, proof, res):
 def tab_proof(wb, proof):
     ws = wb.create_sheet("Verified Conversions")
     banner(ws, "VERIFIED CONVERSIONS - MAVERICK SPEND NOW UNDER CONTRACT",
-           "Each row is one Exhibit B item proven to have moved onto an awarded contract - "
-           "all are wins. The Proof column states the evidence.", 11)
+           "Each row is one Exhibit B item proven to have moved onto an awarded contract - all are "
+           "wins. The item is named from the awarded contract; the Exhibit B requisitions behind it "
+           "are on the Backing Data tab. The Proof column states the evidence.", 11)
     df = proof.drop(columns=["Sourcing Key"])
     ws.cell(row=4, column=1, value="EXHIBIT B SIDE").font = Font(name=FONT, bold=True, size=9, color=WHITE)
     ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=6)
@@ -272,7 +288,7 @@ def tab_proof(wb, proof):
         cc = ws.cell(row=rw, column=10)
         cc.font = Font(name=FONT, size=9, bold=True, color=GREEN)
         cc.alignment = Alignment(horizontal="center")
-    widths(ws, {"A": 5, "B": 52, "C": 11, "D": 10, "E": 15, "F": 13, "G": 14,
+    widths(ws, {"A": 5, "B": 56, "C": 16, "D": 10, "E": 15, "F": 13, "G": 14,
                 "H": 32, "I": 12, "J": 17, "K": 30})
     for rw in range(6, end + 1):
         ws.row_dimensions[rw].height = 42
@@ -283,7 +299,8 @@ def tab_proof(wb, proof):
 def tab_backing(wb, res, aw, proof):
     ws = wb.create_sheet("Backing Data")
     banner(ws, "BACKING DATA - EVERY ROW BEHIND THE PROOF",
-           "Section 1: the Exhibit B requisitions that converted.  "
+           "Section 1: the Exhibit B requisitions that converted - descriptions here are invoice-level "
+           "free text, so a dollar figure inside a description is that invoice, not the row total.  "
            "Section 2: the awarded contracts they landed on. Every figure above traces to these rows.", 11)
     c = res[res["CONVERTED"]].copy().sort_values(["SOURCING_KEY", "EB_Date"])
     eb_df = pd.DataFrame({
