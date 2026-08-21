@@ -37,6 +37,16 @@ MONEY0 = '$#,##0;($#,##0);"-"'
 thin = Side(style="thin", color="BFBFBF")
 BOX = Border(left=thin, right=thin, top=thin, bottom=thin)
 
+# Whole-population context for the Verified Conversions tab. These describe the FULL
+# Exhibit B report, not just the converted rows, so they cannot be derived from this
+# workbook - they are entered as stated constants and labelled with their source.
+TOTAL_EB_SPEND = 53461392.14
+TOTAL_EB_REQS = 730
+TOTAL_SOURCE = ("Source: Exhibit-B Report tab of the supplied workbook - all 730 requisitions, "
+                "Jan 5 - Aug 20, 2026. Blue figures are entered values; every percentage below "
+                "is calculated from them.")
+BLUE = "0000FF"
+
 DEPT_SHORT = {
     "DEPARTMENT OF FLEET AND FACILITY MANAGEMENT": "2FM",
     "CHICAGO DEPARTMENT OF AVIATION": "CDA",
@@ -293,6 +303,89 @@ def tab_proof(wb, proof):
     for rw in range(6, end + 1):
         ws.row_dimensions[rw].height = 42
     ws.freeze_panes = "A6"
+    context_block(ws, tr, end)
+    return ws
+
+
+def context_block(ws, total_row, last_data_row):
+    """Small detached block below the main table: what converted, against the whole year.
+
+    Columns used: B measure | C amount | D requisitions | E percent.
+    """
+    r = total_row + 3
+    ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=5)
+    c = ws.cell(row=r, column=2,
+                value="CONTEXT - HOW THIS COMPARES TO ALL EXHIBIT B SPEND THIS YEAR")
+    c.font = Font(name=FONT, bold=True, size=11, color=WHITE)
+    c.fill = PatternFill("solid", fgColor=NAVY)
+    c.alignment = Alignment(vertical="center", indent=1)
+    ws.row_dimensions[r].height = 22
+    r += 1
+
+    for j, h in enumerate(["", "Amount", "Requisitions", "% of Total"], 2):
+        x = ws.cell(row=r, column=j, value=h)
+        x.font = Font(name=FONT, bold=True, size=9, color=WHITE)
+        x.fill = PatternFill("solid", fgColor="41B6E6")
+        x.alignment = Alignment(horizontal="center", vertical="center")
+        x.border = BOX
+    r += 1
+
+    tot_r, conv_r, out_r = r, r + 1, r + 2
+    rows = [
+        ("Total Exhibit B spend, Jan 5 - Aug 20, 2026", TOTAL_EB_SPEND, TOTAL_EB_REQS,
+         f"=C{tot_r}/$C${tot_r}", True),
+        ("Verified as moved onto an awarded contract", f"=E{total_row}", f"=D{total_row}",
+         f"=C{conv_r}/$C${tot_r}", False),
+        ("Still being bought outside a contract", f"=C{tot_r}-C{conv_r}", f"=D{tot_r}-D{conv_r}",
+         f"=C{out_r}/$C${tot_r}", False),
+    ]
+    for label, amt, reqs, pct, entered in rows:
+        ws.cell(row=r, column=2, value=label).font = Font(name=FONT, size=10,
+                                                          bold=(r == out_r))
+        a = ws.cell(row=r, column=3, value=amt)
+        a.number_format = MONEY
+        a.font = Font(name=FONT, size=10, bold=True,
+                      color=BLUE if entered else (RED if r == out_r else NAVY))
+        q = ws.cell(row=r, column=4, value=reqs)
+        q.number_format = "#,##0"
+        q.font = Font(name=FONT, size=10, color=BLUE if entered else "000000")
+        q.alignment = Alignment(horizontal="center")
+        pc = ws.cell(row=r, column=5, value=pct)
+        pc.number_format = "0.00%"
+        pc.font = Font(name=FONT, size=11, bold=True,
+                       color=RED if r == out_r else (NAVY if not entered else "000000"))
+        pc.alignment = Alignment(horizontal="center")
+        for cc in range(2, 6):
+            ws.cell(row=r, column=cc).border = BOX
+            if r == out_r:
+                ws.cell(row=r, column=cc).fill = PatternFill("solid", fgColor=TINT)
+        r += 1
+
+    r += 1
+    ws.cell(row=r, column=2,
+            value="Exhibit B spend for every $1 moved onto a contract").font = \
+        Font(name=FONT, bold=True, size=10, color=NAVY)
+    ratio = ws.cell(row=r, column=3, value=f"=C{tot_r}/C{conv_r}")
+    ratio.number_format = '"$"#,##0'
+    ratio.font = Font(name=FONT, bold=True, size=12, color=RED)
+    ratio.alignment = Alignment(horizontal="center")
+    for cc in range(2, 4):
+        ws.cell(row=r, column=cc).border = BOX
+        ws.cell(row=r, column=cc).fill = PatternFill("solid", fgColor=TINT)
+    r += 2
+
+    for text, italic, size in [
+        ("Only conversions provable against the awarded contract file are counted here. The two "
+         "systems share no common key, so the true figure may be modestly higher - but not by an "
+         "order of magnitude.", True, 9),
+        (TOTAL_SOURCE, True, 8),
+    ]:
+        ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=5)
+        x = ws.cell(row=r, column=2, value=text)
+        x.font = Font(name=FONT, italic=italic, size=size, color="555555")
+        x.alignment = Alignment(wrap_text=True, vertical="top")
+        ws.row_dimensions[r].height = 26
+        r += 1
     return ws
 
 
