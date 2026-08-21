@@ -25,7 +25,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from exhibit_b_conversion_analysis_JHK3 import (  # noqa: E402
-    DEFAULT_SRC, load, match, s,
+    DEFAULT_SRC, RAW_DIR, load, match, s,
 )
 
 OUT = Path(__file__).resolve().parents[2] / "outputs" / "Exhibit_B_Verified_Conversions_JHK3.xlsx"
@@ -449,6 +449,12 @@ def tab_backing(wb, res, aw, proof):
 
 def main():
     src = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_SRC
+    if src is None or not Path(src).exists():
+        sys.exit(
+            "Source workbook not found.\n"
+            f"  Put it in {RAW_DIR} (gitignored - it is not stored in the repo),\n"
+            "  or set EXHIBIT_B_SRC=/path/to/file.xlsx,\n"
+            "  or pass the path as the first argument.")
     out = Path(sys.argv[2]) if len(sys.argv) > 2 else OUT
     out.parent.mkdir(parents=True, exist_ok=True)
 

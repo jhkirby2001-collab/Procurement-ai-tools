@@ -18,6 +18,7 @@ Output:  outputs/Exhibit_B_Conversion_Analysis_JHK3.xlsx
 Usage:   python exhibit_b_conversion_analysis_JHK3.py [source.xlsx] [output.xlsx]
 """
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -29,8 +30,33 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 # ---------------------------------------------------------------- config ----
-DEFAULT_SRC = Path("/root/.claude/uploads/ad23f03c-b709-51a6-adbb-799dc27f0ad2/"
-                   "bb84a753-ExhibitB_Awarded_Contracts_1.1.2026__8.21.2026.xlsx")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+RAW_DIR = REPO_ROOT / "spend-analysis" / "data" / "raw"
+
+
+def _find_source():
+    """Locate the two-tab source workbook (Exhibit B report + awarded contracts).
+
+    Search order:
+      1. $EXHIBIT_B_SRC                       - explicit override
+      2. spend-analysis/data/raw/ExhibitB_*   - the conventional home (gitignored,
+                                                so the file must be placed there by hand)
+      3. a session upload directory           - only valid inside the session it arrived in
+    Pass the path as argv[1] to bypass all of this.
+    """
+    env = os.environ.get("EXHIBIT_B_SRC")
+    if env and Path(env).exists():
+        return Path(env)
+    for pat in ("ExhibitB_Awarded_Contracts*.xlsx", "*Exhibit*Awarded*.xlsx"):
+        hits = sorted(RAW_DIR.glob(pat))
+        if hits:
+            return hits[-1]
+    for up in sorted(Path("/root/.claude/uploads").glob("*/*ExhibitB_Awarded_Contracts*.xlsx")):
+        return up
+    return None
+
+
+DEFAULT_SRC = _find_source()
 DEFAULT_OUT = Path(__file__).resolve().parents[2] / "outputs" / "Exhibit_B_Conversion_Analysis_JHK3.xlsx"
 
 EB_SHEET = "Exhibit-B Report_1.1.202"
@@ -851,6 +877,13 @@ def tab_awarded(wb, aw):
 # ------------------------------------------------------------------ main ----
 def main():
     src = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_SRC
+    if src is None or not Path(src).exists():
+        sys.exit(
+            "Source workbook not found.\n"
+            f"  Put it in {RAW_DIR} (gitignored - it is not stored in the repo),\n"
+            "  or set EXHIBIT_B_SRC=/path/to/file.xlsx,\n"
+            "  or pass the path as the first argument.\n"
+            "  It needs two tabs: the Exhibit B report and the awarded contracts.")
     out = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_OUT
     out.parent.mkdir(parents=True, exist_ok=True)
 
