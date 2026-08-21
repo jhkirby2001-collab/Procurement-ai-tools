@@ -117,8 +117,7 @@ def build_proof(res):
             "Awarded Contract": s(f["AW_CONTRACT_ID"]),
             "Awarded Vendor": s(f["AW_VENDOR"]),
             "Award Date": f["AW_DATE"],
-            "Award Type": s(f["AW_TYPE"]),
-            "Competitive?": "YES" if f["AW_COMPETITIVE"] else "NO",
+            "Award Method": s(f["AW_TYPE"]),
             "Proof": ("Requisition ID link" if f["tier"] == "A"
                       else f"Vendor + commodity match ({f['basis'].split('similarity ')[-1].rstrip(')')})"),
             "Sourcing Key": key,
@@ -141,13 +140,15 @@ def tab_summary(wb, proof, res):
     ws.cell(row=r, column=2, value="THE ANSWER").font = Font(name=FONT, bold=True, size=12, color=NAVY)
     r += 1
     ws.merge_cells(start_row=r, start_column=2, end_row=r + 1, end_column=4)
+    n_bid = int((proof["Award Method"] == "BID").sum())
     c = ws.cell(row=r, column=2, value=(
         f"Yes - {n} Exhibit B items moved onto an awarded contract this year, covering "
         f"{int(proof['Exhibit B Reqs'].sum())} requisitions and "
-        f"${proof['Exhibit B Spend'].sum():,.2f} of maverick spend. "
-        f"{int((proof['Competitive?'] == 'YES').sum())} of the {n} went to a competitively bid contract - "
-        f"the correct outcome. The other {int((proof['Competitive?'] == 'NO').sum())} left Exhibit B through "
-        f"an emergency or sole-source award."))
+        f"${proof['Exhibit B Spend'].sum():,.2f} of maverick spend. All {n} are wins: the spend is now "
+        f"under a contract vehicle with negotiated terms and an audit trail, instead of being authorized "
+        f"purchase by purchase as a contract exception. {n_bid} were competitively bid; the remainder "
+        f"were awarded by sole source or emergency, which are legitimate procurement methods with their "
+        f"own justification process - not maverick spend."))
     c.font = Font(name=FONT, size=10)
     c.alignment = Alignment(wrap_text=True, vertical="top")
     c.fill = PatternFill("solid", fgColor=TINT)
@@ -168,19 +169,20 @@ def tab_summary(wb, proof, res):
          "One per sourcing effort - the item being put under contract"),
         ("Requisitions behind them", f'=SUM({P}$D$6:$D${last})', "#,##0",
          "Individual Exhibit B requisitions that rolled into those items"),
-        ("Maverick spend converted", f'=SUM({P}$E$6:$E${last})', MONEY,
+        ("Maverick spend eliminated", f'=SUM({P}$E$6:$E${last})', MONEY,
          "Exhibit B dollars now covered by an awarded contract"),
         # Distinct count without array functions: each value contributes 1/(its occurrence count).
         ("Distinct contracts they landed on",
          f'=SUMPRODUCT(1/COUNTIF({P}$G$6:$G${last},{P}$G$6:$G${last}))', "#,##0",
          "Fewer than the item count - separate Exhibit B items can converge on one contract"),
-        ("Went COMPETITIVE (Bid)", f'=COUNTIF({P}$K$6:$K${last},"YES")', "#,##0",
-         "Competitively bid - the procurement-correct destination"),
-        ("Went non-competitive", f'=COUNTIF({P}$K$6:$K${last},"NO")', "#,##0",
-         "Emergency or sole source - off Exhibit B, but not competitively sourced"),
-        ("Proven by requisition ID", f'=COUNTIF({P}$L$6:$L${last},"Requisition ID link")', "#,##0",
+        ("   awarded by competitive bid", f'=COUNTIF({P}$J$6:$J${last},"BID")', "#,##0",
+         "Competitively solicited"),
+        ("   awarded by sole source or emergency",
+         f'=COUNTA({P}$J$6:$J${last})-COUNTIF({P}$J$6:$J${last},"BID")', "#,##0",
+         "Also a contract vehicle - justified, documented, auditable. Still a win"),
+        ("Proven by requisition ID", f'=COUNTIF({P}$K$6:$K${last},"Requisition ID link")', "#,##0",
          "Hardest evidence - same requisition number in both systems"),
-        ("Proven by vendor + commodity", f'=COUNTA({P}$L$6:$L${last})-COUNTIF({P}$L$6:$L${last},"Requisition ID link")',
+        ("Proven by vendor + commodity", f'=COUNTA({P}$K$6:$K${last})-COUNTIF({P}$K$6:$K${last},"Requisition ID link")',
          "#,##0", "Same vendor, matching commodity, award dated after"),
     ]
     for label, formula, fmt, how in lines:
@@ -209,6 +211,10 @@ def tab_summary(wb, proof, res):
          "No matching requisition number, but the same vendor holds the new contract, the commodity "
          "descriptions overlap, and the award is dated after the Exhibit B request. Strong, but one step "
          "softer than an ID match - the similarity score is shown so it can be judged individually."),
+        ("Award method is shown as information, not as a pass or fail",
+         "Every item listed is a win - the spend left Exhibit B and is now on a contract. The award "
+         "method is reported because it tells you how the contract was procured, but a sole-source or "
+         "emergency award is a legitimate, documented procurement vehicle. It is not maverick spend."),
         ("Timing test applied to every row",
          "Every conversion listed has its contract awarded AFTER the Exhibit B request. Matches where the "
          "contract already existed are excluded - those are not conversions."),
@@ -239,15 +245,15 @@ def tab_summary(wb, proof, res):
 def tab_proof(wb, proof):
     ws = wb.create_sheet("Verified Conversions")
     banner(ws, "VERIFIED CONVERSIONS - MAVERICK SPEND NOW UNDER CONTRACT",
-           "Each row is one Exhibit B item proven to have moved onto an awarded contract. "
-           "The Proof column states the evidence.", 12)
+           "Each row is one Exhibit B item proven to have moved onto an awarded contract - "
+           "all are wins. The Proof column states the evidence.", 11)
     df = proof.drop(columns=["Sourcing Key"])
     ws.cell(row=4, column=1, value="EXHIBIT B SIDE").font = Font(name=FONT, bold=True, size=9, color=WHITE)
     ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=6)
     ws.cell(row=4, column=1).fill = PatternFill("solid", fgColor="41B6E6")
     ws.cell(row=4, column=1).alignment = Alignment(horizontal="center")
     ws.cell(row=4, column=7, value="AWARDED CONTRACT SIDE").font = Font(name=FONT, bold=True, size=9, color=WHITE)
-    ws.merge_cells(start_row=4, start_column=7, end_row=4, end_column=12)
+    ws.merge_cells(start_row=4, start_column=7, end_row=4, end_column=11)
     ws.cell(row=4, column=7).fill = PatternFill("solid", fgColor=GREEN)
     ws.cell(row=4, column=7).alignment = Alignment(horizontal="center")
 
@@ -257,17 +263,17 @@ def tab_proof(wb, proof):
     ws.cell(row=tr, column=2, value="TOTAL")
     ws.cell(row=tr, column=4, value=f"=SUM(D6:D{end})").number_format = "#,##0"
     ws.cell(row=tr, column=5, value=f"=SUM(E6:E{end})").number_format = MONEY
-    for cc in range(1, 13):
+    for cc in range(1, 12):
         c = ws.cell(row=tr, column=cc)
         c.fill = PatternFill("solid", fgColor=RED)
         c.font = Font(name=FONT, bold=True, size=10, color=WHITE)
         c.border = BOX
     for rw in range(6, end + 1):
-        cc = ws.cell(row=rw, column=11)
-        cc.font = Font(name=FONT, size=9, bold=True, color=GREEN if cc.value == "YES" else AMBER)
+        cc = ws.cell(row=rw, column=10)
+        cc.font = Font(name=FONT, size=9, bold=True, color=GREEN)
         cc.alignment = Alignment(horizontal="center")
     widths(ws, {"A": 5, "B": 52, "C": 11, "D": 10, "E": 15, "F": 13, "G": 14,
-                "H": 32, "I": 12, "J": 15, "K": 12, "L": 30})
+                "H": 32, "I": 12, "J": 17, "K": 30})
     for rw in range(6, end + 1):
         ws.row_dimensions[rw].height = 42
     ws.freeze_panes = "A6"
@@ -320,7 +326,7 @@ def tab_backing(wb, res, aw, proof):
         "Award Date": a["AWDDATE"],
         "Award Amount": a["AMOUNT"],
         "Procurement Type": a["PROCUREMENT_TYPE"].map(s),
-        "Competitive": a["COMPETITIVE"].map(lambda x: "YES" if x else "NO"),
+        "Contract Type": a["CONTRACT_TYPE"].map(s),
     })
     ws.cell(row=start2 - 1, column=1,
             value=f"SECTION 2 - AWARDED CONTRACTS THEY LANDED ON ({len(aw_df)} contracts)").font = \
@@ -350,8 +356,8 @@ def main():
     print(f"{len(proof)} verified conversions | "
           f"{int(proof['Exhibit B Reqs'].sum())} requisitions | "
           f"${proof['Exhibit B Spend'].sum():,.2f}")
-    print(f"competitive {int((proof['Competitive?']=='YES').sum())} | "
-          f"non-competitive {int((proof['Competitive?']=='NO').sum())}")
+    print("award methods: " + ", ".join(
+        f"{k} {v}" for k, v in proof["Award Method"].value_counts().items()))
     print(f"Wrote {out}")
 
 
