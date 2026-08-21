@@ -1167,9 +1167,9 @@ def _render_spend_report(res: dict) -> None:
     # Adjustable savings assumptions — live recompute (no re-classification).
     # Must run BEFORE anything that reads savings, so the whole report reflects the change.
     if sv and sv.get("identified") and has_amt and b.get("_work") is not None:
-        with st.expander("⚙️ Savings assumptions — drag to adjust the rates (updates the whole report live)"):
-            st.caption("Defaults are conservative, commonly-cited ranges (see Sources & Methodology "
-                       "below). Adjusting these recomputes the savings only — classification is not re-run.")
+        with st.expander("⚙️ Change the savings rates (updates the whole report instantly)"):
+            st.caption("These are conservative starting estimates (see “What these numbers mean” at "
+                       "the bottom). Slide them and the report updates — nothing is re-classified.")
             new_rates = _savings_sliders(sv.get("rates", {}))
         if _rates_differ(new_rates, sv.get("rates", {})):
             with st.spinner("Recomputing savings…"):
@@ -1185,27 +1185,28 @@ def _render_spend_report(res: dict) -> None:
     for ln in b["es"]["lines"]:
         st.markdown(f"- {ln}")
 
-    # Savings hero — the money, front and center
+    # Savings hero — the money, front and center, in plain words
     if sv and sv.get("identified") and has_amt:
-        st.markdown("### 💡 Savings Opportunity")
+        st.markdown("### 💡 How much we could save")
         h = st.columns(4)
-        h[0].metric("Addressable spend", _fmt_money(sv["addressable"]), f"{sv['addressable_pct']}% of total")
-        h[1].metric("Identified savings", _fmt_money(sv["identified"]), f"{sv['identified_pct_addr']}% of addressable")
-        h[2].metric("Hard (cashable)", _fmt_money(sv["hard"]))
-        h[3].metric("Cost avoidance", _fmt_money(sv["avoidance"]))
+        h[0].metric("Spend we can combine", _fmt_money(sv["addressable"]), f"{sv['addressable_pct']}% of total")
+        h[1].metric("Estimated savings", _fmt_money(sv["identified"]))
+        h[2].metric("Cash savings", _fmt_money(sv["hard"]), help="Money that comes back to the budget")
+        h[3].metric("Avoided costs", _fmt_money(sv["avoidance"]), help="Money we keep from spending later")
         h2 = st.columns(3)
-        h2[0].metric("Annualized", _fmt_money(sv["annual_identified"]) + " /yr")
-        h2[1].metric("3-year projection", _fmt_money(sv["three_year"]))
-        h2[2].metric("Opportunities", f"{sv['n_opportunities']:,}")
+        h2[0].metric("Each year", _fmt_money(sv["annual_identified"]))
+        h2[1].metric("Over 3 years", _fmt_money(sv["three_year"]))
+        h2[2].metric("Things to combine", f"{sv['n_opportunities']:,}")
         try:
             st.image(sr.savings_split_png(sv["hard"], sv["avoidance"]), use_container_width=True)
         except Exception:  # noqa: BLE001
             pass
-        st.caption("Planning estimates on **addressable** spend — hard (cashable) savings + cost "
-                   "avoidance. Rates and full basis are in **Sources & Methodology** at the bottom.")
+        st.caption("These are estimates you can change with the ⚙️ control above. **Cash savings** = "
+                   "money back in the budget; **avoided costs** = money we keep from spending later. "
+                   "Plain-language definitions are in **What these numbers mean** at the bottom.")
 
     if b["es"]["steps"]:
-        st.markdown("**Recommended actions (ranked by savings):**")
+        st.markdown("**What to do first (most savings at the top):**")
         for i, s in enumerate(b["es"]["steps"], 1):
             st.markdown(f"{i}. {s}")
 
@@ -1226,10 +1227,10 @@ def _render_spend_report(res: dict) -> None:
     # Top Consolidation Opportunities — the prescriptive core
     opps = b.get("opps")
     if opps is not None and len(opps):
-        st.markdown("### 🎯 Top Consolidation Opportunities")
-        st.caption("Each fragmented commodity with its **addressable spend**, the benchmark **rate** "
-                   "applied, estimated **hard savings + cost avoidance**, and a plain-English "
-                   "**recommended action**. Sorted by total savings.")
+        st.markdown("### 🎯 What to combine")
+        st.caption("Each item the city buys from more than one vendor or department — how much is "
+                   "spent, the estimated **cash savings + avoided costs**, and **what to do**. "
+                   "Biggest savings first.")
         st.dataframe(_style_opps_df(opps), use_container_width=True, hide_index=True)
 
     # Spend by category
@@ -1375,36 +1376,37 @@ def _render_spend_report(res: dict) -> None:
 
 def _render_sources_methodology(savings=None) -> None:
     st.markdown("---")
-    st.markdown("### 📚 Sources & Methodology")
-    st.caption("Where the math and the benchmark rates come from, who uses them, and the honest limits.")
-    with st.expander("Open Sources & Methodology", expanded=False):
+    st.markdown("### 📚 What these numbers mean")
+    st.caption("Plain-language definitions, where the estimates come from, who uses this approach, and the limits.")
+    with st.expander("Open — what these numbers mean & where they come from", expanded=False):
         for heading, lines in getattr(sr, "SOURCES_SECTIONS", []):
             st.markdown(f"**{heading}**")
             for ln in lines:
                 st.markdown(f"- {ln}")
         rates = (savings or {}).get("rates") if savings else None
-        st.markdown("**Rates used in this report** (adjustable)")
-        st.table(pd.DataFrame(sr.savings_rate_card(rates), columns=["Lever", "Rate"]))
-        st.markdown("**Reference organizations & sources**")
+        st.markdown("**Savings rates used** (you can change these on the page)")
+        st.table(pd.DataFrame(sr.savings_rate_card(rates), columns=["Rule", "Rate"]))
+        st.markdown("**Where this comes from (real sources)**")
         for name, url, note in getattr(sr, "SOURCES_REFERENCES", []):
             st.markdown(f"- [{name}]({url}) — {note}")
-        st.caption("Specific savings percentages are this tool's transparent planning assumptions, "
-                   "calibrated to conservative, commonly-cited ranges — not figures attributed to any "
-                   "single proprietary report. Calibrate them to your agency's realized savings.")
+        st.caption("The savings percentages are transparent starting estimates in conservative, "
+                   "commonly-cited ranges — not figures taken from any one report. Adjust them to "
+                   "match what the city actually realizes over time.")
 
 
 def _style_opps_df(df):
-    """Format the Top Consolidation Opportunities table for on-screen display."""
+    """Format the What-to-combine table for on-screen display."""
     df = _arrow_safe(df)
-    money_cols = [c for c in ["Addressable Spend", "Est. Total Savings", "Hard Savings",
-                              "Cost Avoidance"] if c in df.columns]
+    money_cols = [c for c in [getattr(sr, "COL_SPEND", ""), getattr(sr, "COL_TOTAL", ""),
+                              getattr(sr, "COL_HARD", ""), getattr(sr, "COL_AVOID", "")]
+                  if c and c in df.columns]
     fmt = {}
     for c in df.columns:
         if c in money_cols:
             fmt[c] = "${:,.0f}"
         elif "%" in str(c):
             fmt[c] = "{:.1f}%"
-        elif c in ("Vendors", "Departments"):
+        elif c in (getattr(sr, "COL_VENDORS", "Vendors"), getattr(sr, "COL_DEPTS", "Departments")):
             fmt[c] = "{:,.0f}"
     try:
         return df.style.format(fmt, na_rep="—")
@@ -1663,29 +1665,27 @@ def page_spend_report_methodology() -> None:
                "one the data supports and skips the rest.")
     _spend_report_methods_table()
 
-    st.subheader("Savings & cost avoidance — how the money is estimated")
+    st.subheader("How the savings are estimated (in plain words)")
     st.markdown(
-        "The report leads with a **Savings Opportunity Summary**. The math is deliberately simple "
-        "and transparent:\n"
-        "- **Addressable spend** = the spend on commodities that are *fragmented* — bought from more "
-        "than one vendor and/or across more than one department. Single-source and single-department "
-        "spend is **not** addressable. Savings are only ever applied to addressable spend.\n"
-        "- **Estimated savings = addressable spend × a benchmark rate**, where the rate rewards "
-        "fragmentation: **+3% per additional vendor + 2% per additional department, capped at 15%** "
-        "(all adjustable). Tail-spend consolidation adds a **5%** lever.\n"
-        "- Each identified opportunity is split into **hard (cashable) savings** and **cost "
-        "avoidance** — default **40% / 60%** — because industry practice is to report the two "
-        "separately (hard reduces the budget; cost avoidance prevents future cost).\n"
-        "- Figures are **annualized** (÷ the years the data spans) and shown as a **3-year "
-        "projection**.\n"
-        "- Every rate is a **live slider** on the Spend Report page (⚙️ *Savings assumptions*): "
-        "drag it and the whole report — headline, recommendations, opportunities table, charts, "
-        "and the Excel download — recomputes instantly, without re-classifying the file.\n\n"
-        "**These are planning estimates, not realized savings** — the addressable spend is computed "
-        "exactly from your data, but the savings *percentage* is a transparent, adjustable "
-        "assumption. Your files carry totals, not unit price × quantity, so this is not "
-        "price-variance math. The full basis, the definitions, and real reference sources are on "
-        "the **Sources & Methodology** section of the Spend Report (and its own tab in the Excel)."
+        "The report leads with **How much we could save**. It's deliberately simple:\n"
+        "- **Spend we can combine** = the money spent buying the *same thing from more than one "
+        "vendor and/or department*. Anything bought from a single vendor in a single department is "
+        "left out. (We measure this straight from your data — we do **not** assume a percentage.)\n"
+        "- **Estimated savings = that combinable spend × a savings rate**, where the rate grows the "
+        "more spread-out the buying is: **+3% for each extra vendor + 2% for each extra department, "
+        "capped at 15%** (all adjustable). Combining many tiny vendors adds a **5%** lever.\n"
+        "- Savings are shown as **cash savings** (money back in the budget) and **avoided costs** "
+        "(money we keep from spending later) — default **40% / 60%** — because finance treats them "
+        "differently. (The procurement terms are *hard savings* and *cost avoidance*.)\n"
+        "- Figures are shown **per year** and as an **over-3-years** total.\n"
+        "- Every rate is a **live slider** (⚙️): drag it and the whole report — the headline, the "
+        "what-to-do list, the what-to-combine table, the charts, and the Excel download — updates "
+        "instantly, without re-reading the file.\n\n"
+        "**These are estimates to guide where to look first, not guaranteed savings.** The spend we "
+        "can combine is measured exactly from your data; the *percentage* is an adjustable estimate. "
+        "Files carry totals, not unit prices, so this isn't an exact price comparison. Plain-language "
+        "definitions and real sources are in **What these numbers mean** on the Spend Report (and its "
+        "own tab in the Excel)."
     )
 
     st.subheader("How the numbers are calculated (no black box)")
@@ -1722,9 +1722,9 @@ def page_spend_report_methodology() -> None:
         "- **Spend by Dimension** = `sum(amount)` grouped by any categorical column found "
         "(contract flag, diversity, status). Contract/diversity flags are recognized and "
         "labeled automatically.\n"
-        "- **Top Consolidation Opportunities** = each fragmented commodity with its addressable "
-        "spend, the benchmark rate applied, estimated **hard savings + cost avoidance**, and a "
-        "recommended action (see *Savings & cost avoidance* above).\n"
+        "- **What to combine** = each item bought from more than one vendor/department, with the "
+        "spend that can be combined, the rate applied, estimated **cash savings + avoided costs**, "
+        "and what to do (see *How the savings are estimated* above).\n"
         "- **Coverage** = how many rows matched a specific commodity rule directly vs. were "
         "assigned to their closest category (best-fit). This is the report's honesty check."
     )
@@ -1778,14 +1778,14 @@ def _spend_report_methods_table() -> None:
             </thead>
             <tbody>
               <tr style="background:{CHI_LT_BLUE};">
-                <td style="padding:8px 10px;"><strong>Savings Opportunity Summary</strong></td>
-                <td style="padding:8px 10px;">Addressable spend, identified savings split into hard (cashable) + cost avoidance, by type, annualized and 3-year projection.</td>
-                <td style="padding:8px 10px;">The headline — how much is on the table and how much is cashable.</td>
+                <td style="padding:8px 10px;"><strong>How much we could save</strong></td>
+                <td style="padding:8px 10px;">Spend we can combine, estimated savings split into cash savings + avoided costs, per year and over 3 years.</td>
+                <td style="padding:8px 10px;">The headline — how much is on the table and how much is cash.</td>
               </tr>
               <tr>
-                <td style="padding:8px 10px;"><strong>Top Consolidation Opportunities</strong></td>
-                <td style="padding:8px 10px;">Each fragmented commodity with addressable $, rate, hard + cost-avoidance savings, and a recommended action.</td>
-                <td style="padding:8px 10px;">What to consolidate first, and the math behind it.</td>
+                <td style="padding:8px 10px;"><strong>What to combine</strong></td>
+                <td style="padding:8px 10px;">Each item bought from many vendors/departments, with the estimated cash savings + avoided costs and what to do.</td>
+                <td style="padding:8px 10px;">What to combine first, and the plain math behind it.</td>
               </tr>
               <tr style="background:{CHI_LT_BLUE};">
                 <td style="padding:8px 10px;"><strong>Summary tiles</strong></td>

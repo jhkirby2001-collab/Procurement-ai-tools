@@ -564,6 +564,23 @@ DEFAULT_SAVINGS_RATES = {
 }
 
 
+# Plain-English column labels for the opportunities table (leadership-friendly).
+# The technical terms (addressable spend, cost avoidance, spend under management) live
+# in the "What these terms mean" note and the Sources & Methodology tab.
+COL_ITEM = "Item / service"
+COL_CATEGORY = "Category"
+COL_MATCHED = "Matched by"
+COL_ISSUE = "Why it's an opportunity"
+COL_VENDORS = "Vendors"
+COL_DEPTS = "Departments"
+COL_SPEND = "Spend we can combine"
+COL_RATE = "Savings rate %"
+COL_TOTAL = "Estimated savings"
+COL_HARD = "Cash savings"
+COL_AVOID = "Avoided costs"
+COL_ACTION = "What to do"
+
+
 def _commodity_group(df, desc_col, item_col="NIGP_Item_5digit", class_col="NIGP_Class_3digit"):
     """Return (key, level, normalized_desc): group by NIGP 5-digit item, else 3-digit
     class, else the normalized description — so the same commodity groups together."""
@@ -604,61 +621,60 @@ def consolidation_opportunities(df, desc_col, amount_col, vendor_col=None, dept_
         return None
     work["_amt"] = clean_amount(work[amount_col]).fillna(0.0)
 
-    g = work.groupby("_key").agg(**{"Addressable Spend": ("_amt", "sum"),
+    g = work.groupby("_key").agg(**{COL_SPEND: ("_amt", "sum"),
                                     "Transactions": ("_amt", "size")})
-    g["Commodity"] = work.groupby("_key")["_desc"].agg(
+    g[COL_ITEM] = work.groupby("_key")["_desc"].agg(
         lambda s: s.mode().iat[0] if len(s.mode()) else (s.iloc[0] if len(s) else ""))
-    g["Grouped by"] = work.groupby("_key")["_level"].first()
+    g[COL_MATCHED] = work.groupby("_key")["_level"].first()
     if has_ven:
-        g["Vendors"] = work.groupby("_key")[vendor_col].nunique()
+        g[COL_VENDORS] = work.groupby("_key")[vendor_col].nunique()
     if has_dep:
-        g["Departments"] = work.groupby("_key")[dept_col].nunique()
+        g[COL_DEPTS] = work.groupby("_key")[dept_col].nunique()
     if "Business_Category" in work:
-        g["Business Category"] = work.groupby("_key")["Business_Category"].agg(
+        g[COL_CATEGORY] = work.groupby("_key")["Business_Category"].agg(
             lambda s: s.mode().iat[0] if len(s.mode()) else "")
 
     frag = pd.Series(False, index=g.index)
-    if "Vendors" in g:
-        frag = frag | (g["Vendors"] >= 2)
-    if "Departments" in g:
-        frag = frag | (g["Departments"] >= 2)
+    if COL_VENDORS in g:
+        frag = frag | (g[COL_VENDORS] >= 2)
+    if COL_DEPTS in g:
+        frag = frag | (g[COL_DEPTS] >= 2)
     g = g[frag]
     if not len(g):
         return None
 
-    vv = (g["Vendors"] - 1).clip(lower=0) if "Vendors" in g else 0
-    dd = (g["Departments"] - 1).clip(lower=0) if "Departments" in g else 0
+    vv = (g[COL_VENDORS] - 1).clip(lower=0) if COL_VENDORS in g else 0
+    dd = (g[COL_DEPTS] - 1).clip(lower=0) if COL_DEPTS in g else 0
     rate = (r["per_vendor"] * vv + r["per_dept"] * dd).clip(upper=r["cap"])
     hf = r["hard_fraction"]
-    total_sav = (g["Addressable Spend"] * rate).round(0)
-    g["Savings Rate %"] = (rate * 100).round(1)
-    g["Est. Total Savings"] = total_sav
-    g["Hard Savings"] = (total_sav * hf).round(0)
-    g["Cost Avoidance"] = (total_sav * (1 - hf)).round(0)
+    total_sav = (g[COL_SPEND] * rate).round(0)
+    g[COL_RATE] = (rate * 100).round(1)
+    g[COL_TOTAL] = total_sav
+    g[COL_HARD] = (total_sav * hf).round(0)
+    g[COL_AVOID] = (total_sav * (1 - hf)).round(0)
 
     def _opp(row):
-        mv = ("Vendors" in g) and row.get("Vendors", 0) >= 2
-        md = ("Departments" in g) and row.get("Departments", 0) >= 2
-        return ("Multi-vendor & cross-department" if (mv and md)
-                else "Multi-vendor" if mv else "Cross-department" if md else "")
+        mv = (COL_VENDORS in g) and row.get(COL_VENDORS, 0) >= 2
+        md = (COL_DEPTS in g) and row.get(COL_DEPTS, 0) >= 2
+        return ("Many vendors & departments" if (mv and md)
+                else "Many vendors" if mv else "Many departments" if md else "")
 
     def _action(row):
         bits = []
-        if ("Vendors" in g) and row.get("Vendors", 0) >= 2:
-            bits.append(f"{int(row['Vendors'])} vendors")
-        if ("Departments" in g) and row.get("Departments", 0) >= 2:
-            bits.append(f"{int(row['Departments'])} departments")
+        if (COL_VENDORS in g) and row.get(COL_VENDORS, 0) >= 2:
+            bits.append(f"{int(row[COL_VENDORS])} vendors")
+        if (COL_DEPTS in g) and row.get(COL_DEPTS, 0) >= 2:
+            bits.append(f"{int(row[COL_DEPTS])} departments")
         frag_txt = " across ".join(bits) if bits else "multiple sources"
-        return (f"Consolidate “{str(row['Commodity'])[:48]}” ({frag_txt}) onto a single "
-                "competitively-bid agreement; aggregate demand and standardize specifications.")
+        return (f"Combine “{str(row[COL_ITEM])[:48]}” (bought from {frag_txt}) into one contract "
+                "so the city buys it at a single, better price.")
 
-    g["Opportunity"] = g.apply(_opp, axis=1)
-    g["Recommended Action"] = g.apply(_action, axis=1)
-    g = g.sort_values("Est. Total Savings", ascending=False).head(top_n).reset_index(drop=True)
-    order = [c for c in ["Commodity", "Business Category", "Grouped by", "Opportunity",
-                         "Vendors", "Departments", "Addressable Spend", "Savings Rate %",
-                         "Est. Total Savings", "Hard Savings", "Cost Avoidance",
-                         "Recommended Action"] if c in g.columns]
+    g[COL_ISSUE] = g.apply(_opp, axis=1)
+    g[COL_ACTION] = g.apply(_action, axis=1)
+    g = g.sort_values(COL_TOTAL, ascending=False).head(top_n).reset_index(drop=True)
+    order = [c for c in [COL_ITEM, COL_CATEGORY, COL_MATCHED, COL_ISSUE, COL_VENDORS, COL_DEPTS,
+                         COL_SPEND, COL_RATE, COL_TOTAL, COL_HARD, COL_AVOID, COL_ACTION]
+             if c in g.columns]
     return g[order]
 
 
@@ -668,11 +684,11 @@ def savings_summary(opps, tiles, tail=None, rates=None, years=1):
     hf = r["hard_fraction"]
     total_spend = float(tiles.get("total_spend") or 0.0)
     has_opps = opps is not None and len(opps)
-    addressable = float(opps["Addressable Spend"].sum()) if has_opps else 0.0
-    identified = float(opps["Est. Total Savings"].sum()) if has_opps else 0.0
-    hard = float(opps["Hard Savings"].sum()) if has_opps else 0.0
-    avoidance = float(opps["Cost Avoidance"].sum()) if has_opps else 0.0
-    by_type = (opps.groupby("Opportunity")["Est. Total Savings"].sum().round(0).to_dict()
+    addressable = float(opps[COL_SPEND].sum()) if has_opps else 0.0
+    identified = float(opps[COL_TOTAL].sum()) if has_opps else 0.0
+    hard = float(opps[COL_HARD].sum()) if has_opps else 0.0
+    avoidance = float(opps[COL_AVOID].sum()) if has_opps else 0.0
+    by_type = (opps.groupby(COL_ISSUE)[COL_TOTAL].sum().round(0).to_dict()
                if has_opps else {})
     tail_addr = float(tail["tail_value"]) if tail else 0.0
     tail_total = round(tail_addr * r["tail"]) if tail else 0.0
@@ -711,20 +727,33 @@ def savings_rate_card(rates=None):
     r = {**DEFAULT_SAVINGS_RATES, **(rates or {})}
     hp = int(round(r["hard_fraction"] * 100))
     return [
-        ("Per additional vendor on a commodity", f"+{int(r['per_vendor'] * 100)}% of addressable spend"),
-        ("Per additional department buying it", f"+{int(r['per_dept'] * 100)}% of addressable spend"),
-        ("Maximum rate per opportunity (cap)", f"{int(r['cap'] * 100)}%"),
-        ("Tail-spend consolidation", f"{int(r['tail'] * 100)}% of tail spend"),
-        ("Hard (cashable) share of identified savings", f"{hp}% (remainder {100 - hp}% = cost avoidance)"),
+        ("Each extra vendor buying the same item adds", f"+{int(r['per_vendor'] * 100)}% of that spend"),
+        ("Each extra department buying it adds", f"+{int(r['per_dept'] * 100)}% of that spend"),
+        ("Most we ever count for one item (cap)", f"{int(r['cap'] * 100)}%"),
+        ("Combining many small vendors", f"{int(r['tail'] * 100)}% of that spend"),
+        ("Share counted as cash savings", f"{hp}% (the other {100 - hp}% is avoided costs)"),
     ]
 
 
 SOURCES_SECTIONS = [
-    ("What this analysis does", [
-        "It measures ADDRESSABLE spend — the portion realistically influenceable through "
-        "consolidation — and estimates the savings from acting on it. Addressable spend is "
-        "computed directly from your data; the savings percentage is a transparent, adjustable "
-        "planning assumption, not a figure pulled from your invoices.",
+    ("In plain words", [
+        "This report finds where the city buys the same thing from more than one vendor or in more "
+        "than one department, and estimates what combining that buying could save. The amount that "
+        "could be combined is measured directly from your data; the savings percentage is an "
+        "adjustable estimate you can change on the page — not a number pulled from your invoices.",
+        "“Cash savings” = money that comes back to the budget. “Avoided costs” = money you keep from "
+        "spending later. We show both, because finance treats them differently.",
+    ]),
+    ("What the technical terms mean (for the detail-minded)", [
+        "Addressable spend — the part of total spend that procurement can influence, source, or "
+        "negotiate. It means spend you CAN act on; it does NOT mean spend that is already optimized.",
+        "Spend under management — the part of addressable spend that is already actively sourced or "
+        "under contract (i.e., already being managed). This is the “already-optimized” idea.",
+        "Non-addressable spend — costs procurement cannot control (payroll, taxes, regulated fees, "
+        "grants/pass-through). These are excluded from savings targets.",
+        "In this tool, to stay simple and accurate, we don’t assume a percentage for addressable "
+        "spend. We measure the specific slice that can be combined (bought from more than one vendor "
+        "or department) straight from your data, and call it “spend we can combine.”",
     ]),
     ("The methods used here, and who uses them", [
         "Spend analysis / the “spend cube” — grouping spend by commodity, supplier, and "
@@ -742,19 +771,19 @@ SOURCES_SECTIONS = [
         "Supplier concentration (HHI) — the Herfindahl-Hirschman Index, from antitrust economics "
         "(US DOJ / FTC), applied here to measure reliance on a few suppliers.",
     ]),
-    ("Addressable-spend methodology", [
-        "Savings are applied ONLY to addressable spend — commodities that are fragmented across "
-        "more than one vendor and/or department — never to total spend. Single-vendor, "
-        "single-department, and sole-source spend is treated as non-addressable.",
+    ("How we size the opportunity", [
+        "Savings are applied ONLY to the spend that can be combined — items bought from more than "
+        "one vendor and/or department — never to total spend. Anything bought from a single vendor "
+        "in a single department is left out.",
     ]),
-    ("Hard savings vs cost avoidance", [
-        "Hard (cashable) savings reduce the budget against a baseline — real, measurable dollars. "
-        "Cost avoidance prevents or defers future cost (negotiated reductions vs market, avoided "
-        "increases, process/administrative savings). Industry guidance is to report the two "
-        "separately so finance can see what was reduced vs prevented.",
-        "This report splits each identified opportunity into a hard portion and a cost-avoidance "
-        "portion (default 40% / 60%, adjustable). The split is a planning convention, not a "
-        "realized result.",
+    ("Cash savings vs avoided costs", [
+        "Cash savings reduce the budget against a baseline — real, measurable dollars (the "
+        "procurement term is “hard savings”). Avoided costs prevent or defer future cost — "
+        "negotiated reductions vs market, avoided increases, less admin work (the term is “cost "
+        "avoidance”). Guidance is to report the two separately so finance sees what was reduced vs "
+        "prevented.",
+        "This report splits each opportunity into a cash portion and an avoided-cost portion "
+        "(default 40% / 60%, adjustable). The split is a planning convention, not a realized result.",
     ]),
     ("Where the benchmark rates come from", [
         "The rates are conservative, commonly-cited strategic-sourcing / consolidation ranges. "
@@ -772,11 +801,11 @@ SOURCES_SECTIONS = [
         "and advisory firms use the same spend-analysis → consolidation → savings approach.",
     ]),
     ("Honest limits", [
-        "Your file carries total amounts, not unit price × quantity, so this is NOT price-variance "
-        "(actual overpayment) math — it is an addressable-spend, benchmark-rate estimate. Adding "
-        "unit price and quantity would enable true price-variance savings.",
-        "Estimates are only as good as the classification and the rates. Review the opportunities "
-        "and adjust the rates before presenting any hard-dollar commitment.",
+        "Your file has total amounts, not unit price × quantity, so this is not an exact "
+        "overpayment calculation — it is an estimate based on how spread-out the buying is and the "
+        "adjustable rates. Adding unit price and quantity would allow exact price comparisons.",
+        "Estimates are only as good as the categorization and the rates. Review the opportunities "
+        "and set the rates before presenting any firm dollar commitment.",
     ]),
 ]
 
@@ -1077,21 +1106,20 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
     headline_val = _money_text(tiles.get("total_spend")) if has_amt else f"{tiles['transactions']:,} transactions"
     if savings and savings.get("identified", 0) > 0:
         lines.append(
-            f"Bottom line: of the {headline_val} analyzed, "
-            f"{_money_text(savings['addressable'])} ({savings['addressable_pct']}%) is addressable "
-            f"through consolidation, representing an estimated {_money_text(savings['identified'])} "
-            f"in total savings ({savings['identified_pct_addr']}% of addressable) across "
-            f"{savings['n_opportunities']} opportunities — split into "
-            f"{_money_text(savings['hard'])} hard (cashable) savings and "
-            f"{_money_text(savings['avoidance'])} cost avoidance. Annualized that is about "
-            f"{_money_text(savings['annual_identified'])} per year, or "
-            f"{_money_text(savings['three_year'])} over three years. Figures are planning estimates "
-            "using the rates and definitions on the Sources & Methodology tab.")
+            f"Bottom line: of the {headline_val} reviewed, about {_money_text(savings['addressable'])} "
+            f"is spent buying the same things from more than one vendor or department. Combining that "
+            f"buying could save roughly {_money_text(savings['identified'])} — about "
+            f"{_money_text(savings['hard'])} back in the budget (cash savings) and "
+            f"{_money_text(savings['avoidance'])} in avoided future costs — across "
+            f"{savings['n_opportunities']} opportunities. That is about "
+            f"{_money_text(savings['annual_identified'])} a year, or "
+            f"{_money_text(savings['three_year'])} over three years. These are estimates; you can "
+            "change the savings rates on the page and see them update.")
     else:
         lines.append(
-            f"Bottom line: of the {headline_val} analyzed, spend concentrates in a handful of "
+            f"Bottom line: of the {headline_val} reviewed, spend concentrates in a handful of "
             "categories" + (" and a short list of vendors" if (vend is not None and len(vend)) else "")
-            + ". The fastest wins are consolidating the most fragmented commodities and vendors.")
+            + ". The fastest wins are combining the same buys made across many vendors and departments.")
 
     parts = []
     if has_amt:
@@ -1123,14 +1151,15 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
     if opps is not None and len(opps):
         for _, o in opps.head(3).iterrows():
             steps.append(
-                f"{o['Recommended Action']} → est. {_money_text(o['Est. Total Savings'])} total "
-                f"savings on {_money_text(o['Addressable Spend'])} addressable ({o['Savings Rate %']}%): "
-                f"{_money_text(o['Hard Savings'])} hard + {_money_text(o['Cost Avoidance'])} cost avoidance.")
+                f"{o[COL_ACTION]} → about {_money_text(o[COL_TOTAL])} in estimated savings "
+                f"({_money_text(o[COL_HARD])} cash + {_money_text(o[COL_AVOID])} avoided) on "
+                f"{_money_text(o[COL_SPEND])} of combinable spend.")
     if savings and savings.get("tail_total", 0) > 0:
         steps.append(
-            f"Consolidate the long tail of small vendors → est. {_money_text(savings['tail_total'])} "
-            f"total ({_money_text(savings['tail_hard'])} hard + {_money_text(savings['tail_avoidance'])} "
-            f"cost avoidance) on {_money_text(savings['tail_addressable'])} of tail spend "
+            f"Combine the many small vendors that add up to little spend → about "
+            f"{_money_text(savings['tail_total'])} in estimated savings "
+            f"({_money_text(savings['tail_hard'])} cash + {_money_text(savings['tail_avoidance'])} "
+            f"avoided) on {_money_text(savings['tail_addressable'])} of that spread-out spending "
             f"({int(savings['rates']['tail'] * 100)}%).")
 
     if cons is not None and len(cons):
@@ -1192,23 +1221,23 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
     # Explicit, ranked list of the top cost-avoidance opportunities (each with the math).
     consolidation_items = []
     if opps is not None and len(opps):
-        has_v = "Vendors" in opps.columns
-        has_d = "Departments" in opps.columns
+        has_v = COL_VENDORS in opps.columns
+        has_d = COL_DEPTS in opps.columns
         for _, r in opps.head(10).iterrows():
             bits = []
-            if has_v and int(r.get("Vendors", 0)) >= 2:
-                bits.append(f"{int(r['Vendors'])} vendors")
-            if has_d and int(r.get("Departments", 0)) >= 2:
-                bits.append(f"{int(r['Departments'])} depts")
+            if has_v and int(r.get(COL_VENDORS, 0)) >= 2:
+                bits.append(f"{int(r[COL_VENDORS])} vendors")
+            if has_d and int(r.get(COL_DEPTS, 0)) >= 2:
+                bits.append(f"{int(r[COL_DEPTS])} depts")
             consolidation_items.append({
-                "item": str(r.get("Commodity", ""))[:70],
-                "category": str(r.get("Business Category", "")),
+                "item": str(r.get(COL_ITEM, ""))[:70],
+                "category": str(r.get(COL_CATEGORY, "")),
                 "detail": ", ".join(bits),
-                "addressable": _money_text(r["Addressable Spend"]),
-                "rate": f"{r['Savings Rate %']}%",
-                "total": _money_text(r["Est. Total Savings"]),
-                "hard": _money_text(r["Hard Savings"]),
-                "avoidance": _money_text(r["Cost Avoidance"]),
+                "addressable": _money_text(r[COL_SPEND]),
+                "rate": f"{r[COL_RATE]}%",
+                "total": _money_text(r[COL_TOTAL]),
+                "hard": _money_text(r[COL_HARD]),
+                "avoidance": _money_text(r[COL_AVOID]),
             })
 
     return {"lines": lines, "steps": steps, "consolidation_items": consolidation_items}
@@ -1340,20 +1369,20 @@ def line_png(x_labels, values, title, value_label="Spend ($)"):
     return _fig_png(fig)
 
 
-def savings_split_png(hard, avoidance, title="Estimated Savings — Hard vs Cost Avoidance"):
-    """Single stacked bar showing hard (cashable) vs cost-avoidance split."""
+def savings_split_png(hard, avoidance, title="Estimated Savings — Cash vs Avoided Costs"):
+    """Single stacked bar showing cash savings vs avoided-costs split."""
     plt = _plt()
     from matplotlib.ticker import FuncFormatter
     fig, ax = plt.subplots(figsize=(8, 2.2))
-    ax.barh([0], [hard], color=CHART_GREEN, edgecolor="#1a1a1a", linewidth=0.4, label="Hard (cashable)", zorder=3)
+    ax.barh([0], [hard], color=CHART_GREEN, edgecolor="#1a1a1a", linewidth=0.4, label="Cash savings", zorder=3)
     ax.barh([0], [avoidance], left=[hard], color=CHART_BLUE, edgecolor="#1a1a1a", linewidth=0.4,
-            label="Cost avoidance", zorder=3)
+            label="Avoided costs", zorder=3)
     total = hard + avoidance
     if hard:
-        ax.text(hard / 2, 0, f"Hard\n{_money_fmt(hard)}", va="center", ha="center", fontsize=9,
+        ax.text(hard / 2, 0, f"Cash savings\n{_money_fmt(hard)}", va="center", ha="center", fontsize=9,
                 color="white", fontweight="bold")
     if avoidance:
-        ax.text(hard + avoidance / 2, 0, f"Cost avoidance\n{_money_fmt(avoidance)}", va="center",
+        ax.text(hard + avoidance / 2, 0, f"Avoided costs\n{_money_fmt(avoidance)}", va="center",
                 ha="center", fontsize=9, color="#0b3d5c", fontweight="bold")
     ax.set_xlim(0, total * 1.02 if total else 1)
     ax.set_yticks([])
@@ -1625,22 +1654,22 @@ def _write_savings_sheet(ws, savings, has_amt):
     t.alignment = Alignment(vertical="center", indent=1)
     ws.row_dimensions[2].height = 34
     ws.merge_cells("B3:G3")
-    ws["B3"].value = ("Addressable-spend methodology · benchmark rates · hard (cashable) savings + "
-                      "cost avoidance — planning estimates, see Sources & Methodology")
+    ws["B3"].value = ("How much the city could save by buying the same things together — "
+                      "estimates you can adjust (see Sources & Methodology)")
     ws["B3"].font = Font(size=10, italic=True, color=NAVY)
     if not savings or not has_amt or not savings.get("identified"):
-        ws["B5"].value = ("Savings modeling needs an amount column plus a vendor or department "
-                          "column, and at least one fragmented commodity.")
+        ws["B5"].value = ("Savings needs an amount column plus a vendor or department column, and at "
+                          "least one item bought from more than one vendor or department.")
         ws["B5"].font = Font(size=12, color=RED)
         return
     s = savings
     tiles_data = [
-        ("Total spend", _money_text(s["total_spend"]), NAVY),
-        ("Addressable", f"{_money_text(s['addressable'])} ({s['addressable_pct']}%)", NAVY),
-        ("Identified savings", _money_text(s["identified"]), RED),
-        ("Hard (cashable)", _money_text(s["hard"]), GREEN),
-        ("Cost avoidance", _money_text(s["avoidance"]), TEAL),
-        ("Per year", _money_text(s["annual_identified"]), NAVY),
+        ("Total spend reviewed", _money_text(s["total_spend"]), NAVY),
+        ("Spend we can combine", f"{_money_text(s['addressable'])} ({s['addressable_pct']}%)", NAVY),
+        ("Estimated savings", _money_text(s["identified"]), RED),
+        ("Cash savings", _money_text(s["hard"]), GREEN),
+        ("Avoided costs", _money_text(s["avoidance"]), TEAL),
+        ("Each year", _money_text(s["annual_identified"]), NAVY),
     ]
     col = 2
     for label, val, color in tiles_data:
@@ -1655,15 +1684,15 @@ def _write_savings_sheet(ws, savings, has_amt):
         col += 1
     ws.merge_cells("B8:G8")
     c = ws["B8"]
-    c.value = (f"Three-year projection: {_money_text(s['three_year'])}   ·   "
-               f"{s['n_opportunities']} consolidation opportunities   ·   {s['years']} year(s) of data")
+    c.value = (f"Over three years: {_money_text(s['three_year'])}   ·   "
+               f"{s['n_opportunities']} things we could combine   ·   {s['years']} year(s) of data")
     c.font = Font(size=12, bold=True, color=RED)
     _embed_png(ws, savings_split_png(s["hard"], s["avoidance"]), "B10")
 
     row = 24
-    ws.cell(row=row, column=2, value="Estimated savings by opportunity type").font = Font(size=12, bold=True, color=NAVY)
+    ws.cell(row=row, column=2, value="Estimated savings by reason").font = Font(size=12, bold=True, color=NAVY)
     row += 1
-    for j, htxt in ((2, "Opportunity type"), (3, "Est. total savings")):
+    for j, htxt in ((2, "Reason it's an opportunity"), (3, "Estimated savings")):
         hc = ws.cell(row=row, column=j, value=htxt)
         hc.font = Font(bold=True, color=WHITE)
         hc.fill = PatternFill("solid", fgColor=NAVY)
@@ -1674,12 +1703,12 @@ def _write_savings_sheet(ws, savings, has_amt):
         mc.number_format = '$#,##0'
         row += 1
     if s.get("tail_total"):
-        ws.cell(row=row, column=2, value="Tail-spend consolidation (additional lever)")
+        ws.cell(row=row, column=2, value="Combining many small vendors (extra)")
         mc = ws.cell(row=row, column=3, value=s["tail_total"])
         mc.number_format = '$#,##0'
         row += 1
     row += 1
-    ws.cell(row=row, column=2, value="Rates applied (adjustable — see Sources & Methodology)").font = Font(size=11, bold=True, color=NAVY)
+    ws.cell(row=row, column=2, value="Savings rates used (you can change these)").font = Font(size=11, bold=True, color=NAVY)
     row += 1
     for label, val in savings_rate_card(s.get("rates")):
         ws.cell(row=row, column=2, value=label).font = Font(size=10)
@@ -1688,9 +1717,9 @@ def _write_savings_sheet(ws, savings, has_amt):
     row += 1
     ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
     n = ws.cell(row=row, column=2, value=(
-        "Figures are planning estimates — a cashable hard portion plus cost avoidance — applied to "
-        "addressable spend only, not realized savings and not price-variance (your file has totals, "
-        "not unit prices). See the Sources & Methodology tab for the full basis."))
+        "These are estimates to help decide where to look first — part is money back in the budget "
+        "(cash savings) and part is cost we avoid later (avoided costs). They are based on the amount "
+        "spent, not on unit prices. The exact terms and sources are on the Sources & Methodology tab."))
     n.font = Font(size=9, italic=True, color=GRAY)
     n.alignment = Alignment(wrap_text=True, vertical="top")
     ws.row_dimensions[row].height = 42
@@ -2086,12 +2115,11 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
         if s_opps:
             ws = wb[s_opps]
             ocols = list(opps_tbl.columns)
-            money_c = [c for c in ["Addressable Spend", "Est. Total Savings", "Hard Savings",
-                                   "Cost Avoidance"] if c in ocols]
-            int_c = [c for c in ["Vendors", "Departments"] if c in ocols]
-            pct_c = [c for c in ["Savings Rate %"] if c in ocols]
-            wrap_c = [c for c in ["Commodity", "Recommended Action"] if c in ocols]
-            _style_data_sheet(ws, "Top Consolidation Opportunities — estimated hard savings + cost avoidance",
+            money_c = [c for c in [COL_SPEND, COL_TOTAL, COL_HARD, COL_AVOID] if c in ocols]
+            int_c = [c for c in [COL_VENDORS, COL_DEPTS] if c in ocols]
+            pct_c = [c for c in [COL_RATE] if c in ocols]
+            wrap_c = [c for c in [COL_ITEM, COL_ACTION] if c in ocols]
+            _style_data_sheet(ws, "What to combine — estimated cash savings + avoided costs",
                 opps_tbl, money_cols=money_c, int_cols=int_c, pct_cols=pct_c,
                 total_cols=money_c, add_total=True, wrap_cols=wrap_c)
 
