@@ -207,41 +207,40 @@ def build():
         col_widths_cm=[4.2, 7.3, 5.0],
     )
 
-    # ------------------------------------------------------------ 3b. Savings & cost avoidance
-    add_h1(doc, "4.  Savings & cost avoidance — how the money is estimated")
+    # ------------------------------------------------------------ 3b. How much we could save
+    add_h1(doc, "4.  How much we could save — in plain words")
     add_callout_box(
         doc,
-        label="THE FORMULA (SAME ONE, EVERY OPPORTUNITY)",
+        label="THE SIMPLE IDEA",
         body_text=(
-            "Estimated savings = ADDRESSABLE spend × a benchmark rate. Addressable spend is the "
-            "spend on commodities that are fragmented — bought from more than one vendor and/or "
-            "across more than one department. Single-source, single-department spend is not "
-            "addressable. The rate rewards fragmentation: +3% per additional vendor + 2% per "
-            "additional department, capped at 15%; tail-spend consolidation adds a 5% lever. Every "
-            "rate is adjustable in the app."
+            "The report finds where the city buys the same thing from more than one vendor or "
+            "department, and estimates what buying it together could save. Estimated savings = the "
+            "spend we can combine × a savings rate. The rate grows the more spread-out the buying "
+            "is: +3% for each extra vendor + 2% for each extra department, capped at 15%; combining "
+            "many tiny vendors adds a 5% lever. Every rate is adjustable in the app."
         ),
     )
     add_bullet(
         doc,
-        "Hard (cashable) savings reduce the budget against a baseline; cost avoidance prevents or "
-        "defers future cost. Each identified opportunity is split into both — default 40% hard / "
-        "60% cost avoidance — because finance expects the two reported separately.",
-        bold_lead="Hard vs cost avoidance",
+        "Cash savings = money that comes back to the budget. Avoided costs = money we keep from "
+        "spending later. Each opportunity is split into both — default 40% cash / 60% avoided — "
+        "because finance treats them differently. (The procurement terms are “hard savings” and "
+        "“cost avoidance.”)",
+        bold_lead="Cash savings vs avoided costs",
     )
     add_bullet(
         doc,
-        "The Savings Opportunity Summary leads the report: addressable spend, identified savings "
-        "(hard + cost avoidance), a breakdown by opportunity type, the annualized figure, and a "
-        "3-year projection. The Top Consolidation Opportunities table lists each fragmented "
-        "commodity with its addressable spend, rate, estimated savings, and a recommended action.",
+        "“How much we could save” leads the report: the spend we can combine, the estimated savings "
+        "(cash + avoided), the amount per year, and the 3-year total. “What to combine” lists each "
+        "item bought from many vendors/departments with its estimated savings and what to do.",
         bold_lead="Where it appears",
     )
     add_body(
         doc,
-        "These are planning estimates, not realized savings. The addressable spend is computed "
-        "exactly from your data; the savings percentage is a transparent, adjustable assumption. "
-        "Your files carry totals, not unit price × quantity, so this is not price-variance math. "
-        "The full basis and real reference sources are on the Sources & Methodology tab.",
+        "These are estimates to show where to look first, not guaranteed savings. The spend we can "
+        "combine is measured exactly from your data; the percentage is an adjustable estimate. Files "
+        "carry totals, not unit prices, so this is not an exact price comparison. The plain-language "
+        "definitions and real sources are on the Sources & Methodology tab.",
     )
 
     # ------------------------------------------------------------ 4b. Every row in a real category
