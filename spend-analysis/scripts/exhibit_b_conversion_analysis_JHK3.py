@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Exhibit B -> Awarded Contract Conversion Analysis
+Maverick Spend Conversion Tracker - Full Analysis
 ==================================================
 Measures whether non-contract ("maverick") Exhibit B spend was successfully
-moved onto a competitively awarded contract during the reporting period.
+moved onto an awarded contract during the reporting period.
+
+Headline metric: Contract Conversion Rate (CCR) - verified converted spend as
+a percentage of all Exhibit B spend in the period.
 
 Two gates are scored, not one:
     Gate 1 - did the spend exit Exhibit B onto an awarded contract?
@@ -351,8 +354,8 @@ def tab_exec(wb, res, se, aw, period):
     NROWS = len(res)
     ws = wb.create_sheet("Executive Summary")
     widths(ws, {"A": 3, "B": 52, "C": 20, "D": 20, "E": 58})
-    title_block(ws, "EXHIBIT B CONVERSION TO AWARDED CONTRACT",
-                f"Did non-contract (maverick) spend move onto a competitively awarded contract?   |   {period}", 5)
+    title_block(ws, "MAVERICK SPEND CONVERSION TRACKER",
+                f"Did non-contract (maverick) Exhibit B spend move onto an awarded contract?   |   {period}", 5)
 
     r = 4
     ws.cell(row=r, column=2, value="THE BOTTOM LINE").font = Font(name=FONT, bold=True, size=12, color=NAVY)

@@ -1,4 +1,6 @@
-# Exhibit B → Awarded Contract Conversion Analysis
+# Maverick Spend Conversion Tracker
+
+*Exhibit B → awarded contract conversion. Headline metric: **Contract Conversion Rate (CCR)**.*
 
 **Status:** complete and delivered (2026-08-21). Paused, safe to resume.
 **Branch:** `claude/exhibit-b-consolidation-nqvtak`
@@ -6,6 +8,17 @@
 
 Answers one question: **did non-contract ("maverick") Exhibit B spend actually move
 onto an awarded contract this year — and can we prove it?**
+
+## Naming (settled 2026-08-21)
+
+| | Name | Used where |
+|---|---|---|
+| **Project** | Maverick Spend Conversion Tracker | Repo, docs, workbook titles — public-facing and vendor-neutral |
+| **Metric** | **Contract Conversion Rate (CCR)** | Leadership decks, quarterly reporting — the number that gets quoted |
+
+"Exhibit B" is internal jargon and this repo is public, so it stays in subtitles and in the
+workbook body where it correctly labels the *source data* — never as the project name.
+The quotable sentence is: *"CCR for 2026 year to date is 0.33% — $175K of $53.5M."*
 
 ---
 
@@ -19,7 +32,7 @@ onto an awarded contract this year — and can we prove it?**
 | Distinct contracts landed on | **6** |
 | Award methods | 6 BID · 1 EMERGENCY · 1 SOLE SOURCE |
 | **Total Exhibit B spend, Jan 5 – Aug 20 2026** | **$53,461,392.14** (730 reqs) |
-| **Converted as % of total** | **0.33%** |
+| **Contract Conversion Rate (CCR)** | **0.33%** |
 | **Still bought outside a contract** | **$53,286,158.23 — 99.67%** |
 | Ratio | $305 of Exhibit B spend for every $1 moved onto a contract |
 
@@ -143,8 +156,8 @@ with matching amounts, none denied, every award dated after its Exhibit B, all 6
 requisition-ID claims confirmed in both systems, all summary cells tie. Clean recalc.
 
 Natural expansions:
-1. **Quarterly re-run** as a standing KPI — scripts take a new source as argv[1]; the
-   0.33% becomes a trend line.
+1. **Quarterly re-run** as a standing KPI — scripts take a new source as argv[1]; CCR
+   becomes a trend line rather than a single reading.
 2. **Close the loop on the tracking failure** — carry the Exhibit B requisition number
    forward onto the award record so conversion becomes measurable automatically. This is
    the highest-value fix and it is a process change, not an analytics one.

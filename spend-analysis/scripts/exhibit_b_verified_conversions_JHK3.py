@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Exhibit B -> Awarded Contract: Verified Conversions
-====================================================
+Maverick Spend Conversion Tracker - Verified Conversions
+=========================================================
 Strips the analysis down to one question: which Exhibit B (maverick) spend
 provably moved onto an awarded contract, and what is the evidence?
+
+Headline metric: Contract Conversion Rate (CCR) - verified converted spend as
+a percentage of all Exhibit B spend in the period.
 
 Only conversions that can be independently proven are included:
   - the award is linked to the Exhibit B by requisition ID, or by vendor
@@ -153,8 +156,9 @@ def tab_summary(wb, proof, res):
     ws = wb.create_sheet("Summary")
     widths(ws, {"A": 3, "B": 46, "C": 20, "D": 62})
     eb_lo, eb_hi = res["EB_Date"].min(), res["EB_Date"].max()
-    banner(ws, "EXHIBIT B SPEND VERIFIED AS MOVED TO AN AWARDED CONTRACT",
-           f"Exhibit B activity {eb_lo:%b %-d} - {eb_hi:%b %-d, %Y}   |   "
+    banner(ws, "MAVERICK SPEND CONVERSION TRACKER",
+           f"Exhibit B spend verified as moved onto an awarded contract   |   "
+           f"{eb_lo:%b %-d} - {eb_hi:%b %-d, %Y}   |   "
            f"only conversions that can be independently proven", 4)
     n = len(proof)
     last = 5 + n  # proof table data rows live at rows 6..(5+n) on the proof tab
@@ -195,7 +199,8 @@ def tab_summary(wb, proof, res):
          "Individual Exhibit B requisitions rolled into those items. Two carry a $0 amount, "
          "so 20 of the 22 contribute dollars - the spend total is unaffected"),
         ("Maverick spend eliminated", f'=SUM({P}$E$6:$E${last})', MONEY,
-         "Exhibit B dollars now covered by an awarded contract"),
+         "Exhibit B dollars now covered by an awarded contract. As a share of all Exhibit B "
+         "spend this is the Contract Conversion Rate (CCR) - see the Verified Conversions tab"),
         # Distinct count without array functions: each value contributes 1/(its occurrence count).
         ("Distinct contracts they landed on",
          f'=SUMPRODUCT(1/COUNTIF({P}$G$6:$G${last},{P}$G$6:$G${last}))', "#,##0",
@@ -372,6 +377,20 @@ def context_block(ws, total_row, last_data_row):
     for cc in range(2, 4):
         ws.cell(row=r, column=cc).border = BOX
         ws.cell(row=r, column=cc).fill = PatternFill("solid", fgColor=TINT)
+    r += 1
+    ws.cell(row=r, column=2,
+            value="CONTRACT CONVERSION RATE (CCR), 2026 year to date").font = \
+        Font(name=FONT, bold=True, size=11, color=WHITE)
+    ws.cell(row=r, column=2).fill = PatternFill("solid", fgColor=NAVY)
+    ws.cell(row=r, column=2).alignment = Alignment(vertical="center", indent=1)
+    ccr = ws.cell(row=r, column=3, value=f"=C{conv_r}/C{tot_r}")
+    ccr.number_format = "0.00%"
+    ccr.font = Font(name=FONT, bold=True, size=14, color=WHITE)
+    ccr.fill = PatternFill("solid", fgColor=NAVY)
+    ccr.alignment = Alignment(horizontal="center", vertical="center")
+    for cc in range(2, 4):
+        ws.cell(row=r, column=cc).border = BOX
+    ws.row_dimensions[r].height = 24
     r += 2
 
     for text, italic, size in [
