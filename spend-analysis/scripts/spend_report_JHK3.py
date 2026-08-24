@@ -962,6 +962,8 @@ def plan_analyses(profile: dict) -> list:
     def add(key, label, ok, why=""):
         plan.append({"key": key, "label": label, "feasible": bool(ok), "reason": why})
 
+    add("savings", "Savings Opportunity — what to combine, and what it's worth", amt,
+        "" if amt else "no amount column")
     add("category", "Spend by Business Category", True)
     add("pareto", "Pareto 80/20", True)
     add("top_vendors", "Top Vendors", has("vendor"), "" if has("vendor") else "no vendor column")
@@ -988,8 +990,38 @@ def plan_analyses(profile: dict) -> list:
         sub = r.get("dimension_subtypes", {}).get(dim)
         label = {"contract": f"Contract vs Non-Contract ({dim})",
                  "diversity": f"Supplier Diversity ({dim})"}.get(sub, f"Spend by {dim}")
-        add(f"dim::{dim}", label, True)
+        # Keyed by LABEL, not the raw column: compute_all derives the same label
+        # from the same formula, so picker keys and produced sheets line up.
+        add(f"dim::{label}", label, True)
     return plan
+
+
+# ---------------------------------------------------------------------------
+# Which analyses land in the report
+# ---------------------------------------------------------------------------
+# The reader picks the analyses; the tool still COMPUTES all of them. The savings
+# figures are derived from the consolidation analysis, so gating the maths on a
+# checkbox would make the headline move depending on which boxes were ticked --
+# a number nobody could defend. Selection therefore controls presentation only.
+#
+# These two are produced on every report and cannot be switched off: the summary
+# is the point of the report, and the sources tab is what makes its numbers
+# defensible when someone challenges them.
+ALWAYS_ON = ("Executive Summary", "Sources & Methodology")
+
+# Pre-ticked on a fresh report: the lean starter set. Everything else is offered
+# but off, so the default download is a short workbook rather than everything.
+DEFAULT_ANALYSES = ("savings", "category", "pareto", "top_vendors")
+
+# More than this many selected sheets and the workbook earns a Contents tab.
+CONTENTS_THRESHOLD = 4
+
+
+def default_selection(plan) -> list:
+    """The pre-ticked analyses for a plan — the lean set, minus anything this
+    file cannot support."""
+    feasible = {p["key"] for p in plan if p["feasible"]}
+    return [k for k in DEFAULT_ANALYSES if k in feasible]
 
 
 # ---------------------------------------------------------------------------
@@ -1027,6 +1059,8 @@ def tail_spend(df, vendor_col, amount_col=None):
             "tail_vendors": total_v - top_v,
             "tail_pct_of_vendors": round((total_v - top_v) / total_v * 100, 1) if total_v else 0.0,
             "tail_value": tail_val,
+            "core_value": grand - tail_val,
+            "total_value": grand,
             "tail_pct_of_value": round(tail_val / grand * 100, 1) if grand else 0.0,
             "measure": measure}
 
@@ -1252,11 +1286,31 @@ CHART_RED = "#DA291C"
 CHART_GREEN = "#2E7D32"
 CHART_GRAY = "#6B7280"
 
+# Categorical series palette for multi-series charts (the Category x Department
+# stack). Anchored on the brand blues but stepped so the set passes the six
+# colour checks on a white chart surface: lightness band, chroma floor, adjacent
+# CVD separation (worst pair dE 8.6), normal-vision separation (15.4) and 3:1
+# contrast. Assigned in this FIXED order and never cycled -- past the eighth
+# series the remainder folds into "Other" (CHART_NEUTRAL), which is a residual
+# bucket rather than an identity, so it is deliberately the one low-chroma slot.
+# Eight slots is not arbitrary: the category x department pivot caps at eight
+# departments, so the common case is named in full and never needs "Other".
+# Brand red is NOT in this list: it stays reserved for alerts and highlights.
+CHART_SERIES = ["#1F5FA8", "#B8860B", "#159BD7", "#B03060",
+                "#6A4C93", "#A6572E", "#00A0AF", "#2E7D32"]
+CHART_NEUTRAL = "#8A8D91"
+MAX_SERIES = len(CHART_SERIES)
+
 
 def _plt():
     """Lazy matplotlib import (Agg backend) so the module loads even without it."""
     import matplotlib
     matplotlib.use("Agg")
+    # Money labels are full of dollar signs, and a label carrying two of them
+    # ("$1.8M · from $12.1M spend") would otherwise be read as mathtext and
+    # rendered as italic maths with the spaces eaten. No chart here uses
+    # mathtext, so switch the parsing off everywhere.
+    matplotlib.rcParams["text.parse_math"] = False
     import matplotlib.pyplot as plt
     return plt
 
@@ -1286,8 +1340,11 @@ def _short(labels, n=32):
 
 
 def barh_png(labels, values, title, value_label="Spend ($)", money=True,
-             color=CHART_NAVY, highlight_idx=None):
-    """Horizontal bar chart, largest at top, with data labels and a readable axis."""
+             color=CHART_NAVY, highlight_idx=None, notes=None):
+    """Horizontal bar chart, largest at top, with data labels and a readable axis.
+
+    notes: optional per-bar strings appended to the data label (e.g. "4 vendors"),
+    so a bar carries its magnitude AND the count that makes it an opportunity."""
     plt = _plt()
     from matplotlib.ticker import FuncFormatter
     labels = _short(labels)
@@ -1314,9 +1371,12 @@ def barh_png(labels, values, title, value_label="Spend ($)", money=True,
         ax.spines[s].set_color("#9AA0A6")
     vmax = max(values) if len(values) and max(values) else 1
     for i, v in enumerate(values):
-        ax.text(v + vmax * 0.01, i, _money_fmt(v) if money else f"{v:,.0f}",
+        txt = _money_fmt(v) if money else f"{v:,.0f}"
+        if notes and i < len(notes) and notes[i]:
+            txt = f"{txt}  ·  {notes[i]}"
+        ax.text(v + vmax * 0.01, i, txt,
                 va="center", ha="left", fontsize=8.5, color="#222")
-    ax.set_xlim(0, vmax * 1.16)
+    ax.set_xlim(0, vmax * (1.34 if notes else 1.16))
     fig.tight_layout()
     return _fig_png(fig)
 
@@ -1369,31 +1429,251 @@ def line_png(x_labels, values, title, value_label="Spend ($)"):
     return _fig_png(fig)
 
 
-def savings_split_png(hard, avoidance, title="Estimated Savings — Cash vs Avoided Costs"):
-    """Single stacked bar showing cash savings vs avoided-costs split."""
+def split_bar_png(segments, title, money=True, height=2.2, total_in_title=True,
+                  value_fmt=None, show_pct=True):
+    """One horizontal bar split into labelled segments — the right form when the
+    story is "how does this one total divide?" rather than "rank these items".
+
+    segments: list of (label, value, bar_color, text_color).
+    Each segment is directly labelled, so identity never rests on colour alone."""
     plt = _plt()
     from matplotlib.ticker import FuncFormatter
-    fig, ax = plt.subplots(figsize=(8, 2.2))
-    ax.barh([0], [hard], color=CHART_GREEN, edgecolor="#1a1a1a", linewidth=0.4, label="Cash savings", zorder=3)
-    ax.barh([0], [avoidance], left=[hard], color=CHART_BLUE, edgecolor="#1a1a1a", linewidth=0.4,
-            label="Avoided costs", zorder=3)
-    total = hard + avoidance
-    if hard:
-        ax.text(hard / 2, 0, f"Cash savings\n{_money_fmt(hard)}", va="center", ha="center", fontsize=9,
-                color="white", fontweight="bold")
-    if avoidance:
-        ax.text(hard + avoidance / 2, 0, f"Avoided costs\n{_money_fmt(avoidance)}", va="center",
-                ha="center", fontsize=9, color="#0b3d5c", fontweight="bold")
+    segs = [(str(l), float(v or 0), c, t) for (l, v, c, t) in segments]
+    total = sum(v for _, v, _, _ in segs)
+    fmt = value_fmt or (_money_fmt if money else (lambda v: f"{v:,.0f}"))
+    fig, ax = plt.subplots(figsize=(8, height))
+    left = 0.0
+    for label, v, color, tcolor in segs:
+        if v <= 0:
+            continue
+        # 2px white spacer between segments keeps touching fills legible.
+        ax.barh([0], [v], left=[left], color=color, edgecolor="white",
+                linewidth=1.4, zorder=3)
+        pct = f"  ({v / total * 100:.0f}%)" if (show_pct and total) else ""
+        ax.text(left + v / 2, 0, f"{label}\n{fmt(v)}{pct}", va="center", ha="center",
+                fontsize=9, color=tcolor, fontweight="bold")
+        left += v
     ax.set_xlim(0, total * 1.02 if total else 1)
     ax.set_yticks([])
-    ax.xaxis.set_major_formatter(FuncFormatter(_money_fmt))
-    ax.set_title(f"{title}   (total {_money_fmt(total)})", fontsize=12.5, fontweight="bold",
-                 color=CHART_NAVY, pad=10, loc="left")
-    for s in ("top", "right", "left"):
-        ax.spines[s].set_visible(False)
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _p: fmt(v)))
+    head = f"{title}   (total {fmt(total)})" if total_in_title else title
+    ax.set_title(head, fontsize=12.5, fontweight="bold", color=CHART_NAVY, pad=10, loc="left")
+    for sp in ("top", "right", "left"):
+        ax.spines[sp].set_visible(False)
     ax.grid(axis="x", color="#E3E3E3", linewidth=0.6, zorder=0)
     fig.tight_layout()
     return _fig_png(fig)
+
+
+def savings_split_png(hard, avoidance, title="Estimated Savings — Cash vs Avoided Costs"):
+    """Single stacked bar showing cash savings vs avoided-costs split."""
+    return split_bar_png(
+        [("Cash savings", hard, CHART_GREEN, "white"),
+         ("Avoided costs", avoidance, CHART_BLUE, "#0b3d5c")],
+        title)
+
+
+def stacked_barh_png(labels, series, title, value_label="Spend ($)", money=True):
+    """Horizontal stacked bars — one bar per label, split by series.
+
+    series: list of (series_label, [value per label]). Hues are taken from
+    CHART_SERIES in fixed order; the caller folds any overflow into a single
+    trailing "Other …" series, which gets the neutral."""
+    plt = _plt()
+    from matplotlib.ticker import FuncFormatter
+    labels = _short(labels, 28)
+    n = len(labels)
+    if not n or not series:
+        return None
+    fig, ax = plt.subplots(figsize=(9.5, max(3.0, 0.5 * n + 2.0)))
+    ypos = list(range(n))
+    left = [0.0] * n
+    for i, (slabel, vals) in enumerate(series):
+        is_other = str(slabel).lower().startswith("other")
+        color = CHART_NEUTRAL if is_other else CHART_SERIES[i % MAX_SERIES]
+        vals = [float(v or 0) for v in vals]
+        ax.barh(ypos, vals, left=left, color=color, edgecolor="white",
+                linewidth=1.2, label=str(slabel), zorder=3)
+        left = [l + v for l, v in zip(left, vals)]
+    ax.set_yticks(ypos)
+    ax.set_yticklabels(labels, fontsize=9)
+    ax.invert_yaxis()
+    ax.set_xlabel(value_label, fontsize=10, color=CHART_NAVY)
+    if money:
+        ax.xaxis.set_major_formatter(FuncFormatter(_money_fmt))
+    ax.grid(axis="x", color="#D9D9D9", linewidth=0.7, zorder=0)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    for sp in ("left", "bottom"):
+        ax.spines[sp].set_color("#9AA0A6")
+    vmax = max(left) if left else 1
+    for i, v in enumerate(left):
+        ax.text(v + vmax * 0.01, i, _money_fmt(v) if money else f"{v:,.0f}",
+                va="center", ha="left", fontsize=8.5, color="#222")
+    ax.set_xlim(0, vmax * 1.16)
+    # A legend is mandatory for >= 2 series so identity is never colour-alone.
+    # It sits above the plot, so the title has to clear its rows or the two
+    # print on top of each other.
+    ncol = min(4, len(series))
+    rows = -(-len(series) // ncol)
+    ax.legend(fontsize=8, ncol=ncol, frameon=False,
+              loc="lower left", bbox_to_anchor=(0, 1.02))
+    ax.set_title(title, fontsize=13, fontweight="bold", color=CHART_NAVY,
+                 pad=14 + rows * 16, loc="left")
+    fig.tight_layout()
+    return _fig_png(fig)
+
+
+# ---------------------------------------------------------------------------
+# Per-analysis chart builders — ONE function per analysis, called by both the
+# Streamlit page and the Excel writer so the two can never drift apart.
+# Each returns PNG bytes, or None when the data cannot support a chart.
+# ---------------------------------------------------------------------------
+def _measure_col(df, measure):
+    for c in (measure, "Spend", "Transactions"):
+        if c and c in df.columns:
+            return c
+    return None
+
+
+def consolidation_png(cons, measure="Spend", value_label="Spend ($)", money=True, top=12):
+    """Most fragmented categories, annotated with how many vendors serve each."""
+    if cons is None or not len(cons):
+        return None
+    col = _measure_col(cons, measure)
+    if not col or "Business Category" not in cons.columns:
+        return None
+    d = cons.head(top)
+    notes = [f"{int(v):,} vendors" for v in d["Vendors"]] if "Vendors" in d.columns else None
+    return barh_png(d["Business Category"].tolist(), d[col].tolist(),
+                    "Most fragmented categories — bought from many vendors",
+                    value_label=value_label, money=money, notes=notes)
+
+
+def _frag_notes(d, vendor_col="Vendors", dept_col="Departments"):
+    notes = []
+    for _, row in d.iterrows():
+        bits = []
+        if vendor_col in d.columns and pd.notna(row.get(vendor_col)):
+            bits.append(f"{int(row[vendor_col]):,} vendors")
+        if dept_col in d.columns and pd.notna(row.get(dept_col)):
+            bits.append(f"{int(row[dept_col]):,} depts")
+        notes.append(" / ".join(bits))
+    return notes if any(notes) else None
+
+
+def item_consolidation_png(ic, measure="Spend", value_label="Spend ($)", money=True, top=12):
+    """The same item bought from several vendors/departments — top by spend."""
+    if ic is None or not len(ic) or "Item" not in ic.columns:
+        return None
+    col = _measure_col(ic, measure)
+    if not col:
+        return None
+    d = ic.head(top)
+    return barh_png(d["Item"].tolist(), d[col].tolist(),
+                    "Same item, multiple sources — biggest first",
+                    value_label=value_label, money=money, notes=_frag_notes(d))
+
+
+def nigp_consolidation_png(nc, money=True, top=12):
+    """The same NIGP commodity bought across several vendors/departments."""
+    if nc is None or not len(nc):
+        return None
+    col = _measure_col(nc, "Total Spend" if money else "Total Transactions")
+    if not col:
+        return None
+    label_col = DESC_VARIANTS_COL if DESC_VARIANTS_COL in nc.columns else "NIGP Code"
+    if label_col not in nc.columns:
+        return None
+    d = nc.head(top)
+    return barh_png([str(x) for x in d[label_col].tolist()], d[col].tolist(),
+                    "Same commodity (NIGP code), multiple sources",
+                    value_label="Spend ($)" if money else "Transactions", money=money,
+                    notes=_frag_notes(d, dept_col="Departments (#)"))
+
+
+def opportunities_png(opps, top=12):
+    """The ranked what-to-combine list as a chart — biggest estimated savings
+    first, each bar annotated with the spend it comes out of."""
+    if opps is None or not len(opps):
+        return None
+    if COL_TOTAL not in opps.columns or COL_ITEM not in opps.columns:
+        return None
+    d = opps.head(top)
+    notes = ([f"from {_money_fmt(v)} spend" for v in d[COL_SPEND]]
+             if COL_SPEND in d.columns else None)
+    return barh_png([str(x) for x in d[COL_ITEM].tolist()], d[COL_TOTAL].tolist(),
+                    "Biggest opportunities — estimated savings",
+                    value_label="Estimated savings ($)", money=True,
+                    color=CHART_GREEN, notes=notes)
+
+
+def tail_png(tail):
+    """Core vs tail — how much value sits with the long tail of small vendors."""
+    if not tail:
+        return None
+    money = str(tail.get("measure", "Spend")) == "Spend"
+    core = float(tail.get("core_value", 0.0))
+    tv = float(tail.get("tail_value", 0.0))
+    if core <= 0 and tv <= 0:
+        return None
+    return split_bar_png(
+        [(f"Core — {tail['vendors_to_80pct']:,} vendors", core, CHART_NAVY, "white"),
+         (f"Tail — {tail['tail_vendors']:,} vendors", tv, CHART_BLUE, "#0b3d5c")],
+        "Where the value sits — core vs tail vendors", money=money)
+
+
+def concentration_png(conc):
+    """Share held by the ten largest vendors vs everyone else."""
+    if not conc:
+        return None
+    top10 = float(conc.get("top10", 0.0))
+    rest = round(100.0 - top10, 1)
+    if top10 <= 0:
+        return None
+    others = max(int(conc.get("total_vendors", 0)) - 10, 0)
+    return split_bar_png(
+        [("Top 10 vendors", top10, CHART_NAVY, "white"),
+         (f"All other {others:,} vendors", rest, CHART_BLUE, "#0b3d5c")],
+        f"Vendor concentration — HHI {int(conc.get('hhi', 0)):,}",
+        money=False, total_in_title=False, show_pct=False,
+        value_fmt=lambda v: f"{v:.0f}%")
+
+
+def single_multi_png(sm):
+    """Value sitting in single-source vs multi-source categories."""
+    if not sm:
+        return None
+    money = bool(sm.get("has_amount"))
+    single, multi = float(sm.get("single_value", 0)), float(sm.get("multi_value", 0))
+    if single <= 0 and multi <= 0:
+        return None
+    return split_bar_png(
+        [(f"Single-source — {sm['single_categories']} categories", single, CHART_BLUE, "#0b3d5c"),
+         (f"Multi-source — {sm['multi_categories']} categories", multi, CHART_NAVY, "white")],
+        "Single- vs multi-source categories", money=money)
+
+
+def matrix_png(mat, money=True, top_cats=12):
+    """Category x department as a stacked bar — which departments buy what."""
+    if mat is None or not len(mat) or "Business Category" not in mat.columns:
+        return None
+    depts = [c for c in mat.columns if c != "Business Category"]
+    if not depts:
+        return None
+    d = mat.copy()
+    d["_tot"] = d[depts].sum(axis=1)
+    d = d.sort_values("_tot", ascending=False).head(top_cats)
+    order = d[depts].sum().sort_values(ascending=False)
+    keep = [c for c in order.index[:MAX_SERIES]]
+    rest = [c for c in depts if c not in keep]
+    series = [(str(c), d[c].tolist()) for c in keep]
+    if rest:
+        series.append((f"Other departments ({len(rest)})", d[rest].sum(axis=1).tolist()))
+    return stacked_barh_png(
+        d["Business Category"].tolist(), series,
+        "Category × Department — who buys what",
+        value_label="Spend ($)" if money else "Transactions", money=money)
 
 
 def _embed_png(ws, png_bytes, anchor_cell):
@@ -1845,6 +2125,12 @@ def _write_analytics_sheet(ws, tail, conc, sm):
                                        "consolidation targets.")
     n.font = Font(size=9, italic=True, color=GRAY)
     n.alignment = Alignment(wrap_text=True)
+    # Each figure above also gets its picture, where the data supports one.
+    row = r + 2
+    for png in (concentration_png(conc), tail_png(tail), single_multi_png(sm)):
+        if png:
+            _embed_png(ws, png, f"B{row}")
+            row += 13
 
 
 def _write_contents_sheet(ws, entries):
@@ -1909,7 +2195,10 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
                        trend_tbl=None, tail=None, concentration=None, single_multi=None,
                        matrix_tbl=None, dimensions=None, item_consol_tbl=None,
                        nigp_consol_tbl=None, savings=None, opps_tbl=None,
-                       report_title="Procurement Spend Analysis") -> str:
+                       report_title="Procurement Spend Analysis", selected=None) -> str:
+    """selected: iterable of analysis keys to include (see plan_analyses).
+    None = include everything the data supports. The Executive Summary and the
+    Sources & Methodology tab are produced either way."""
     has_amt = tiles.get("has_amount")
     measure = "Spend" if has_amt else "Transactions"
     money = ["Spend"] if has_amt else []
@@ -1923,69 +2212,85 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
 
     ylab = "Spend ($)" if has_amt else "Transactions"
 
+    sel = None if selected is None else set(selected)
+
+    def want(key):
+        """None means 'no picker was used' — produce everything (CLI behaviour)."""
+        return sel is None or key in sel
+
     with pd.ExcelWriter(path, engine="openpyxl") as xl:
-        s_cat = _safe_sheet_name("Spend by Category", used)
-        cat_tbl.to_excel(xl, sheet_name=s_cat, index=False, startrow=1)
+        s_cat = None
+        if want("category"):
+            s_cat = _safe_sheet_name("Spend by Category", used)
+            cat_tbl.to_excel(xl, sheet_name=s_cat, index=False, startrow=1)
         s_trend = None
-        if trend_tbl is not None and len(trend_tbl):
+        if want("trend") and trend_tbl is not None and len(trend_tbl):
             s_trend = _safe_sheet_name("Spend Trend", used)
             trend_tbl.to_excel(xl, sheet_name=s_trend, index=False, startrow=1)
-        s_par = _safe_sheet_name("Pareto 80-20", used)
-        pareto_tbl.to_excel(xl, sheet_name=s_par, index=False, startrow=1)
+        s_par = None
+        if want("pareto"):
+            s_par = _safe_sheet_name("Pareto 80-20", used)
+            pareto_tbl.to_excel(xl, sheet_name=s_par, index=False, startrow=1)
         s_ven = None
-        if vendors_tbl is not None:
+        if want("top_vendors") and vendors_tbl is not None:
             s_ven = _safe_sheet_name("Top Vendors", used)
             vendors_tbl.to_excel(xl, sheet_name=s_ven, index=False, startrow=1)
         s_dep = None
-        if dept_tbl is not None:
+        if want("department") and dept_tbl is not None:
             s_dep = _safe_sheet_name("Spend by Department", used)
             dept_tbl.to_excel(xl, sheet_name=s_dep, index=False, startrow=1)
         s_mat = None
-        if matrix_tbl is not None and len(matrix_tbl):
+        if want("matrix") and matrix_tbl is not None and len(matrix_tbl):
             s_mat = _safe_sheet_name("Category x Dept Matrix", used)
             matrix_tbl.to_excel(xl, sheet_name=s_mat, index=False, startrow=1)
         s_con = None
-        if consolidation_tbl is not None:
+        if want("consolidation") and consolidation_tbl is not None:
             s_con = _safe_sheet_name("Consolidation", used)
             consolidation_tbl.to_excel(xl, sheet_name=s_con, index=False, startrow=1)
         s_item = None
-        if item_consol_tbl is not None and len(item_consol_tbl):
+        if want("item_consolidation") and item_consol_tbl is not None and len(item_consol_tbl):
             s_item = _safe_sheet_name("Same Item - Vendors_Depts", used)
             item_consol_tbl.to_excel(xl, sheet_name=s_item, index=False, startrow=1)
         s_nigp = None
-        if nigp_consol_tbl is not None and len(nigp_consol_tbl):
+        if want("nigp_consolidation") and nigp_consol_tbl is not None and len(nigp_consol_tbl):
             s_nigp = _safe_sheet_name("Same Commodity NIGP - Vendors_Depts", used)
             nigp_consol_tbl.to_excel(xl, sheet_name=s_nigp, index=False, startrow=1)
         s_opps = None
-        if opps_tbl is not None and len(opps_tbl):
+        if want("savings") and opps_tbl is not None and len(opps_tbl):
             s_opps = _safe_sheet_name("Top Consolidation Opportunities", used)
             opps_tbl.to_excel(xl, sheet_name=s_opps, index=False, startrow=1)
         dim_sheets = []
         for label, dfd in (dimensions or []):
-            if dfd is None or not len(dfd):
+            if dfd is None or not len(dfd) or not want(f"dim::{label}"):
                 continue
             snm = _safe_sheet_name(label, used)
             dfd.to_excel(xl, sheet_name=snm, index=False, startrow=1)
             dim_sheets.append((snm, label, dfd))
+
+        # Vendor Analytics is one sheet fed by three analyses — include whichever
+        # were selected, and drop the sheet entirely if none were.
+        an_tail = tail if want("tail") else None
+        an_conc = concentration if want("concentration") else None
+        an_sm = single_multi if want("single_multi") else None
+        has_analytics = bool(an_tail or an_conc or an_sm)
 
         wb = xl.book
         es = wb.create_sheet("Executive Summary", 0)
         _write_exec_summary(es, report_title, tiles, cov, exec_summary)
         # Savings Opportunity Summary — the hero — right after the executive summary.
         s_save = None
-        if savings and has_amt and savings.get("identified"):
+        if want("savings") and savings and has_amt and savings.get("identified"):
             sv = wb.create_sheet("Savings Opportunity Summary", 1)
             _write_savings_sheet(sv, savings, has_amt)
             s_save = "Savings Opportunity Summary"
-        contents_idx = 2 if s_save else 1
-        analytics_idx = contents_idx + 1
-        # Contents
+        next_idx = 2 if s_save else 1
+        # Contents earns its place only once the workbook is long enough to need it.
         entries = [("Executive Summary", _TAB_WHY["Executive Summary"])]
         if s_save:
             entries.append(("Savings Opportunity Summary", _TAB_WHY["Savings Opportunity Summary"]))
         if s_opps:
             entries.append((s_opps, _TAB_WHY["Top Consolidation Opportunities"]))
-        if tail or concentration or single_multi:
+        if has_analytics:
             entries.append(("Vendor Analytics", _TAB_WHY["Vendor Analytics"]))
         for snm, key in [(s_cat, "Spend by Category"), (s_trend, "Spend Trend"),
                          (s_par, "Pareto 80-20"), (s_ven, "Top Vendors"),
@@ -1995,14 +2300,16 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
             if snm:
                 entries.append((snm, _TAB_WHY[key]))
         for snm, label, _dfd in dim_sheets:
-            entries.append((snm, f"Spend broken down by “{label}” — e.g., on- vs off-contract, "
+            entries.append((snm, f"Spend broken down by \u201c{label}\u201d — e.g., on- vs off-contract, "
                                  "supplier diversity, or process status, depending on the column."))
         entries.append(("Sources & Methodology", _TAB_WHY["Sources & Methodology"]))
-        contents = wb.create_sheet("Contents", contents_idx)
-        _write_contents_sheet(contents, entries)
-        if tail or concentration or single_multi:
-            an = wb.create_sheet("Vendor Analytics", analytics_idx)
-            _write_analytics_sheet(an, tail, concentration, single_multi)
+        if len(entries) > CONTENTS_THRESHOLD:
+            contents = wb.create_sheet("Contents", next_idx)
+            _write_contents_sheet(contents, entries)
+            next_idx += 1
+        if has_analytics:
+            an = wb.create_sheet("Vendor Analytics", next_idx)
+            _write_analytics_sheet(an, an_tail, an_conc, an_sm)
         # Sources & Methodology — always last.
         src = wb.create_sheet("Sources & Methodology")
         _write_sources_sheet(src, savings.get("rates") if savings else None)
@@ -2010,14 +2317,15 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
         def _below(dl):
             return f"A{dl + 3}"
 
-        ws = wb[s_cat]
-        hr, df1, dl = _style_data_sheet(ws, "Spend by Business Category", cat_tbl,
-            money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
-            total_cols=[measure] + (["Transactions"] if has_amt else []),
-            wrap_cols=[EXAMPLES_COL])
-        _embed_png(ws, barh_png(cat_tbl["Business Category"].tolist(), cat_tbl[measure].tolist(),
-                                f"{measure} by Business Category", value_label=ylab, money=has_amt),
-                   _below(dl))
+        if s_cat:
+            ws = wb[s_cat]
+            hr, df1, dl = _style_data_sheet(ws, "Spend by Business Category", cat_tbl,
+                money_cols=money, pct_cols=["% of Total"], int_cols=["Transactions"],
+                total_cols=[measure] + (["Transactions"] if has_amt else []),
+                wrap_cols=[EXAMPLES_COL])
+            _embed_png(ws, barh_png(cat_tbl["Business Category"].tolist(), cat_tbl[measure].tolist(),
+                                    f"{measure} by Business Category", value_label=ylab, money=has_amt),
+                       _below(dl))
 
         if s_trend:
             ws = wb[s_trend]
@@ -2027,13 +2335,14 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
             _embed_png(ws, line_png(trend_tbl["Year"].tolist(), trend_tbl[measure].tolist(),
                                     f"{measure} by Year", value_label=ylab), _below(dl))
 
-        ws = wb[s_par]
-        hr, df1, dl = _style_data_sheet(ws, "Pareto 80/20 (classified spend)", pareto_tbl,
-            money_cols=money, pct_cols=["% of Total", "Cumulative %"], int_cols=["Transactions"], add_total=False)
-        _pcat = "Group" if "Group" in pareto_tbl.columns else pareto_tbl.columns[0]
-        _embed_png(ws, pareto_png(pareto_tbl[_pcat].tolist(), pareto_tbl[measure].tolist(),
-                                  pareto_tbl["Cumulative %"].tolist(), "Pareto 80/20", value_label=ylab),
-                   _below(dl))
+        if s_par:
+            ws = wb[s_par]
+            hr, df1, dl = _style_data_sheet(ws, "Pareto 80/20 (classified spend)", pareto_tbl,
+                money_cols=money, pct_cols=["% of Total", "Cumulative %"], int_cols=["Transactions"], add_total=False)
+            _pcat = "Group" if "Group" in pareto_tbl.columns else pareto_tbl.columns[0]
+            _embed_png(ws, pareto_png(pareto_tbl[_pcat].tolist(), pareto_tbl[measure].tolist(),
+                                      pareto_tbl["Cumulative %"].tolist(), "Pareto 80/20", value_label=ylab),
+                       _below(dl))
 
         if s_ven:
             ws = wb[s_ven]
@@ -2055,22 +2364,27 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
 
         if s_mat:
             ws = wb[s_mat]
-            _style_data_sheet(ws, "Category × Department Matrix", matrix_tbl,
+            hr, df1, dl = _style_data_sheet(ws, "Category × Department Matrix", matrix_tbl,
                 money_cols=[c for c in matrix_tbl.columns if c != "Business Category"], add_total=False)
+            _embed_png(ws, matrix_png(matrix_tbl, money=has_amt), _below(dl))
 
         if s_con:
             ws = wb[s_con]
             int_c = [c for c in ["Vendors", "Transactions", "Departments"] if c in consolidation_tbl.columns]
-            _style_data_sheet(ws, "Vendor Consolidation / Fragmentation", consolidation_tbl,
+            hr, df1, dl = _style_data_sheet(ws, "Vendor Consolidation / Fragmentation", consolidation_tbl,
                 money_cols=money, int_cols=int_c,
                 total_cols=(["Spend", "Transactions"] if has_amt else ["Transactions"]))
+            _embed_png(ws, consolidation_png(consolidation_tbl, measure, ylab, money=has_amt),
+                       _below(dl))
 
         if s_item:
             ws = wb[s_item]
             int_c = [c for c in ["Vendors", "Departments", "Transactions"] if c in item_consol_tbl.columns]
             wrap_c = [c for c in ["Item", ITEM_VENDORS_COL, ITEM_DEPTS_COL] if c in item_consol_tbl.columns]
-            _style_data_sheet(ws, "Same Item — Multiple Vendors / Departments", item_consol_tbl,
+            hr, df1, dl = _style_data_sheet(ws, "Same Item — Multiple Vendors / Departments", item_consol_tbl,
                 money_cols=money, int_cols=int_c, add_total=False, wrap_cols=wrap_c)
+            _embed_png(ws, item_consolidation_png(item_consol_tbl, measure, ylab, money=has_amt),
+                       _below(dl))
 
         if s_nigp:
             from openpyxl.styles import Alignment, Font, PatternFill
@@ -2111,6 +2425,7 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
                     vc = ws.cell(row=r, column=var_idx)
                     vc.fill = PatternFill("solid", fgColor="FCE4E4")  # light-red: consolidation target
                     vc.font = Font(bold=True, color="9C1006")
+            _embed_png(ws, nigp_consolidation_png(nigp_consol_tbl, money=has_amt), _below(dlast))
 
         if s_opps:
             ws = wb[s_opps]
@@ -2119,9 +2434,10 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
             int_c = [c for c in [COL_VENDORS, COL_DEPTS] if c in ocols]
             pct_c = [c for c in [COL_RATE] if c in ocols]
             wrap_c = [c for c in [COL_ITEM, COL_ACTION] if c in ocols]
-            _style_data_sheet(ws, "What to combine — estimated cash savings + avoided costs",
+            hr, df1, dl = _style_data_sheet(ws, "What to combine — estimated cash savings + avoided costs",
                 opps_tbl, money_cols=money_c, int_cols=int_c, pct_cols=pct_c,
                 total_cols=money_c, add_total=True, wrap_cols=wrap_c)
+            _embed_png(ws, opportunities_png(opps_tbl), _below(dl))
 
         for snm, label, dfd in dim_sheets:
             ws = wb[snm]

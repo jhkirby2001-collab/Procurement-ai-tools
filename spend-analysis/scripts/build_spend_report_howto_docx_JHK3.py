@@ -156,25 +156,35 @@ def build():
     )
     add_bullet(
         doc,
-        "Click Generate spend report. (Large files show a row cap you can adjust for a fast first "
-        "look.)",
+        "Choose the analyses you need. A short list is ticked to start with — the savings "
+        "opportunity, spend by category, Pareto 80/20 and top vendors. Add any of the deeper "
+        "cuts you want; anything your file cannot support is not offered. The Executive "
+        "Summary and Sources & Methodology are always included.",
         bold_lead="4",
     )
     add_bullet(
         doc,
-        "Read the report on screen, then click Download full spend report (Excel) for the "
-        "formatted, multi-tab workbook.",
+        "Click Generate spend report. (Large files show a row cap you can adjust for a fast "
+        "first look.)",
         bold_lead="5",
+    )
+    add_bullet(
+        doc,
+        "Read the report on screen, then click Download full spend report (Excel) for the "
+        "formatted workbook — it contains exactly the analyses you selected, each with its "
+        "chart. Change the selection at any time and both update instantly.",
+        bold_lead="6",
     )
     add_callout_box(
         doc,
         label="IT ADAPTS TO THE DATA, NOT THE OTHER WAY AROUND",
         body_text=(
-            "Drop in any procurement spend file — the tool profiles what's there and runs whatever "
-            "the data supports. It never invents data it doesn't have; if a column isn't present, "
-            "the dependent analysis is skipped with a note. Your report also stays put while you "
-            "move between pages in the app — it is saved for the session until you upload a new "
-            "file or clear it."
+            "Drop in any procurement spend file — the tool profiles what's there and offers "
+            "whatever the data supports. It never invents data it doesn't have; if a column "
+            "isn't present, the dependent analysis isn't offered, with a note saying why. Your "
+            "file decides what is available; you decide what is produced. The report also stays "
+            "put while you move between pages in the app — it is saved for the session until "
+            "you upload a new file or clear it."
         ),
     )
 
@@ -182,8 +192,9 @@ def build():
     add_h1(doc, "3.  The reports it produces — and the decision each supports")
     add_body(
         doc,
-        "Which of these run depends on what your file contains. The tool includes every one the "
-        "data supports and skips the rest.",
+        "Your file decides which of these are available; you decide which are produced. Pick "
+        "only what you will use — a shorter report gets read. Every analysis you select brings "
+        "its chart with it, on screen and on its Excel tab.",
     )
     _table(
         doc,
@@ -205,6 +216,19 @@ def build():
             ["Spend by Dimension", "Breakdown by any flag (contract, diversity, status)", "Compliance & policy questions"],
         ],
         col_widths_cm=[4.2, 7.3, 5.0],
+    )
+    add_callout_box(
+        doc,
+        label="THE NUMBERS DO NOT DEPEND ON WHAT YOU TICK",
+        body_text=(
+            "Every analysis is calculated on every run, whatever you select. This is deliberate: "
+            "the savings figures are derived from the consolidation analysis, so if unticking a "
+            "box changed the maths, the headline would move depending on who was reading it — "
+            "and nobody could defend that in a budget hearing. Your selection changes what is "
+            "shown and exported, never how anything is computed. It is also why changing your "
+            "mind after the report has run costs nothing: nothing is re-classified or "
+            "recalculated, so the report and the workbook update on the spot."
+        ),
     )
 
     # ------------------------------------------------------------ 3b. How much we could save
