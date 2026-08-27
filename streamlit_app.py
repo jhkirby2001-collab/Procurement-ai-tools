@@ -1124,6 +1124,15 @@ def _build_excel_bytes(b: dict, selected=None) -> bytes:
     return buf.getvalue()
 
 
+def _md_money_safe(text) -> str:
+    """Escape dollar signs before text goes through st.markdown.
+
+    Streamlit reads a pair of $ as LaTeX, so a line like "$142,372 in savings
+    ($56,949 cash)" renders as italic maths with the spaces eaten. None of this
+    text is maths — every $ here is money."""
+    return str(text).replace("$", "\\$")
+
+
 def _safe_chart(make) -> None:
     """Draw a chart when the data supports one. Returns quietly otherwise — a
     chart that can't be drawn must never take the whole report down with it."""
@@ -1256,7 +1265,7 @@ def _render_spend_report(res: dict, selected=None) -> None:
     # Executive summary
     st.markdown("### Executive Summary")
     for ln in b["es"]["lines"]:
-        st.markdown(f"- {ln}")
+        st.markdown(f"- {_md_money_safe(ln)}")
 
     # Savings hero — the money, front and center, in plain words
     if sv and sv.get("identified") and has_amt and on("savings"):
@@ -1281,7 +1290,7 @@ def _render_spend_report(res: dict, selected=None) -> None:
     if b["es"]["steps"]:
         st.markdown("**What to do first (most savings at the top):**")
         for i, s in enumerate(b["es"]["steps"], 1):
-            st.markdown(f"{i}. {s}")
+            st.markdown(f"{i}. {_md_money_safe(s)}")
 
     # Summary tiles
     st.markdown("### Summary")
@@ -1301,9 +1310,11 @@ def _render_spend_report(res: dict, selected=None) -> None:
     opps = b.get("opps")
     if opps is not None and len(opps) and on("savings"):
         st.markdown("### 🎯 What to combine")
-        st.caption("Each item the city buys from more than one vendor or department — how much is "
-                   "spent, the estimated **cash savings + avoided costs**, and **what to do**. "
-                   "Biggest savings first.")
+        st.caption("Each item the city buys from more than one vendor or department — **which "
+                   "vendors and which departments by name**, the wordings that rolled together "
+                   "under one row, how much is spent, the estimated **cash savings + avoided "
+                   "costs**, and **what to do**. Biggest savings first. Scroll right for the "
+                   "full detail, or use the Excel tab, where every column sorts and filters.")
         st.dataframe(_style_opps_df(opps), use_container_width=True, hide_index=True)
         _safe_chart(lambda: sr.opportunities_png(opps))
 
@@ -1477,7 +1488,7 @@ def _render_sources_methodology(savings=None) -> None:
         for heading, lines in getattr(sr, "SOURCES_SECTIONS", []):
             st.markdown(f"**{heading}**")
             for ln in lines:
-                st.markdown(f"- {ln}")
+                st.markdown(f"- {_md_money_safe(ln)}")
         rates = (savings or {}).get("rates") if savings else None
         st.markdown("**Savings rates used** (you can change these on the page)")
         st.table(pd.DataFrame(sr.savings_rate_card(rates), columns=["Rule", "Rate"]))

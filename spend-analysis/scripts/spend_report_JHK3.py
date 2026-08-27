@@ -579,6 +579,41 @@ COL_TOTAL = "Estimated savings"
 COL_HARD = "Cash savings"
 COL_AVOID = "Avoided costs"
 COL_ACTION = "What to do"
+COL_VENDOR_NAMES = "Vendors (who)"
+COL_DEPT_NAMES = "Departments (who)"
+COL_OPP_VARIANTS = "Descriptions rolled up"
+
+# A count tells leadership a commodity is fragmented; the names tell them who to
+# call. Listing every supplier of a big commodity would make the cell unreadable,
+# so the list is capped -- ordered by spend, so the names that survive the cap are
+# the ones worth negotiating with first.
+OPP_NAME_CAP = 15
+OPP_VARIANT_CAP = 6
+NAME_SEP = "  ·  "
+
+
+def _names_by_key(work, key_col, name_col, amt_col, cap):
+    """For each commodity key, the distinct values of name_col ordered by spend
+    (biggest first), joined into one cell and capped with a "+N more" tail.
+
+    Spend order matters: capped at 15, the names that survive are the suppliers
+    actually worth a conversation, not whichever sorted first alphabetically."""
+    if not name_col or name_col not in work:
+        return None
+    t = (work.groupby([key_col, name_col], dropna=False)[amt_col].sum()
+             .reset_index()
+             .sort_values([key_col, amt_col], ascending=[True, False]))
+    buckets = {}
+    for k, nm in zip(t[key_col], t[name_col]):
+        nm = "" if pd.isna(nm) else str(nm).strip()
+        if nm:
+            buckets.setdefault(k, []).append(nm)
+    out = {}
+    for k, names in buckets.items():
+        extra = len(names) - cap
+        shown = NAME_SEP.join(names[:cap])
+        out[k] = f"{shown}{NAME_SEP}+{extra} more" if extra > 0 else shown
+    return pd.Series(out)
 
 
 def _commodity_group(df, desc_col, item_col="NIGP_Item_5digit", class_col="NIGP_Class_3digit"):
@@ -628,8 +663,20 @@ def consolidation_opportunities(df, desc_col, amount_col, vendor_col=None, dept_
     g[COL_MATCHED] = work.groupby("_key")["_level"].first()
     if has_ven:
         g[COL_VENDORS] = work.groupby("_key")[vendor_col].nunique()
+        names = _names_by_key(work, "_key", vendor_col, "_amt", OPP_NAME_CAP)
+        if names is not None:
+            g[COL_VENDOR_NAMES] = names.reindex(g.index).fillna("")
     if has_dep:
         g[COL_DEPTS] = work.groupby("_key")[dept_col].nunique()
+        names = _names_by_key(work, "_key", dept_col, "_amt", OPP_NAME_CAP)
+        if names is not None:
+            g[COL_DEPT_NAMES] = names.reindex(g.index).fillna("")
+    # The wordings that rolled together under one row — this is the evidence for
+    # the "Matched by" claim, so a reader can check the grouping rather than
+    # trust it. On a row matched by exact wording there is simply one.
+    variants = _names_by_key(work, "_key", "_desc", "_amt", OPP_VARIANT_CAP)
+    if variants is not None:
+        g[COL_OPP_VARIANTS] = variants.reindex(g.index).fillna("")
     if "Business_Category" in work:
         g[COL_CATEGORY] = work.groupby("_key")["Business_Category"].agg(
             lambda s: s.mode().iat[0] if len(s.mode()) else "")
@@ -672,7 +719,8 @@ def consolidation_opportunities(df, desc_col, amount_col, vendor_col=None, dept_
     g[COL_ISSUE] = g.apply(_opp, axis=1)
     g[COL_ACTION] = g.apply(_action, axis=1)
     g = g.sort_values(COL_TOTAL, ascending=False).head(top_n).reset_index(drop=True)
-    order = [c for c in [COL_ITEM, COL_CATEGORY, COL_MATCHED, COL_ISSUE, COL_VENDORS, COL_DEPTS,
+    order = [c for c in [COL_ITEM, COL_CATEGORY, COL_MATCHED, COL_OPP_VARIANTS, COL_ISSUE,
+                         COL_VENDORS, COL_VENDOR_NAMES, COL_DEPTS, COL_DEPT_NAMES,
                          COL_SPEND, COL_RATE, COL_TOTAL, COL_HARD, COL_AVOID, COL_ACTION]
              if c in g.columns]
     return g[order]
@@ -1689,7 +1737,8 @@ def _embed_png(ws, png_bytes, anchor_cell):
 # Excel report (professional, brand-colored, charts)
 # ---------------------------------------------------------------------------
 def _style_data_sheet(ws, title, df, *, money_cols=(), pct_cols=(), int_cols=(),
-                      total_cols=(), add_total=True, wrap_cols=()):
+                      total_cols=(), add_total=True, wrap_cols=(), wrap_widths=None,
+                      wrap_row_height=42):
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     thin = Side(style="thin", color="BFBFBF")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
@@ -1728,7 +1777,7 @@ def _style_data_sheet(ws, title, df, *, money_cols=(), pct_cols=(), int_cols=(),
                 cell.alignment = Alignment(wrap_text=True, vertical="top")
                 has_wrap = True
         if has_wrap:
-            ws.row_dimensions[r].height = 42
+            ws.row_dimensions[r].height = wrap_row_height
 
     if add_total and len(df):
         tr = data_last + 1
@@ -1754,8 +1803,10 @@ def _style_data_sheet(ws, title, df, *, money_cols=(), pct_cols=(), int_cols=(),
     for c in range(1, ncols + 1):
         colname = df.columns[c - 1]
         if colname in wrap_cols:
-            # wrapped free-text column (examples): fixed generous width
-            ws.column_dimensions[ws.cell(row=header_row, column=c).column_letter].width = 60
+            # Wrapped free-text column. One width for all of them makes a sheet with
+            # several of them far too wide to navigate, so a caller can size each.
+            w = (wrap_widths or {}).get(colname, 60)
+            ws.column_dimensions[ws.cell(row=header_row, column=c).column_letter].width = w
             continue
         maxlen = max([len(str(df.columns[c - 1]))] +
                      [len(str(df.iloc[r, c - 1])) for r in range(len(df))], default=12)
@@ -2185,7 +2236,7 @@ _TAB_WHY = {
     "Same Item - Vendors_Depts": "The SAME item bought from more than one vendor and/or across more than one department — line-level maverick/fragmented buying and the sharpest consolidation targets.",
     "Same Commodity NIGP - Vendors_Depts": "The same NIGP commodity code (5-digit item where present, else 3-digit class) bought from more than one vendor and/or across more than one department — groups differently-worded descriptions of the same commodity.",
     "Savings Opportunity Summary": "The headline: addressable spend, identified savings split into hard (cashable) and cost avoidance, by opportunity type, annualized and projected three years.",
-    "Top Consolidation Opportunities": "Each fragmented commodity with its addressable spend, savings rate, estimated hard + cost-avoidance savings, and a plain-English recommended action.",
+    "Top Consolidation Opportunities": "Each fragmented commodity with the named vendors and departments buying it, the wordings that rolled together, its addressable spend, savings rate, estimated hard + cost-avoidance savings, and a plain-English recommended action.",
     "Sources & Methodology": "Where the math and benchmark rates come from, who uses them (public and private), the addressable-spend and hard-vs-avoidance definitions, and reference sources.",
 }
 
@@ -2433,10 +2484,21 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
             money_c = [c for c in [COL_SPEND, COL_TOTAL, COL_HARD, COL_AVOID] if c in ocols]
             int_c = [c for c in [COL_VENDORS, COL_DEPTS] if c in ocols]
             pct_c = [c for c in [COL_RATE] if c in ocols]
-            wrap_c = [c for c in [COL_ITEM, COL_ACTION] if c in ocols]
+            wrap_c = [c for c in [COL_ITEM, COL_ACTION, COL_VENDOR_NAMES, COL_DEPT_NAMES,
+                                  COL_OPP_VARIANTS] if c in ocols]
+            wrap_w = {COL_ITEM: 32, COL_OPP_VARIANTS: 44, COL_VENDOR_NAMES: 46,
+                      COL_DEPT_NAMES: 34, COL_ACTION: 50}
             hr, df1, dl = _style_data_sheet(ws, "What to combine — estimated cash savings + avoided costs",
                 opps_tbl, money_cols=money_c, int_cols=int_c, pct_cols=pct_c,
-                total_cols=money_c, add_total=True, wrap_cols=wrap_c)
+                total_cols=money_c, add_total=True, wrap_cols=wrap_c, wrap_widths=wrap_w,
+                wrap_row_height=76)
+            # This is the tab leadership actually works in, so make it workable:
+            # real sort/filter dropdowns on the headers (stopping short of the
+            # TOTAL row so it can't be sorted into the middle), and the item name
+            # pinned while they scroll right through fifteen columns.
+            ws.auto_filter.ref = (f"A{hr}:"
+                                  f"{ws.cell(row=hr, column=opps_tbl.shape[1]).column_letter}{dl}")
+            ws.freeze_panes = ws.cell(row=df1, column=2)
             _embed_png(ws, opportunities_png(opps_tbl), _below(dl))
 
         for snm, label, dfd in dim_sheets:

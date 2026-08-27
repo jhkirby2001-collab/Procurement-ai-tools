@@ -207,6 +207,7 @@ def build():
             ["Consolidation / Fragmentation", "Categories bought from many vendors (and departments)", "Where to consolidate demand — savings"],
             ["Same Item — Multiple Vendors / Depts", "The same item bought from >1 vendor and/or across >1 department, with names", "Line-level maverick buying — sharpest targets"],
             ["Same Commodity (NIGP code)", "Groups by NIGP commodity code so differently-worded descriptions of the same commodity roll together", "Catches split buying hidden behind wording differences"],
+            ["Top Consolidation Opportunities", "Each fragmented commodity with the vendors and departments named, the wordings that rolled together, spend, estimated savings and a recommended action", "Who to call, and what to put on one contract"],
             ["Spend Trend", "Spend by year with year-over-year change", "Is spend rising or falling; when it peaked"],
             ["Vendor Concentration", "Top-1/5/10 vendor share and an HHI score", "How dependent are we on a few suppliers"],
             ["Tail-Spend", "The many small vendors making up the last ~20%", "The classic consolidation target"],
@@ -216,6 +217,20 @@ def build():
             ["Spend by Dimension", "Breakdown by any flag (contract, diversity, status)", "Compliance & policy questions"],
         ],
         col_widths_cm=[4.2, 7.3, 5.0],
+    )
+    add_callout_box(
+        doc,
+        label="THE OPPORTUNITIES TAB NAMES NAMES",
+        body_text=(
+            "Top Consolidation Opportunities does not stop at \u201cbought from 12 vendors.\u201d It "
+            "lists the vendors and the departments by name, ordered by spend, so the suppliers "
+            "worth a conversation come first. It also shows every description that rolled "
+            "together under that row \u2014 which lets you check the grouping rather than take it "
+            "on trust. If a row was matched on a 3-digit NIGP class, that column is where you "
+            "would see two things that are not really the same commodity sitting together, and "
+            "judge for yourself. Headers carry sort/filter dropdowns and the item name stays "
+            "pinned as you scroll right. Long vendor lists are capped, with a \u201c+N more\u201d tail."
+        ),
     )
     add_callout_box(
         doc,
