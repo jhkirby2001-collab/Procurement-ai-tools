@@ -1067,7 +1067,7 @@ def _fmt_money(v) -> str:
 
 # Bump when the stored Spend Report bundle shape changes, so a report saved by an
 # older app version is discarded instead of crashing the render.
-_SR_RESULT_SCHEMA = 5
+_SR_RESULT_SCHEMA = 6
 
 
 def _arrow_safe(df):
@@ -1107,9 +1107,11 @@ def _style_spend_df(df, money_all_but_first=False):
         return df
 
 
-def _build_excel_bytes(b: dict) -> bytes:
-    """Rebuild the full Excel workbook from a computed bundle (used at generation
-    time and after a live savings-rate change)."""
+def _build_excel_bytes(b: dict, selected=None) -> bytes:
+    """Rebuild the Excel workbook from a computed bundle (used at generation time,
+    after a live savings-rate change, and when the analysis picker changes).
+
+    selected: the analysis keys to include. None means everything."""
     buf = io.BytesIO()
     sr.build_excel_report(buf, tiles=b["tiles"], cat_tbl=b["cat"], pareto_tbl=b["par"],
                           vendors_tbl=b["vend"], consolidation_tbl=b["cons"], cov=b["cov"],
@@ -1118,8 +1120,71 @@ def _build_excel_bytes(b: dict) -> bytes:
                           single_multi=b["single_multi"], matrix_tbl=b["matrix"],
                           dimensions=b["dimensions"], item_consol_tbl=b.get("item_consol"),
                           nigp_consol_tbl=b.get("nigp_consol"), savings=b.get("savings"),
-                          opps_tbl=b.get("opps"))
+                          opps_tbl=b.get("opps"), selected=selected)
     return buf.getvalue()
+
+
+def _md_money_safe(text) -> str:
+    """Escape dollar signs before text goes through st.markdown.
+
+    Streamlit reads a pair of $ as LaTeX, so a line like "$142,372 in savings
+    ($56,949 cash)" renders as italic maths with the spaces eaten. None of this
+    text is maths — every $ here is money."""
+    return str(text).replace("$", "\\$")
+
+
+def _safe_chart(make) -> None:
+    """Draw a chart when the data supports one. Returns quietly otherwise — a
+    chart that can't be drawn must never take the whole report down with it."""
+    try:
+        png = make()
+    except Exception:  # noqa: BLE001
+        return
+    if png:
+        st.image(png, use_container_width=True)
+
+
+def _analysis_picker(plan) -> list:
+    """The report picker. Only analyses this file can actually support are offered,
+    so there are no dead options. Returns the selected analysis keys.
+
+    Everything is still COMPUTED either way — this controls what gets shown and
+    what lands in the workbook, never the maths behind the numbers."""
+    feasible = [p for p in plan if p["feasible"]]
+    skipped = [p for p in plan if not p["feasible"]]
+    by_label = {p["label"]: p["key"] for p in feasible}
+
+    st.markdown("**Choose the analyses you need**")
+    st.caption(
+        "Pick only what you'll actually use — a shorter report gets read. "
+        f"**{' and '.join(sr.ALWAYS_ON)}** are always included. You can change this "
+        "after the report is generated and it updates instantly, without re-running "
+        "anything.")
+
+    # Drop any remembered choice that this file can't support (e.g. after
+    # uploading a file with no vendor column) — Streamlit errors on stale values.
+    remembered = st.session_state.get("sr_analyses")
+    if remembered is not None:
+        pruned = [lbl for lbl in remembered if lbl in by_label]
+        if pruned != remembered:
+            st.session_state["sr_analyses"] = pruned
+
+    default_keys = set(sr.default_selection(plan))
+    chosen = st.multiselect(
+        "Analyses to include in the report and the Excel download",
+        options=list(by_label.keys()),
+        default=[p["label"] for p in feasible if p["key"] in default_keys],
+        key="sr_analyses",
+        help="Start with the essentials; add the deeper cuts when you need them.",
+    )
+    if not chosen:
+        st.info(
+            "Nothing selected — you'll get the Executive Summary and Sources & "
+            "Methodology only. That's a valid one-page brief.")
+    if skipped:
+        st.caption("Not available for this file: " + "; ".join(
+            f"{p['label']} ({p['reason']})" for p in skipped))
+    return [by_label[lbl] for lbl in chosen]
 
 
 _SAVINGS_SLIDER_DEFAULTS = {"sv_pv": 3.0, "sv_pd": 2.0, "sv_cap": 15.0, "sv_tail": 5.0, "sv_hard": 40.0}
@@ -1153,12 +1218,29 @@ def _rates_differ(a: dict, b: dict) -> bool:
     return any(round(a.get(k, 0), 4) != round(b.get(k, 0), 4) for k in keys)
 
 
-def _render_spend_report(res: dict) -> None:
+def _render_spend_report(res: dict, selected=None) -> None:
     """Render a previously computed report bundle. Reading from a stored bundle
-    (not local variables) is what lets the report survive page navigation."""
+    (not local variables) is what lets the report survive page navigation.
+
+    selected: the analysis keys to show. None means show everything. The bundle
+    always holds every analysis — this only decides what gets displayed, so the
+    Executive Summary and the savings figures never change with the picker."""
     b = res["b"]
     excel_bytes = res["excel"]
     tiles, cov, cat, measure = b["tiles"], b["cov"], b["cat"], b["measure"]
+
+    sel = None if selected is None else set(selected)
+
+    def on(key):
+        return sel is None or key in sel
+
+    # Picking different analyses only re-renders and rebuilds the workbook —
+    # nothing is re-classified and no figure is recomputed.
+    if selected is not None and res.get("selected") != list(selected):
+        with st.spinner("Updating the report…"):
+            res["excel"] = _build_excel_bytes(b, selected)
+            res["selected"] = list(selected)
+            st.session_state["sr_result"] = res
 
     has_amt = tiles.get("has_amount")
     ylab = "Spend ($)" if has_amt else "Transactions"
@@ -1175,7 +1257,7 @@ def _render_spend_report(res: dict) -> None:
             with st.spinner("Recomputing savings…"):
                 opps, savings, es = sr.recompute_savings(b, new_rates)
                 b["opps"], b["savings"], b["es"] = opps, savings, es
-                res["excel"] = _build_excel_bytes(b)
+                res["excel"] = _build_excel_bytes(b, selected)
                 st.session_state["sr_result"] = res
             sv = savings
     excel_bytes = res["excel"]
@@ -1183,10 +1265,10 @@ def _render_spend_report(res: dict) -> None:
     # Executive summary
     st.markdown("### Executive Summary")
     for ln in b["es"]["lines"]:
-        st.markdown(f"- {ln}")
+        st.markdown(f"- {_md_money_safe(ln)}")
 
     # Savings hero — the money, front and center, in plain words
-    if sv and sv.get("identified") and has_amt:
+    if sv and sv.get("identified") and has_amt and on("savings"):
         st.markdown("### 💡 How much we could save")
         h = st.columns(4)
         h[0].metric("Spend we can combine", _fmt_money(sv["addressable"]), f"{sv['addressable_pct']}% of total")
@@ -1208,7 +1290,7 @@ def _render_spend_report(res: dict) -> None:
     if b["es"]["steps"]:
         st.markdown("**What to do first (most savings at the top):**")
         for i, s in enumerate(b["es"]["steps"], 1):
-            st.markdown(f"{i}. {s}")
+            st.markdown(f"{i}. {_md_money_safe(s)}")
 
     # Summary tiles
     st.markdown("### Summary")
@@ -1226,28 +1308,32 @@ def _render_spend_report(res: dict) -> None:
 
     # Top Consolidation Opportunities — the prescriptive core
     opps = b.get("opps")
-    if opps is not None and len(opps):
+    if opps is not None and len(opps) and on("savings"):
         st.markdown("### 🎯 What to combine")
-        st.caption("Each item the city buys from more than one vendor or department — how much is "
-                   "spent, the estimated **cash savings + avoided costs**, and **what to do**. "
-                   "Biggest savings first.")
+        st.caption("Each item the city buys from more than one vendor or department — **which "
+                   "vendors and which departments by name**, the wordings that rolled together "
+                   "under one row, how much is spent, the estimated **cash savings + avoided "
+                   "costs**, and **what to do**. Biggest savings first. Scroll right for the "
+                   "full detail, or use the Excel tab, where every column sorts and filters.")
         st.dataframe(_style_opps_df(opps), use_container_width=True, hide_index=True)
+        _safe_chart(lambda: sr.opportunities_png(opps))
 
     # Spend by category
-    st.markdown("### Spend by Business Category")
-    st.caption("Every row lands in a real category (General & Other absorbed via best-fit). The "
-               "**Examples** column shows representative descriptions from each.")
-    st.dataframe(_style_spend_df(cat), use_container_width=True, hide_index=True)
-    try:
-        st.image(sr.barh_png(cat["Business Category"].tolist(), cat[measure].tolist(),
-                             f"{measure} by Business Category", value_label=ylab, money=has_amt),
-                 use_container_width=True)
-    except Exception:  # noqa: BLE001
-        _chart_col = measure if measure in cat.columns else cat.columns[1]
-        st.bar_chart(_arrow_safe(cat).set_index("Business Category")[_chart_col])
+    if on("category"):
+        st.markdown("### Spend by Business Category")
+        st.caption("Every row lands in a real category (General & Other absorbed via best-fit). The "
+                   "**Examples** column shows representative descriptions from each.")
+        st.dataframe(_style_spend_df(cat), use_container_width=True, hide_index=True)
+        try:
+            st.image(sr.barh_png(cat["Business Category"].tolist(), cat[measure].tolist(),
+                                 f"{measure} by Business Category", value_label=ylab, money=has_amt),
+                     use_container_width=True)
+        except Exception:  # noqa: BLE001
+            _chart_col = measure if measure in cat.columns else cat.columns[1]
+            st.bar_chart(_arrow_safe(cat).set_index("Business Category")[_chart_col])
 
     # Spend trend
-    if b["trend"] is not None:
+    if on("trend") and b["trend"] is not None:
         st.markdown("### Spend Trend Over Time")
         st.dataframe(_style_spend_df(b["trend"]), use_container_width=True, hide_index=True)
         if measure in b["trend"].columns:
@@ -1258,8 +1344,8 @@ def _render_spend_report(res: dict) -> None:
                 st.bar_chart(_arrow_safe(b["trend"]).set_index("Year")[measure])
 
     # Pareto
-    st.markdown("### Pareto 80/20")
-    if len(b["par"]):
+    if on("pareto") and len(b["par"]):
+        st.markdown("### Pareto 80/20")
         st.caption(f"**{b['n80']}** categor{'y' if b['n80'] == 1 else 'ies'} drive 80% of "
                    f"{'spend' if has_amt else 'transactions'} (classified rows).")
         st.dataframe(_style_spend_df(b["par"]), use_container_width=True, hide_index=True)
@@ -1273,7 +1359,7 @@ def _render_spend_report(res: dict) -> None:
                 pass
 
     # Top vendors
-    if b["vend"] is not None:
+    if on("top_vendors") and b["vend"] is not None:
         st.markdown("### Top Vendors")
         st.dataframe(_style_spend_df(b["vend"]), use_container_width=True, hide_index=True)
         try:
@@ -1283,25 +1369,31 @@ def _render_spend_report(res: dict) -> None:
         except Exception:  # noqa: BLE001
             pass
 
-    # Vendor analytics
-    if b["concentration"] or b["tail"] or b["single_multi"]:
+    # Vendor analytics — three separate analyses that share one section
+    _conc = b["concentration"] if on("concentration") else None
+    _tail = b["tail"] if on("tail") else None
+    _sm = b["single_multi"] if on("single_multi") else None
+    if _conc or _tail or _sm:
         st.markdown("### Vendor Analytics")
-        vc = st.columns(3)
-        if b["concentration"]:
-            vc[0].metric("Top-10 vendor share", f"{b['concentration']['top10']}%")
-            vc[1].metric("Total vendors", f"{b['concentration']['total_vendors']:,}")
-            vc[2].metric("HHI (concentration)", f"{b['concentration']['hhi']:,}")
-        if b["tail"]:
-            t = b["tail"]
-            st.caption(f"**Tail spend:** {t['tail_vendors']:,} vendors ({t['tail_pct_of_vendors']}%) "
-                       f"account for only {t['tail_pct_of_value']}% of {t['measure'].lower()} — consolidation targets.")
-        if b["single_multi"]:
-            sm = b["single_multi"]
-            st.caption(f"**Sourcing:** {sm['single_categories']} single-source vs "
-                       f"{sm['multi_categories']} multi-source categories.")
+        if _conc:
+            vc = st.columns(3)
+            vc[0].metric("Top-10 vendor share", f"{_conc['top10']}%")
+            vc[1].metric("Total vendors", f"{_conc['total_vendors']:,}")
+            vc[2].metric("HHI (concentration)", f"{_conc['hhi']:,}")
+            _safe_chart(lambda: sr.concentration_png(_conc))
+        if _tail:
+            st.caption(f"**Tail spend:** {_tail['tail_vendors']:,} vendors "
+                       f"({_tail['tail_pct_of_vendors']}%) account for only "
+                       f"{_tail['tail_pct_of_value']}% of {_tail['measure'].lower()} — "
+                       "consolidation targets.")
+            _safe_chart(lambda: sr.tail_png(_tail))
+        if _sm:
+            st.caption(f"**Sourcing:** {_sm['single_categories']} single-source vs "
+                       f"{_sm['multi_categories']} multi-source categories.")
+            _safe_chart(lambda: sr.single_multi_png(_sm))
 
     # Spend by department
-    if b["dept_tbl"] is not None:
+    if on("department") and b["dept_tbl"] is not None:
         st.markdown("### Spend by Department")
         st.dataframe(_style_spend_df(b["dept_tbl"]), use_container_width=True, hide_index=True)
         try:
@@ -1313,54 +1405,68 @@ def _render_spend_report(res: dict) -> None:
                 measure if measure in b["dept_tbl"].columns else b["dept_tbl"].columns[1]])
 
     # Category × department matrix
-    if b["matrix"] is not None:
+    if on("matrix") and b["matrix"] is not None:
         st.markdown("### Category × Department Matrix")
         st.dataframe(_style_spend_df(b["matrix"], money_all_but_first=True),
                      use_container_width=True, hide_index=True)
+        _safe_chart(lambda: sr.matrix_png(b["matrix"], money=has_amt))
 
     # Consolidation
-    if b["cons"] is not None and len(b["cons"]):
+    if on("consolidation") and b["cons"] is not None and len(b["cons"]):
         st.markdown("### Vendor Consolidation / Fragmentation")
         st.caption("Categories bought from more than one vendor — biggest opportunities first.")
         st.dataframe(_style_spend_df(b["cons"]), use_container_width=True, hide_index=True)
+        _safe_chart(lambda: sr.consolidation_png(b["cons"], measure, ylab, money=has_amt))
 
-    # Same item across vendors / departments (line-level fragmentation) — always shown
-    st.markdown("### Same Item — Multiple Vendors / Departments")
-    ic = b.get("item_consol")
-    if ic is not None and len(ic):
-        st.caption("The **same item** (by description) bought from more than one vendor and/or "
-                   "across more than one department — line-level fragmentation and the sharpest "
-                   "consolidation targets. Runs on every upload. Sorted by spend.")
-        st.dataframe(_style_spend_df(ic), use_container_width=True, hide_index=True)
-    else:
-        st.caption(
-            "This check runs on every report. No single item here was bought from more than one "
-            "vendor or across more than one department — so there's nothing to consolidate at the "
-            "line level. If you expected results, make sure a **Vendor** or **Department** column "
-            "is mapped above (the check needs at least one to detect fragmentation).")
+    # Same item across vendors / departments (line-level fragmentation)
+    if on("item_consolidation"):
+        st.markdown("### Same Item — Multiple Vendors / Departments")
+        ic = b.get("item_consol")
+        if ic is not None and len(ic):
+            st.caption("The **same item** (by description) bought from more than one vendor and/or "
+                       "across more than one department — line-level fragmentation and the sharpest "
+                       "consolidation targets. Sorted by spend.")
+            st.dataframe(_style_spend_df(ic), use_container_width=True, hide_index=True)
+            _safe_chart(lambda: sr.item_consolidation_png(ic, measure, ylab, money=has_amt))
+        else:
+            st.caption(
+                "No single item here was bought from more than one vendor or across more than one "
+                "department — so there's nothing to consolidate at the line level. If you expected "
+                "results, make sure a **Vendor** or **Department** column is mapped above (the "
+                "check needs at least one to detect fragmentation).")
 
-    # Same commodity by NIGP code (groups differently-worded descriptions) — always shown
-    st.markdown("### Same Commodity (NIGP code) — Multiple Vendors / Departments")
-    nc = b.get("nigp_consol")
-    if nc is not None and len(nc):
-        st.caption("Groups by the **NIGP commodity code** (5-digit item where the rule assigned "
-                   "one, otherwise 3-digit class) instead of the exact wording — so two "
-                   "differently-worded descriptions of the *same commodity* roll together. "
-                   "**Each department is its own column** (spend); the shaded blue cells show which "
-                   "departments bought it. Rows shaded **red** in *Descriptions (variants)* are the "
-                   "consolidation targets — the same commodity bought across two or more "
-                   "departments. Sorted by spend.")
-        st.dataframe(_style_nigp_matrix(nc), use_container_width=True, hide_index=True)
-    else:
-        st.caption("This view groups rows that carry a NIGP commodity code. None of the coded "
-                   "commodities here were bought from more than one vendor or department. (Only "
-                   "rows whose rule assigned a NIGP code appear here; the item view above covers "
-                   "everything by description.)")
+    # Same commodity by NIGP code (groups differently-worded descriptions)
+    if on("nigp_consolidation"):
+        st.markdown("### Same Commodity (NIGP code) — Multiple Vendors / Departments")
+        nc = b.get("nigp_consol")
+        if nc is not None and len(nc):
+            st.caption("Groups by the **NIGP commodity code** (5-digit item where the rule assigned "
+                       "one, otherwise 3-digit class) instead of the exact wording — so two "
+                       "differently-worded descriptions of the *same commodity* roll together. "
+                       "**Each department is its own column** (spend); the shaded blue cells show which "
+                       "departments bought it. Rows shaded **red** in *Descriptions (variants)* are the "
+                       "consolidation targets — the same commodity bought across two or more "
+                       "departments. Sorted by spend.")
+            st.dataframe(_style_nigp_matrix(nc), use_container_width=True, hide_index=True)
+            _safe_chart(lambda: sr.nigp_consolidation_png(nc, money=has_amt))
+        else:
+            st.caption("This view groups rows that carry a NIGP commodity code. None of the coded "
+                       "commodities here were bought from more than one vendor or department. (Only "
+                       "rows whose rule assigned a NIGP code appear here; the item view above covers "
+                       "everything by description.)")
 
     # Dimension breakdowns
     for label, tbl in b["dimensions"]:
+        if not on(f"dim::{label}"):
+            continue
         st.markdown(f"### {label}")
         st.dataframe(_style_spend_df(tbl), use_container_width=True, hide_index=True)
+        try:
+            st.image(sr.barh_png([str(x) for x in tbl.iloc[:, 0].tolist()], tbl[measure].tolist(),
+                                 label[:48], value_label=ylab, money=has_amt),
+                     use_container_width=True)
+        except Exception:  # noqa: BLE001
+            pass
 
     # Excel download — the full leadership workbook (bytes were built once, at generation)
     st.download_button(
@@ -1382,7 +1488,7 @@ def _render_sources_methodology(savings=None) -> None:
         for heading, lines in getattr(sr, "SOURCES_SECTIONS", []):
             st.markdown(f"**{heading}**")
             for ln in lines:
-                st.markdown(f"- {ln}")
+                st.markdown(f"- {_md_money_safe(ln)}")
         rates = (savings or {}).get("rates") if savings else None
         st.markdown("**Savings rates used** (you can change these on the page)")
         st.table(pd.DataFrame(sr.savings_rate_card(rates), columns=["Rule", "Rate"]))
@@ -1464,8 +1570,8 @@ def page_spend_report() -> None:
     st.title("Spend Report")
     st.markdown(
         "Upload a spend file. The mapper classifies every line into a Business Category, "
-        "then builds a spend analysis — spend by category, Pareto 80/20, top vendors, and "
-        "vendor consolidation — that you can download as an Excel report. "
+        "then builds the spend analyses you ask for — you pick them below, and every one "
+        "that can be charted is. Read them here or download them as an Excel workbook. "
         "**Runs on rules only — no AI, and your file stays in this session.**"
     )
 
@@ -1492,8 +1598,10 @@ def page_spend_report() -> None:
             if st.button("Clear this report"):
                 del st.session_state["sr_result"]
                 st.rerun()
+            saved_sel = _analysis_picker(
+                sr.plan_analyses({"roles": result["b"].get("_roles", {})}))
             try:
-                _render_spend_report(result)
+                _render_spend_report(result, saved_sel)
             except Exception as e:  # noqa: BLE001
                 st.session_state.pop("sr_result", None)
                 st.warning(
@@ -1555,12 +1663,8 @@ def page_spend_report() -> None:
     roles.update({"description": desc_col, "amount": amount_col, "vendor": vendor_col,
                   "department": dept_col, "date": date_col, "dimensions": dims_sel})
 
-    with st.expander("What the tool will analyze for this file (and what it will skip)"):
-        for p in sr.plan_analyses({"roles": roles}):
-            if p["feasible"]:
-                st.markdown(f"✅ **{p['label']}**")
-            else:
-                st.markdown(f"⤫ {p['label']} — _skipped: {p['reason']}_")
+    plan = sr.plan_analyses({"roles": roles})
+    selected = _analysis_picker(plan)
 
     max_rows = len(df_in)
     if len(df_in) > 25000:
@@ -1578,17 +1682,18 @@ def page_spend_report() -> None:
             work = pd.concat([work.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
 
         b = sr.compute_all(work, roles)
-        excel_bytes = _build_excel_bytes(b)
+        excel_bytes = _build_excel_bytes(b, selected)
         # Store the whole computed bundle so it survives page navigation.
         st.session_state["sr_result"] = {
             "schema": _SR_RESULT_SCHEMA, "b": b, "excel": excel_bytes,
-            "file_sig": file_sig, "file_name": uploaded.name}
+            "file_sig": file_sig, "file_name": uploaded.name,
+            "selected": list(selected)}
         result = st.session_state["sr_result"]
 
     # Render if we have a report for THIS uploaded file (freshly generated or saved).
     if result is not None and result.get("file_sig") == file_sig:
         try:
-            _render_spend_report(result)
+            _render_spend_report(result, selected)
         except Exception as e:  # noqa: BLE001
             st.error(f"Could not render the report: {e}")
     elif result is not None:
@@ -1661,9 +1766,31 @@ def page_spend_report_methodology() -> None:
     )
 
     st.subheader("The reports it can produce — what each is, and how to read it")
-    st.caption("Which of these run depends on what your file contains — the tool includes every "
-               "one the data supports and skips the rest.")
+    st.caption("Your file decides which of these are *available*; you decide which ones are "
+               "*produced*. Anything your columns can't support isn't offered at all.")
     _spend_report_methods_table()
+
+    st.subheader("Choosing what goes in the report")
+    st.markdown(
+        "A report nobody finishes reading isn't a report. So the tool asks which analyses you "
+        "actually need rather than handing over everything it can compute:\n\n"
+        f"- **Always included:** {' and '.join(sr.ALWAYS_ON)}. The summary is the point of the "
+        "report, and the sources tab is what lets you defend its numbers when someone "
+        "challenges them — neither can be switched off.\n"
+        "- **Ticked to start with:** the savings opportunity, spend by category, Pareto 80/20 "
+        "and top vendors — enough for a leadership conversation, and a short workbook.\n"
+        "- **Available when you want them:** consolidation, same-item and same-commodity "
+        "fragmentation, department views, trend, tail spend, vendor concentration, "
+        "single- vs multi-source, the category × department matrix, and any custom "
+        "breakdown columns in your file.\n"
+        "- **Every analysis brings its chart.** If the data can be pictured, it is — on the "
+        "page and in the matching Excel tab.\n\n"
+        "**The figures never depend on what you tick.** Every analysis is calculated on every "
+        "run, because the savings numbers are derived from the consolidation analysis — if "
+        "unticking a box changed the maths, the headline would move depending on who was "
+        "reading, and nobody could defend it in a budget hearing. Your selection changes what "
+        "is *shown and exported*, nothing else. That's also why changing it after the report "
+        "has run updates everything instantly: nothing is re-classified or recalculated.")
 
     st.subheader("How the savings are estimated (in plain words)")
     st.markdown(
