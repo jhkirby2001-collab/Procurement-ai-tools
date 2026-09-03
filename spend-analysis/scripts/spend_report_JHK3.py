@@ -709,9 +709,9 @@ def consolidation_opportunities(df, desc_col, amount_col, vendor_col=None, dept_
     def _action(row):
         bits = []
         if (COL_VENDORS in g) and row.get(COL_VENDORS, 0) >= 2:
-            bits.append(f"{int(row[COL_VENDORS])} vendors")
+            bits.append(_plural(row[COL_VENDORS], "vendor"))
         if (COL_DEPTS in g) and row.get(COL_DEPTS, 0) >= 2:
-            bits.append(f"{int(row[COL_DEPTS])} departments")
+            bits.append(_plural(row[COL_DEPTS], "department"))
         frag_txt = " across ".join(bits) if bits else "multiple sources"
         return (f"Combine “{str(row[COL_ITEM])[:48]}” (bought from {frag_txt}) into one contract "
                 "so the city buys it at a single, better price.")
@@ -1383,6 +1383,12 @@ def _fig_png(fig):
     return buf.getvalue()
 
 
+def _plural(n, singular, plural=None):
+    """"1 vendor", "12 vendors" — never "1 vendors"."""
+    n = int(n)
+    return f"{n:,} {singular if n == 1 else (plural or singular + 's')}"
+
+
 def _short(labels, n=32):
     return [(str(x) if len(str(x)) <= n else str(x)[:n - 1] + "…") for x in labels]
 
@@ -1483,7 +1489,9 @@ def split_bar_png(segments, title, money=True, height=2.2, total_in_title=True,
     story is "how does this one total divide?" rather than "rank these items".
 
     segments: list of (label, value, bar_color, text_color).
-    Each segment is directly labelled, so identity never rests on colour alone."""
+    Each segment is directly labelled, so identity never rests on colour alone.
+    A label that will not fit inside its own segment is moved above the bar
+    instead of being left to spill across its neighbour and off the edge."""
     plt = _plt()
     from matplotlib.ticker import FuncFormatter
     segs = [(str(l), float(v or 0), c, t) for (l, v, c, t) in segments]
@@ -1491,6 +1499,7 @@ def split_bar_png(segments, title, money=True, height=2.2, total_in_title=True,
     fmt = value_fmt or (_money_fmt if money else (lambda v: f"{v:,.0f}"))
     fig, ax = plt.subplots(figsize=(8, height))
     left = 0.0
+    placed = []  # (text artist, segment centre, segment width) for the fit pass
     for label, v, color, tcolor in segs:
         if v <= 0:
             continue
@@ -1498,8 +1507,9 @@ def split_bar_png(segments, title, money=True, height=2.2, total_in_title=True,
         ax.barh([0], [v], left=[left], color=color, edgecolor="white",
                 linewidth=1.4, zorder=3)
         pct = f"  ({v / total * 100:.0f}%)" if (show_pct and total) else ""
-        ax.text(left + v / 2, 0, f"{label}\n{fmt(v)}{pct}", va="center", ha="center",
-                fontsize=9, color=tcolor, fontweight="bold")
+        t = ax.text(left + v / 2, 0, f"{label}\n{fmt(v)}{pct}", va="center", ha="center",
+                    fontsize=9, color=tcolor, fontweight="bold", zorder=5)
+        placed.append((t, left + v / 2, v))
         left += v
     ax.set_xlim(0, total * 1.02 if total else 1)
     ax.set_yticks([])
@@ -1509,8 +1519,47 @@ def split_bar_png(segments, title, money=True, height=2.2, total_in_title=True,
     for sp in ("top", "right", "left"):
         ax.spines[sp].set_visible(False)
     ax.grid(axis="x", color="#E3E3E3", linewidth=0.6, zorder=0)
+
+    # Measure each label against the segment holding it, and evict the ones that
+    # do not fit. Measuring beats guessing from character counts: it accounts for
+    # the actual font, and it is the difference between a readable chart and one
+    # where a 4%-wide segment's label runs across the neighbouring colour.
+    outside = _reflow_wide_labels(fig, ax, placed)
+    if outside:
+        ax.set_ylim(-0.55, 1.15)
     fig.tight_layout()
     return _fig_png(fig)
+
+
+def _reflow_wide_labels(fig, ax, placed, pad=0.92):
+    """Move any label wider than its segment out above the bar, with a connector.
+    Returns True if anything was moved."""
+    try:
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+    except Exception:  # noqa: BLE001 — never lose a chart over a measuring failure
+        return False
+    moved = False
+    step = 0
+    for t, centre, width in placed:
+        try:
+            tw = t.get_window_extent(renderer=renderer).width
+            x0 = ax.transData.transform((centre - width / 2, 0))[0]
+            x1 = ax.transData.transform((centre + width / 2, 0))[0]
+        except Exception:  # noqa: BLE001
+            continue
+        if tw <= (x1 - x0) * pad:
+            continue
+        # Stagger consecutive evictions so two narrow neighbours cannot collide.
+        y = 0.62 + (step % 2) * 0.30
+        t.set_position((centre, y))
+        t.set_va("bottom")
+        t.set_color("#222")
+        ax.plot([centre, centre], [0.4, y - 0.02], color="#9AA0A6",
+                linewidth=0.8, zorder=4)
+        moved = True
+        step += 1
+    return moved
 
 
 def savings_split_png(hard, avoidance, title="Estimated Savings — Cash vs Avoided Costs"):
@@ -1592,7 +1641,7 @@ def consolidation_png(cons, measure="Spend", value_label="Spend ($)", money=True
     if not col or "Business Category" not in cons.columns:
         return None
     d = cons.head(top)
-    notes = [f"{int(v):,} vendors" for v in d["Vendors"]] if "Vendors" in d.columns else None
+    notes = [_plural(v, "vendor") for v in d["Vendors"]] if "Vendors" in d.columns else None
     return barh_png(d["Business Category"].tolist(), d[col].tolist(),
                     "Most fragmented categories — bought from many vendors",
                     value_label=value_label, money=money, notes=notes)
@@ -1603,9 +1652,9 @@ def _frag_notes(d, vendor_col="Vendors", dept_col="Departments"):
     for _, row in d.iterrows():
         bits = []
         if vendor_col in d.columns and pd.notna(row.get(vendor_col)):
-            bits.append(f"{int(row[vendor_col]):,} vendors")
+            bits.append(_plural(row[vendor_col], "vendor"))
         if dept_col in d.columns and pd.notna(row.get(dept_col)):
-            bits.append(f"{int(row[dept_col]):,} depts")
+            bits.append(_plural(row[dept_col], "dept"))
         notes.append(" / ".join(bits))
     return notes if any(notes) else None
 
@@ -1663,11 +1712,13 @@ def tail_png(tail):
     money = str(tail.get("measure", "Spend")) == "Spend"
     core = float(tail.get("core_value", 0.0))
     tv = float(tail.get("tail_value", 0.0))
-    if core <= 0 and tv <= 0:
+    # With no tail (or no core) there is no split to draw — the caption already
+    # says everything the chart would.
+    if core <= 0 or tv <= 0:
         return None
     return split_bar_png(
-        [(f"Core — {tail['vendors_to_80pct']:,} vendors", core, CHART_NAVY, "white"),
-         (f"Tail — {tail['tail_vendors']:,} vendors", tv, CHART_BLUE, "#0b3d5c")],
+        [(f"Core — {_plural(tail['vendors_to_80pct'], 'vendor')}", core, CHART_NAVY, "white"),
+         (f"Tail — {_plural(tail['tail_vendors'], 'vendor')}", tv, CHART_BLUE, "#0b3d5c")],
         "Where the value sits — core vs tail vendors", money=money)
 
 
@@ -1677,12 +1728,14 @@ def concentration_png(conc):
         return None
     top10 = float(conc.get("top10", 0.0))
     rest = round(100.0 - top10, 1)
-    if top10 <= 0:
+    total_v = int(conc.get("total_vendors", 0))
+    # Ten or fewer suppliers means "top 10 = 100%", which is a fact about the
+    # chart, not about the spend. The HHI tile still carries the real signal.
+    if top10 <= 0 or total_v <= 10:
         return None
-    others = max(int(conc.get("total_vendors", 0)) - 10, 0)
     return split_bar_png(
         [("Top 10 vendors", top10, CHART_NAVY, "white"),
-         (f"All other {others:,} vendors", rest, CHART_BLUE, "#0b3d5c")],
+         (f"All other {_plural(total_v - 10, 'vendor')}", rest, CHART_BLUE, "#0b3d5c")],
         f"Vendor concentration — HHI {int(conc.get('hhi', 0)):,}",
         money=False, total_in_title=False, show_pct=False,
         value_fmt=lambda v: f"{v:.0f}%")
@@ -1694,11 +1747,15 @@ def single_multi_png(sm):
         return None
     money = bool(sm.get("has_amount"))
     single, multi = float(sm.get("single_value", 0)), float(sm.get("multi_value", 0))
-    if single <= 0 and multi <= 0:
+    # One solid bar at 100% is not a comparison — if everything is one way, the
+    # caption says so more clearly than a chart can.
+    if single <= 0 or multi <= 0:
         return None
     return split_bar_png(
-        [(f"Single-source — {sm['single_categories']} categories", single, CHART_BLUE, "#0b3d5c"),
-         (f"Multi-source — {sm['multi_categories']} categories", multi, CHART_NAVY, "white")],
+        [(f"Single-source — {_plural(sm['single_categories'], 'category', 'categories')}",
+          single, CHART_BLUE, "#0b3d5c"),
+         (f"Multi-source — {_plural(sm['multi_categories'], 'category', 'categories')}",
+          multi, CHART_NAVY, "white")],
         "Single- vs multi-source categories", money=money)
 
 
