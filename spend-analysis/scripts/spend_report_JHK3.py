@@ -1315,11 +1315,23 @@ def executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl=None,
                 "item": str(r.get(COL_ITEM, ""))[:70],
                 "category": str(r.get(COL_CATEGORY, "")),
                 "detail": ", ".join(bits),
+                # Formatted strings for prose contexts...
                 "addressable": _money_text(r[COL_SPEND]),
                 "rate": f"{r[COL_RATE]}%",
                 "total": _money_text(r[COL_TOTAL]),
                 "hard": _money_text(r[COL_HARD]),
                 "avoidance": _money_text(r[COL_AVOID]),
+                # ...and the raw values, so a table can hold real numbers. A cell
+                # carrying "$17,675,151" as text cannot be sorted, summed or
+                # right-aligned by Excel — the number has to survive to the sheet
+                # and let the cell format do the presenting.
+                "n_vendors": int(r[COL_VENDORS]) if has_v else None,
+                "n_depts": int(r[COL_DEPTS]) if has_d else None,
+                "v_addressable": float(r[COL_SPEND]),
+                "v_rate": float(r[COL_RATE]),
+                "v_total": float(r[COL_TOTAL]),
+                "v_hard": float(r[COL_HARD]),
+                "v_avoidance": float(r[COL_AVOID]),
             })
 
     return {"lines": lines, "steps": steps, "consolidation_items": consolidation_items}
@@ -1930,17 +1942,20 @@ def _write_exec_summary(ws, title, tiles, cov, es):
     from openpyxl.styles import Font, PatternFill, Alignment
     ws.sheet_view.showGridLines = False
     ws.column_dimensions["A"].width = 2.5
-    for col in ["B", "C", "D", "E", "F", "G"]:
-        ws.column_dimensions[col].width = 19
+    # B holds item names in the opportunities table, so it carries the width;
+    # C..I are its number columns. The prose above spans the whole lot (B:I).
+    for col, w in (("B", 46), ("C", 11), ("D", 10), ("E", 21),
+                   ("F", 11), ("G", 19), ("H", 17), ("I", 17)):
+        ws.column_dimensions[col].width = w
 
-    ws.merge_cells("B2:G2")
+    ws.merge_cells("B2:I2")
     t = ws["B2"]
     t.value = title
     t.font = Font(size=18, bold=True, color=WHITE)
     t.fill = PatternFill("solid", fgColor=NAVY)
     t.alignment = Alignment(vertical="center", indent=1)
     ws.row_dimensions[2].height = 34
-    ws.merge_cells("B3:G3")
+    ws.merge_cells("B3:I3")
     sub = ws["B3"]
     subtxt = "Procurement Spend Analysis"
     if "date_min" in tiles:
@@ -1971,10 +1986,10 @@ def _write_exec_summary(ws, title, tiles, cov, es):
     row = 8
     h = ws.cell(row=row, column=2, value="What the data shows")
     h.font = Font(size=13, bold=True, color=NAVY)
-    ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
+    ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=9)
     row += 1
     for line in (es["lines"] if es else []):
-        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=9)
         c = ws.cell(row=row, column=2, value="•  " + line)
         c.alignment = Alignment(wrap_text=True, vertical="top")
         c.font = Font(size=11)
@@ -1984,10 +1999,10 @@ def _write_exec_summary(ws, title, tiles, cov, es):
     row += 1
     h2 = ws.cell(row=row, column=2, value="Recommended first steps")
     h2.font = Font(size=13, bold=True, color=NAVY)
-    ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
+    ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=9)
     row += 1
     for i, step in enumerate(es["steps"] if es else [], 1):
-        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=9)
         c = ws.cell(row=row, column=2, value=f"{i}.  {step}")
         c.alignment = Alignment(wrap_text=True, vertical="top")
         c.font = Font(size=11)
@@ -2000,28 +2015,86 @@ def _write_exec_summary(ws, title, tiles, cov, es):
         h3 = ws.cell(row=row, column=2,
                      value="Top consolidation opportunities (estimated hard savings + cost avoidance)")
         h3.font = Font(size=13, bold=True, color=NAVY)
-        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=9)
         row += 1
-        for it in items:
-            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
-            c = ws.cell(row=row, column=2)
-            detail = f" ({it['detail']})" if it.get("detail") else ""
-            tail = (f"  —  {it['addressable']} addressable @ {it['rate']} → {it.get('total', '')} "
-                    f"(hard {it.get('hard', '')} + avoidance {it.get('avoidance', '')})")
-            c.value = "•  " + it["item"] + detail + tail
-            c.alignment = Alignment(wrap_text=True, vertical="top")
-            c.font = Font(size=11)
-            ws.row_dimensions[row].height = 30
+        # A real table, not sentences. These ten rows are tabular data, and as
+        # prose a $17.6M opportunity and a $527K one read identically — nothing
+        # sorts, nothing sums, and the money hides mid-sentence in brackets.
+        # Build the columns from what the data actually has. A file with no
+        # vendor column would otherwise get an empty navy-headed "Vendors"
+        # column, which reads as a broken report rather than an absent input.
+        money_fmt = '$#,##0'
+        spec = [("Item / service", "item", None)]
+        if any(it.get("n_vendors") is not None for it in items):
+            spec.append(("Vendors", "n_vendors", '#,##0'))
+        if any(it.get("n_depts") is not None for it in items):
+            spec.append(("Depts", "n_depts", '#,##0'))
+        spec += [("Spend we can combine", "v_addressable", money_fmt),
+                 ("Savings rate %", "v_rate", '0.0"%"'),
+                 ("Estimated savings", "v_total", money_fmt),
+                 ("Cash savings", "v_hard", money_fmt),
+                 ("Avoided costs", "v_avoidance", money_fmt)]
+        headers = [(label, 2 + i) for i, (label, _k, _f) in enumerate(spec)]
+        last_col = 1 + len(spec)
+        hdr_row = row
+        for label, col in headers:
+            hc = ws.cell(row=hdr_row, column=col, value=label)
+            hc.font = Font(size=10, bold=True, color=WHITE)
+            hc.fill = PatternFill("solid", fgColor=NAVY)
+            hc.alignment = Alignment(horizontal=("left" if col == 2 else "right"),
+                                     vertical="center", wrap_text=True)
+        ws.row_dimensions[hdr_row].height = 30
+        row += 1
+
+        first_data = row
+        for i, it in enumerate(items):
+            band = PatternFill("solid", fgColor=LT_BLUE) if i % 2 else None
+            cells = [(2 + j, it.get(key, "" if key == "item" else None), fmt)
+                     for j, (_label, key, fmt) in enumerate(spec)]
+            for col, val, fmt in cells:
+                c = ws.cell(row=row, column=col, value=val)
+                c.font = Font(size=10)
+                if fmt:
+                    c.number_format = fmt
+                    c.alignment = Alignment(horizontal="right", vertical="center")
+                else:
+                    c.alignment = Alignment(wrap_text=True, vertical="center")
+                if band:
+                    c.fill = band
+            ws.row_dimensions[row].height = 26
             row += 1
+        last_data = row - 1
+
+        # TOTAL row, matching the convention used on every other data sheet.
+        # Counts and the rate are deliberately not summed — a total vendor count
+        # double-counts suppliers serving several commodities, and adding up
+        # percentages is meaningless.
+        summable = {"v_addressable", "v_total", "v_hard", "v_avoidance"}
+        for j, (_label, key, _f) in enumerate(spec):
+            col = 2 + j
+            c = ws.cell(row=row, column=col)
+            c.font = Font(size=10, bold=True, color=WHITE)
+            c.fill = PatternFill("solid", fgColor=RED)
+            if col == 2:
+                c.value = f"TOTAL — top {len(items)}"
+                c.alignment = Alignment(vertical="center")
+            elif key in summable:
+                L = c.column_letter
+                c.value = f"=SUM({L}{first_data}:{L}{last_data})"
+                c.number_format = money_fmt
+                c.alignment = Alignment(horizontal="right", vertical="center")
+        ws.row_dimensions[row].height = 22
+        row += 1
 
     row += 1
-    ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
+    ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=9)
     fn = ws.cell(row=row, column=2, value=(
-        "Note: every row lands in a real Business Category. “General & Other Procurement” is the "
-        "catch-all for buys that don’t match a specific commodity rule yet — the dollars are still "
-        "counted and the Examples column shows what’s in it. Adding rules for those descriptions "
-        "moves the spend into specific categories over time. All figures are deterministic — no AI "
-        "is used in the analysis."))
+        "Note: every row lands in one of the 17 Business Categories. Rows that match a specific "
+        "commodity rule are placed directly; the rest are assigned to their closest category by "
+        "best fit, so no spend sits in a catch-all and no dollars go uncounted. The Examples "
+        "column on Spend by Category shows representative descriptions behind each one. Adding "
+        "keyword rules improves the directly-matched share over time. All figures are "
+        "deterministic — no AI is used in the analysis."))
     fn.font = Font(size=9, italic=True, color=GRAY)
     fn.alignment = Alignment(wrap_text=True, vertical="top")
     ws.row_dimensions[row].height = 46
