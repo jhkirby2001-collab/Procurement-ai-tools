@@ -1262,6 +1262,10 @@ def _render_spend_report(res: dict, selected=None) -> None:
             sv = savings
     excel_bytes = res["excel"]
 
+    scope = sr.row_scope_note(tiles)
+    if scope:
+        st.warning(scope + " Raise **Rows to analyze** and regenerate to cover the whole file.")
+
     # Executive summary
     st.markdown("### Executive Summary")
     for ln in b["es"]["lines"]:
@@ -1296,7 +1300,10 @@ def _render_spend_report(res: dict, selected=None) -> None:
     st.markdown("### Summary")
     m = st.columns(4)
     m[0].metric("Total spend", _fmt_money(tiles["total_spend"]) if has_amt else "n/a")
-    m[1].metric("Transactions", f"{tiles['transactions']:,}")
+    _src = tiles.get("source_rows")
+    m[1].metric("Transactions", f"{tiles['transactions']:,}",
+                f"of {_src:,} in file" if _src and _src > tiles["transactions"] else None,
+                delta_color="off")
     m[2].metric("Categories", tiles["categories"])
     m[3].metric("Vendors", f"{tiles['vendors']:,}" if tiles["vendors"] is not None else "n/a")
 
@@ -1670,7 +1677,8 @@ def page_spend_report() -> None:
     if len(df_in) > 25000:
         st.warning(
             f"Large file ({len(df_in):,} rows). Classifying every row can take a couple of "
-            "minutes. You can cap the row count for a faster first look.")
+            "minutes. You can cap the row count for a faster first look — the cap keeps the "
+            "**first** N rows in file order, and the report will say it is partial.")
         max_rows = st.number_input(
             "Rows to analyze", min_value=1000, max_value=len(df_in),
             value=min(25000, len(df_in)), step=5000, key="sr_maxrows")
@@ -1681,7 +1689,7 @@ def page_spend_report() -> None:
             cls = sr.classify_series(work[desc_col], get_rules())
             work = pd.concat([work.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
 
-        b = sr.compute_all(work, roles)
+        b = sr.compute_all(work, roles, source_rows=len(df_in))
         excel_bytes = _build_excel_bytes(b, selected)
         # Store the whole computed bundle so it survives page navigation.
         st.session_state["sr_result"] = {

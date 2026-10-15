@@ -227,6 +227,17 @@ def summary_tiles(df, category_col, amount_col=None, vendor_col=None,
     return tiles
 
 
+def row_scope_note(tiles):
+    """'Analyzed N of M rows' when the report covers only part of the uploaded
+    file, else None. Without it, totals silently disagree with the source file."""
+    total = tiles.get("source_rows")
+    done = tiles.get("transactions")
+    if not total or done is None or done >= total:
+        return None
+    return (f"Partial file: this report analyzes the first {done:,} of {total:,} rows "
+            f"({done / total:.1%}). Totals will not match the full source file.")
+
+
 def _rollup(df, group_col, amount_col):
     work = df.copy()
     if amount_col and amount_col in work:
@@ -1962,6 +1973,14 @@ def _write_exec_summary(ws, title, tiles, cov, es):
         subtxt += f"   |   {tiles['date_min']} to {tiles['date_max']}"
     sub.value = subtxt
     sub.font = Font(size=11, italic=True, color=NAVY)
+    scope = row_scope_note(tiles)
+    if scope:
+        ws.merge_cells("B4:I4")
+        n = ws["B4"]
+        n.value = scope
+        n.font = Font(size=11, bold=True, color=RED)
+        n.alignment = Alignment(vertical="center", indent=1)
+        ws.row_dimensions[4].height = 20
 
     metrics = []
     if tiles.get("has_amount"):
@@ -2645,9 +2664,11 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
 # ---------------------------------------------------------------------------
 # Orchestrator — compute every feasible analysis given detected roles
 # ---------------------------------------------------------------------------
-def compute_all(df, roles, max_dims=6):
+def compute_all(df, roles, max_dims=6, source_rows=None):
     """df must already carry a 'Business_Category' column (from classify_series).
-    Returns a dict of every analysis the roles support; infeasible ones are None."""
+    Returns a dict of every analysis the roles support; infeasible ones are None.
+    source_rows: row count of the full uploaded file when df is only its first
+    part, so the report can say it is partial (see row_scope_note)."""
     amt, ven = roles.get("amount"), roles.get("vendor")
     dep, dat = roles.get("department"), roles.get("date")
     desc = roles.get("description")
@@ -2655,6 +2676,7 @@ def compute_all(df, roles, max_dims=6):
     cov = coverage(df, "Business_Category")  # capture best-fit count before folding
     df = absorb_catchall(df, desc)
     tiles = summary_tiles(df, "Business_Category", amt, ven, dat)
+    tiles["source_rows"] = int(source_rows) if source_rows else int(len(df))
     cat = spend_by_category(df, "Business_Category", amt, desc_col=desc)
     classified_df = df[_is_classified(df["Business_Category"])]
     par, measure, n80 = pareto(classified_df, "Business_Category", amt)
@@ -2727,6 +2749,7 @@ def run(path, desc=None, amount=None, vendor=None, dept=None, out=None, sample=N
     else:
         df = pd.read_excel(path)
     df.columns = [str(c).strip() for c in df.columns]
+    source_rows = len(df)
     if sample:
         df = df.head(int(sample))
     prof = profile_columns(df)
@@ -2746,7 +2769,7 @@ def run(path, desc=None, amount=None, vendor=None, dept=None, out=None, sample=N
     cls = classify_series(df[roles["description"]])
     df = pd.concat([df.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
 
-    b = compute_all(df, roles)
+    b = compute_all(df, roles, source_rows=source_rows)
     print("\n=== EXECUTIVE SUMMARY ===")
     for ln in b["es"]["lines"]:
         print("  • " + ln)
