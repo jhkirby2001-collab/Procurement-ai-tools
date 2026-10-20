@@ -34,6 +34,8 @@ Inputs to the classifier: description text + Chicago FMPS account/object/fund co
 - `spend-analysis/data/reference/business_categories_JHK3.csv` — canonical 138-row NIGP-class → Business-Category map
 - `spend-analysis/data/reference/business_categories_summary_JHK3.csv` — 17-row summary
 - `spend-analysis/data/reference/nigp_codes_{3,5,10}digit_JHK3.csv` — NIGP code reference tables
+- `spend-analysis/data/reference/naics_codes_2022_JHK3.csv` — official NAICS 2022 list (2,122 codes, 1,012 six-digit; Census data via PyPI `naics` 1.0.1, since census.gov is blocked from the sandbox). Every crosswalk code is validated against it.
+- `spend-analysis/data/reference/nigp_naics_crosswalk_JHK3.csv` — 608 rows: likely **supplier** NAICS for each NIGP class (138) and item (470), with alternates, supplier basis (wholesale/manufacture/service/construction/rental), confidence and rationale. AI-drafted 2026-10-20; editable; verify before relying on it.
 
 **Production scripts:**
 - `spend-analysis/scripts/classifier_JHK3.py` — production classifier, dual-mode (batch + single-record), runs Tier 1 + Tier 2
@@ -103,6 +105,8 @@ streamlit run streamlit_app.py
 | 6 | Rule files externalized as CSV so procurement staff can edit without touching Python. |
 | 7 | AI promotion thresholds: high → auto-promote; medium → promote only if row_count ≥ 5; low → never promote. |
 | 8 | All 784,556 rows classified regardless of date. Time-agnostic by design. |
+
+**NAICS (added 2026-10-20, James's decision).** NIGP stays the classification (*what was bought*); NAICS is added beside it as the likely *supplier industry*, because DWM/construction contracting, MBE/WBE and DBE certification, goal-setting and federal reporting run on NAICS. James is the tool's only user and authorized AI use; the crosswalk was drafted once with AI and is read as a plain CSV, so runtime classification stays rules-only (decision 2 holds for classification). Lookup: item mapping first, class as fallback (`naics_for` / `add_naics` in `spend_report_JHK3.py`). NAICS appears only on rows that carry a NIGP code. Spend Report adds **Spend by NAICS (supplier industry)**; when an upload has its own NAICS column (detected by name) it is used instead and a "Matches what was bought" column shows 4-digit agreement with the mapped code — the check behind MWBE/DBE credit. AI-assisted reading of uploaded *contract documents* (abstracts) is also approved for later; it will need an API key.
 
 **Date-coverage phrasing (locked for all public summaries):** "AP activity years 2017, 2020, 2021, 2023." `METHODOLOGY_JHK3.md` lines 49-51 preserve precise PO/AP/Payment Date min-max — that's intentional, do not "reconcile" it.
 
