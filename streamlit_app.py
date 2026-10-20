@@ -206,15 +206,21 @@ def init_session_state() -> None:
 
 
 # -- Helpers ---------------------------------------------------------------
+def with_naics(d: dict) -> dict:
+    """Add the likely supplier NAICS (mapped from the NIGP item/class) to a result."""
+    return {**d, **sr.naics_for(d.get("NIGP_Item_5digit", ""), d.get("NIGP_Class_3digit", ""))}
+
+
 def classify_with_history(description: str) -> dict:
     """Run classifier and append to in-session history (max 10 entries)."""
     rules = get_rules()
     result = classify_one(description, rules)
-    d = result.as_dict()
+    d = with_naics(result.as_dict())
     entry = {
         "Description": description.strip(),
         "Business_Category": d["Business_Category"] or "—",
         "NIGP_Code": d["NIGP_Code_Assigned"] or "—",
+        "NAICS": d["NAICS_Code"] or "—",
         "Confidence": d["Classification_Confidence"] or "—",
         "Review_Flag": d["Review_Flag"],
     }
@@ -257,6 +263,13 @@ def render_result_box(d: dict) -> None:
             f"  <span style='color:{CHI_GRAY}; font-weight:400; font-size:13px;'>"
             f"({level_label})</span></div>"
         )
+        if d.get("NAICS_Code"):
+            nigp_line_html += (
+                f"<div style='color:{CHI_NAVY}; font-size:14px; margin-top:4px;'>"
+                f"Likely supplier NAICS:  <strong>{d['NAICS_Code']}</strong> "
+                f"{d['NAICS_Title']}  <span style='color:{CHI_GRAY}; font-size:12px;'>"
+                f"(AI-drafted mapping — verify against the vendor's certification)</span></div>"
+            )
     elif d["Business_Category"] == "Grants & Pass-Through Funding":
         nigp_line_html = (
             f"<div style='color:{CHI_GRAY}; font-size:13px; font-style:italic; "
@@ -304,6 +317,13 @@ def render_detail_table(d: dict) -> None:
         ("NIGP 5-digit Item", d["NIGP_Item_5digit"] or "—"),
         ("NIGP Code Assigned", d["NIGP_Code_Assigned"] or "—"),
         ("Match Level", d["NIGP_Match_Level"] or "—"),
+        (
+            "Likely supplier NAICS",
+            f"{d['NAICS_Code']} {d['NAICS_Title']}  (from {d['NAICS_Matched_On']}; verify)"
+            if d.get("NAICS_Code")
+            else "—",
+        ),
+        ("Other possible NAICS", (d.get("NAICS_Alternates") or "").replace(";", ", ") or "—"),
         (
             "Confidence",
             f"{d['Classification_Confidence']}  ({d['Confidence_Score']:.2f})"
@@ -419,7 +439,7 @@ def page_bulk() -> None:
                 results = []
                 progress = st.progress(0.0, text="Classifying...")
                 for i, ln in enumerate(lines):
-                    r = classify_one(ln, rules).as_dict()
+                    r = with_naics(classify_one(ln, rules).as_dict())
                     r["Description"] = ln
                     results.append(r)
                     progress.progress((i + 1) / len(lines))
@@ -430,6 +450,8 @@ def page_bulk() -> None:
                     "Business_Category",
                     "NIGP_Code_Assigned",
                     "NIGP_Match_Level",
+                    "NAICS_Code",
+                    "NAICS_Title",
                     "Classification_Confidence",
                     "Confidence_Score",
                     "Review_Flag",
@@ -469,7 +491,7 @@ def page_bulk() -> None:
         progress = st.progress(0.0, text=f"Classifying {len(df_in):,} rows...")
         for i, row in df_in.iterrows():
             desc = str(row[desc_col]) if pd.notna(row[desc_col]) else ""
-            r = classify_one(desc, rules).as_dict()
+            r = with_naics(classify_one(desc, rules).as_dict())
             results.append(r)
             if (i + 1) % max(1, len(df_in) // 100) == 0:
                 progress.progress((i + 1) / len(df_in))
@@ -1657,6 +1679,10 @@ def page_spend_report() -> None:
     with c3:
         date_col = st.selectbox("Date", [NONE] + cols,
             index=_opt_idx(roles.get("date")), key="sr_date")
+        naics_col = st.selectbox("Supplier NAICS code (optional)", [NONE] + cols,
+            index=_opt_idx(roles.get("naics")), key="sr_naics",
+            help="If your file has the vendor's NAICS code, the report uses it and checks it "
+                 "against what was bought. Without one, NAICS is mapped from the NIGP code.")
         dims_sel = st.multiselect(
             "Breakdown dimensions (contract flags, status, etc.)",
             options=cols, default=roles.get("dimensions", [])[:6],
@@ -1666,9 +1692,11 @@ def page_spend_report() -> None:
     vendor_col = None if vendor_col == NONE else vendor_col
     dept_col = None if dept_col == NONE else dept_col
     date_col = None if date_col == NONE else date_col
+    naics_col = None if naics_col == NONE else naics_col
 
     roles.update({"description": desc_col, "amount": amount_col, "vendor": vendor_col,
-                  "department": dept_col, "date": date_col, "dimensions": dims_sel})
+                  "department": dept_col, "date": date_col, "naics": naics_col,
+                  "dimensions": dims_sel})
 
     plan = sr.plan_analyses({"roles": roles})
     selected = _analysis_picker(plan)
