@@ -97,6 +97,9 @@ def clean_amount(series: pd.Series) -> pd.Series:
     if pd.api.types.is_numeric_dtype(series):
         return series.astype(float)
     s = series.astype(str).str.strip()
+    # Contract exports state ceilings as "Up To $809,250.00" / "Not To Exceed $…" / "NTE $…".
+    # Strip only those known prefixes, so free text like "PIPE 8 INCH" never reads as a number.
+    s = s.str.replace(r"(?i)^(up\s*to|not\s*to\s*exceed|nte)\s*:?\s*", "", regex=True)
     neg = s.str.startswith("(") & s.str.endswith(")")
     s = s.str.replace(r"[,$\s]", "", regex=True)
     s = s.str.replace(r"^\((.*)\)$", r"\1", regex=True)
