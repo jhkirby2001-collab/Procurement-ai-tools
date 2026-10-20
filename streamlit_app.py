@@ -2077,136 +2077,229 @@ def _plan_view(plan: dict) -> None:
         st.markdown(f"{i}. {_md_money_safe(txt)}{why}")
 
 
+def _review_view(review: dict) -> None:
+    ov = review.get("overview")
+    if ov:
+        st.markdown(_md_money_safe(ov.get("summary", "")))
+        for f in ov.get("files", []):
+            st.markdown(f"**{f['name']}**: {f['appears_to_be']}")
+            if f.get("key_columns"):
+                st.markdown(f"- Key columns: {', '.join(f['key_columns'])}")
+            if f.get("useful_for"):
+                st.markdown(f"- Useful for: {'; '.join(f['useful_for'])}")
+        if ov.get("relationships"):
+            st.markdown("**How the files connect**\n" + "\n".join(f"- {r}" for r in ov["relationships"]))
+        if ov.get("can_answer"):
+            st.markdown("**Questions these files can answer**\n" + "\n".join(f"- {q}" for q in ov["can_answer"]))
+        recs = ov.get("formatting_recommendations") or []
+    else:
+        if review.get("overview_error"):
+            st.caption(f"Written overview not available ({review['overview_error']}). The automatic checks "
+                       "below are complete.")
+        for link in review.get("links", []):
+            st.markdown(f"- {link['note']}")
+        recs = review.get("health", [])
+    st.markdown("#### Formatting recommendations")
+    if recs:
+        tbl = pd.DataFrame(recs)
+        cols = [c for c in ["priority", "file", "column", "issue", "fix"] if c in tbl.columns]
+        st.dataframe(_arrow_safe(tbl[cols].rename(columns=str.title)), use_container_width=True, hide_index=True)
+        st.caption("Fix High items in the source file and upload it again for the most reliable answers, or "
+                   "continue: affected rows are reported as caveats with each result.")
+    else:
+        st.success("No formatting problems found.")
+    if ov and review.get("health"):
+        with st.expander(f"All automatic checks ({len(review['health'])})"):
+            st.dataframe(_arrow_safe(pd.DataFrame(review["health"])), use_container_width=True, hide_index=True)
+
+
+def _reset_objectives(ss) -> None:
+    ss.update(obj_history=[], obj_plan=None, obj_pending=None, obj_result=None,
+              obj_nonce=ss.get("obj_nonce", 0) + 1)
+
+
 def page_objective() -> None:
     st.title("Ask an Objective")
     st.markdown(
-        "Upload data, state what you or leadership want to know, and review the plan before "
-        "anything is calculated. **AI writes the plan and the summary; every number is calculated "
-        "by ordinary formulas from the steps you approve.** The AI sees column names and a few "
-        "sample values, not your whole file."
+        "**1. Upload your files** · **2. See what's in them** and how to format them · "
+        "**3. State an objective, then keep refining** until the result is what you need.  \n"
+        "AI reviews the files and writes each plan from column names and a few sample values, never the "
+        "whole file. **Every number is calculated by ordinary formulas from the original files**, using the "
+        "steps you approve."
     )
     if not check_work_password():
         return
     api_key = _secret("ANTHROPIC_API_KEY")
     if not api_key:
-        st.warning("No `ANTHROPIC_API_KEY` in this app's secrets, so plans can't be drafted yet.")
-
+        st.warning("No `ANTHROPIC_API_KEY` in this app's secrets: the automatic checks still run, but the "
+                   "written overview and plans need the key.")
     ss = st.session_state
-    ss.setdefault("obj_saved", [])
+    for k, v in (("obj_saved", []), ("obj_history", []), ("obj_nonce", 0)):
+        ss.setdefault(k, v)
 
-    uploaded = st.file_uploader("Data file (CSV or Excel): contracts, payments or spend",
-                                type=["csv", "xlsx", "xls"], key="obj_file")
-    if uploaded is None:
-        st.info("Upload a file to begin.")
+    # ---- 1. Files ----------------------------------------------------------
+    st.markdown("### 1. Upload your files")
+    uploads = st.file_uploader("Contracts, payments, spend, vendor lists… (CSV or Excel; several at once)",
+                               type=["csv", "xlsx", "xls"], accept_multiple_files=True, key="obj_up")
+    if not uploads:
+        st.info("Upload one or more files to begin.")
         return
-    file_sig = (uploaded.name, uploaded.size)
-    if ss.get("obj_sig") != file_sig:
-        df = read_uploaded_table(uploaded)
-        df.columns = [str(c).strip() for c in df.columns]
-        ss.update(obj_sig=file_sig, obj_raw=df, obj_plan=None, obj_result=None)
-    df = ss["obj_raw"]
-    st.caption(f"{len(df):,} rows × {len(df.columns)} columns loaded from **{uploaded.name}**.")
-
-    roles = sr.profile_columns(df)["roles"]
-    cols = list(df.columns)
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        desc_col = st.selectbox(
-            "Description column to classify (adds Business Category, NIGP and NAICS columns)",
-            ["(don't classify)"] + cols,
-            index=(cols.index(roles["description"]) + 1) if roles.get("description") in cols else 0,
-            key="obj_desc")
-    work = df
-    if desc_col != "(don't classify)":
-        key = (file_sig, desc_col)
-        if ss.get("obj_cls_key") != key:
-            with st.spinner("Classifying (rules only)…"):
-                cls = sr.classify_series(df[desc_col], get_rules())
-            ss["obj_cls_key"], ss["obj_cls"] = key, pd.concat(
-                [df.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
-        work = ss["obj_cls"]
-
-    with c2:
-        saved_names = [s["name"] for s in ss["obj_saved"]]
-        pick = st.selectbox("Saved objectives", ["—"] + saved_names, key="obj_pick")
-    default_text = next((s["objective"] for s in ss["obj_saved"] if s["name"] == pick), "")
-    objective = st.text_area(
-        "Objective",
-        value=default_text,
-        height=110,
-        placeholder="e.g. Which treatment-chemical contracts expire in the next 180 days, who holds "
-                    "them, and what are they worth? Or paste leadership's request as written.",
-        key=f"obj_text_{pick}",
-    )
-    answers = ""
-    plan = ss.get("obj_plan")
-    if plan and plan.get("questions"):
-        st.markdown("**Questions before running:**\n" + "\n".join(f"- {q}" for q in plan["questions"]))
-        answers = st.text_area("Your answers (then click Draft plan again)", key="obj_answers")
-
-    b1, b2 = st.columns(2)
-    if b1.button("Draft plan", type="primary", disabled=not (objective.strip() and api_key)):
-        with st.spinner("Drafting a plan…"):
+    sig = tuple((u.name, u.size) for u in uploads)
+    if ss.get("obj_sig") != sig:
+        raw = {}
+        for u in uploads:
             try:
-                ss["obj_plan"] = oa.plan_objective(objective, oa.profile_for_planner(work), api_key, answers)
-                ss["obj_result"] = None
+                d = read_uploaded_table(u)
+            except Exception as e:  # noqa: BLE001
+                st.error(f"Could not read {u.name}: {e}")
+                continue
+            d.columns = [str(c).strip() for c in d.columns]
+            raw[u.name] = d
+        ss.update(obj_sig=sig, obj_raw=raw, obj_review=None, obj_cls={})
+        _reset_objectives(ss)
+    raw = ss["obj_raw"]
+    if not raw:
+        return
+    for name, d in raw.items():
+        st.caption(f"**{name}**: {len(d):,} rows × {len(d.columns)} columns")
+
+    files = {}
+    with st.expander("Add Business Category, NIGP and NAICS columns (optional)"):
+        st.caption("Pick the description column in each file to classify it with the mapper's rules.")
+        for name, d in raw.items():
+            cols = list(d.columns)
+            guess = sr.profile_columns(d)["roles"].get("description")
+            choice = st.selectbox(name, ["(don't classify)"] + cols,
+                                  index=(cols.index(guess) + 1) if guess in cols else 0,
+                                  key=f"obj_desc_{name}")
+            if choice == "(don't classify)":
+                files[name] = d
+                continue
+            key = (sig, name, choice)
+            if key not in ss["obj_cls"]:
+                with st.spinner(f"Classifying {name} (rules only)…"):
+                    cls = sr.classify_series(d[choice], get_rules())
+                ss["obj_cls"][key] = pd.concat([d.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
+            files[name] = ss["obj_cls"][key]
+
+    # ---- 2. Review ---------------------------------------------------------
+    st.markdown("### 2. What I see")
+    if st.button("Review my files", type="primary" if ss.get("obj_review") is None else "secondary"):
+        with st.spinner("Checking the files…"):
+            health = [h for n, d in raw.items() for h in oa.data_health(n, d)]
+            links = oa.find_links(raw)
+            review = {"health": health, "links": links, "overview": None}
+            if api_key:
+                try:
+                    review["overview"] = oa.overview_files(oa.profile_files(files), health, links, api_key)
+                except Exception as e:  # noqa: BLE001
+                    review["overview_error"] = str(e)
+        ss["obj_review"] = review
+    review = ss.get("obj_review")
+    if review is None:
+        st.caption("Start here: the review shows what each file contains, how the files connect, what they "
+                   "can answer, and what to fix in them.")
+        return
+    _review_view(review)
+
+    # ---- 3. Objectives -----------------------------------------------------
+    st.markdown("### 3. Objectives")
+    history = ss["obj_history"]
+    if history:
+        st.markdown("**Your objectives so far** (each one refines the result):\n"
+                    + "\n".join(f"{i}. {h}" for i, h in enumerate(history, 1)))
+    c1, c2 = st.columns([3, 1])
+    with c2:
+        pick = st.selectbox("Saved objectives", ["—"] + [s["name"] for s in ss["obj_saved"]], key="obj_pick")
+    prefill = next((s["objective"] for s in ss["obj_saved"] if s["name"] == pick), "")
+    with c1:
+        objective = st.text_area(
+            "Next objective: refine the result" if history else "First objective",
+            value=prefill, height=100,
+            placeholder=("e.g. Only treatment chemicals · add days until the end date · group by vendor · "
+                         "keep the top 10" if history else
+                         "e.g. Which contracts end in the next 180 days, who holds them and what are they "
+                         "worth? Or paste leadership's request as written."),
+            key=f"obj_text_{ss['obj_nonce']}_{len(history)}_{pick}",
+        )
+    pending = ss.get("obj_pending")
+    answers = ""
+    if pending and pending["plan"].get("questions"):
+        st.markdown("**Questions before running:**\n" + "\n".join(f"- {q}" for q in pending["plan"]["questions"]))
+        answers = st.text_area("Your answers (then click Draft plan again)", key=f"obj_ans_{ss['obj_nonce']}")
+
+    b1, b2, b3 = st.columns(3)
+    if b1.button("Draft plan", type="primary", disabled=not (objective.strip() and api_key)):
+        with st.spinner("Drafting the plan…"):
+            try:
+                plan = oa.plan_objective(objective, oa.profile_files(files), api_key, answers,
+                                         history=history, current_plan=ss.get("obj_plan"),
+                                         links=review.get("links"))
+                ss["obj_pending"] = {"objective": objective.strip(), "plan": plan}
             except oa.AIUnavailable as e:
                 st.error(str(e))
             except Exception as e:  # noqa: BLE001
                 st.error(f"Could not draft a plan: {e}")
-        plan = ss.get("obj_plan")
+        pending = ss.get("obj_pending")
     if b2.button("Save this objective", disabled=not objective.strip()):
         name = objective.strip().split("\n")[0][:60]
         ss["obj_saved"] = [s for s in ss["obj_saved"] if s["name"] != name] + [
             {"name": name, "objective": objective.strip()}]
         st.success(f"Saved “{name}”.")
+    if b3.button("Start over", disabled=not (history or pending)):
+        _reset_objectives(ss)
+        st.rerun()
 
-    if plan:
-        st.markdown("---")
-        st.markdown("### Plan: review before running")
-        _plan_view(plan)
+    if pending:
+        st.markdown("#### Plan: review before running")
+        _plan_view(pending["plan"])
         with st.expander("Edit the plan directly (advanced)"):
-            edited = st.text_area("Plan (JSON)", json.dumps(plan, indent=2), height=300, key="obj_json")
+            edited = st.text_area("Plan (JSON)", json.dumps(pending["plan"], indent=2), height=300,
+                                  key=f"obj_json_{ss['obj_nonce']}_{len(history)}")
             if st.button("Use edited plan"):
                 try:
-                    ss["obj_plan"] = plan = json.loads(edited)
+                    pending["plan"] = json.loads(edited)
                     st.success("Plan updated.")
                 except json.JSONDecodeError as e:
                     st.error(f"That isn't valid JSON: {e}")
         if st.button("Run this plan", type="primary"):
-            result = None
             try:
-                result, caveats = oa.execute_plan(work, plan)
+                result, caveats = oa.execute_plan(files, pending["plan"])
             except oa.PlanError as e:
                 st.error(str(e))
-            if result is not None:
+            else:
+                hist = history + [pending["objective"]]
                 summary = ""
                 if api_key and len(result):
                     with st.spinner("Writing the summary…"):
                         try:
-                            summary = oa.summarize_result(objective, plan, result, caveats, api_key)
+                            summary = oa.summarize_result(" → ".join(hist), pending["plan"], result,
+                                                          caveats, api_key)
                         except Exception as e:  # noqa: BLE001
-                            st.caption(f"Summary not generated ({e}). The table below is complete.")
-                ss["obj_result"] = (result, caveats, summary, objective)
+                            st.caption(f"Summary not generated ({e}). The table is complete.")
+                ss.update(obj_history=hist, obj_plan=pending["plan"], obj_pending=None,
+                          obj_result=(result, caveats, summary))
+                st.rerun()
 
     res = ss.get("obj_result")
-    if res and plan:
-        result, caveats, summary, obj_text = res
+    if res and ss.get("obj_plan"):
+        result, caveats, summary = res
+        plan = ss["obj_plan"]
         st.markdown("---")
-        st.markdown(f"### {plan.get('result_title') or 'Result'}")
+        st.markdown(f"### Result: {plan.get('result_title') or 'Result'}")
+        st.caption(f"After {len(history)} objective{'s' if len(history) != 1 else ''}. "
+                   "Add another objective above to refine it, or download it as your final product.")
         if summary:
             st.markdown(_md_money_safe(summary))
         for c in caveats:
             st.caption(f"⚠ {c}")
         st.dataframe(_arrow_safe(result), use_container_width=True, hide_index=True)
-        num_cols = [c for c in result.columns[1:] if pd.api.types.is_numeric_dtype(result[c])]
-        if 2 <= len(result) <= 40 and num_cols:
-            _safe_chart(lambda: sr.barh_png([str(x) for x in result.iloc[:, 0]], result[num_cols[0]].tolist(),
-                                            (plan.get("result_title") or "")[:48], value_label=num_cols[0],
-                                            money=False))
+        with st.expander("How this was calculated"):
+            _plan_view(plan)
         st.download_button(
-            "⬇  Download answer (Excel)",
-            data=oa.excel_bytes(obj_text, plan, result, caveats, summary, uploaded.name),
+            "⬇  Download final product (Excel)",
+            data=oa.excel_bytes(history, plan, result, caveats, summary, list(raw),
+                                review.get("health")),
             file_name="Objective_Analysis_JHK3.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
