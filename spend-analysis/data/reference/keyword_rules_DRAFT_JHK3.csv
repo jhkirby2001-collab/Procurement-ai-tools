@@ -1,4 +1,60 @@
 pattern,match_type,business_category,nigp_class_3digit,nigp_item_5digit,nigp_match_level,notes
+DUCTILE IRON,contains,Construction Materials,670,67027,exact,Ductile iron water pipe — DWM water items — 2026-10-20
+WATER MAIN PIPE,contains,Construction Materials,670,67027,exact,DWM water items — 2026-10-20
+WATER PIPE,contains,Construction Materials,670,67027,exact,DWM water items — 2026-10-20
+GATE VALVE,contains,Construction Materials,670,67075,exact,DWM water items — 2026-10-20
+BUTTERFLY VALVE,contains,Construction Materials,670,67071,exact,DWM water items — 2026-10-20
+HYDRANT,contains,Construction Materials,670,,broad,Fire hydrants and parts (water-system hardware) — DWM water items — 2026-10-20
+CURB STOP,contains,Construction Materials,670,67064,exact,DWM water items — 2026-10-20
+CURB BOX,contains,Construction Materials,890,89040,exact,Curb / shut-off boxes — DWM water items — 2026-10-20
+SHUT-OFF BOX,contains,Construction Materials,890,89040,exact,DWM water items — 2026-10-20
+SHUTOFF BOX,contains,Construction Materials,890,89040,exact,DWM water items — 2026-10-20
+VALVE BOX,contains,Construction Materials,890,89040,exact,DWM water items — 2026-10-20
+TAPPING SLEEVE,contains,Construction Materials,670,,broad,DWM water items — 2026-10-20
+REPAIR CLAMP,contains,Construction Materials,670,67052,exact,DWM water items — 2026-10-20
+PIPE CLAMP,contains,Construction Materials,670,67052,exact,DWM water items — 2026-10-20
+MEGALUG,contains,Construction Materials,670,67050,exact,DWM water items — 2026-10-20
+MEGA-LUG,contains,Construction Materials,670,67050,exact,DWM water items — 2026-10-20
+PIPE RESTRAINT,contains,Construction Materials,670,67050,exact,DWM water items — 2026-10-20
+JOINT RESTRAINT,contains,Construction Materials,670,67050,exact,DWM water items — 2026-10-20
+COPPER TUBING,contains,Construction Materials,670,67023,exact,DWM water items — 2026-10-20
+COPPER TUBE,contains,Construction Materials,670,67023,exact,DWM water items — 2026-10-20
+TYPE K COPPER,contains,Construction Materials,670,67023,exact,DWM water items — 2026-10-20
+MECHANICAL JOINT,contains,Construction Materials,670,67039,exact,MJ fittings — DWM water items — 2026-10-20
+PRECAST MANHOLE,contains,Construction Materials,210,21072,exact,DWM water items — 2026-10-20
+PRECAST CONCRETE MANHOLE,contains,Construction Materials,210,21072,exact,DWM water items — 2026-10-20
+MANHOLE RISER,contains,Construction Materials,210,21072,exact,DWM water items — 2026-10-20
+MANHOLE BASE,contains,Construction Materials,890,89030,exact,DWM water items — 2026-10-20
+PRECAST CATCH BASIN,contains,Construction Materials,210,21007,exact,DWM water items — 2026-10-20
+"CATCH BASIN, PRECAST",contains,Construction Materials,210,21007,exact,DWM water items — 2026-10-20
+PRECAST CONCRETE,contains,Construction Materials,210,,broad,Precast structures — DWM water items — 2026-10-20
+MANHOLE FRAME,contains,Construction Materials,400,40035,exact,DWM water items — 2026-10-20
+CATCH BASIN FRAME,contains,Construction Materials,400,40035,exact,DWM water items — 2026-10-20
+FRAME AND LID,contains,Construction Materials,400,40035,exact,DWM water items — 2026-10-20
+FRAME AND GRATE,contains,Construction Materials,400,40035,exact,DWM water items — 2026-10-20
+MANHOLE COVER,contains,Construction Materials,400,40035,exact,DWM water items — 2026-10-20
+HYPOCHLORITE,contains,Chemicals & Water Treatment,885,88516,exact,DWM water items — 2026-10-20
+FLUOSILICIC,contains,Chemicals & Water Treatment,885,88532,exact,DWM water items — 2026-10-20
+FLUOROSILICIC,contains,Chemicals & Water Treatment,885,88532,exact,DWM water items — 2026-10-20
+POLYELECTROLYTE,contains,Chemicals & Water Treatment,885,88544,exact,DWM water items — 2026-10-20
+CAUSTIC SODA,contains,Chemicals & Water Treatment,885,88578,exact,DWM water items — 2026-10-20
+SODIUM HYDROXIDE,contains,Chemicals & Water Treatment,885,88578,exact,DWM water items — 2026-10-20
+HYDRATED LIME,contains,Chemicals & Water Treatment,885,,broad,DWM water items — 2026-10-20
+QUICKLIME,contains,Chemicals & Water Treatment,885,,broad,DWM water items — 2026-10-20
+PEBBLE LIME,contains,Chemicals & Water Treatment,885,,broad,DWM water items — 2026-10-20
+AQUA AMMONIA,contains,Chemicals & Water Treatment,885,,broad,DWM water items — 2026-10-20
+ANHYDROUS AMMONIA,contains,Chemicals & Water Treatment,885,,broad,DWM water items — 2026-10-20
+AMMONIUM SULFATE,contains,Chemicals & Water Treatment,885,,broad,DWM water items — 2026-10-20
+ACTIVATED CARBON,contains,Chemicals & Water Treatment,885,,broad,DWM water items — 2026-10-20
+ALUMINUM SULFATE,contains,Chemicals & Water Treatment,885,,broad,Coagulant — DWM water items — 2026-10-20
+LIQUID ALUM,contains,Chemicals & Water Treatment,885,,broad,DWM water items — 2026-10-20
+FERRIC CHLORIDE,contains,Chemicals & Water Treatment,885,,broad,DWM water items — 2026-10-20
+POLYALUMINUM,contains,Chemicals & Water Treatment,885,,broad,DWM water items — 2026-10-20
+ORTHOPHOSPHATE,contains,Chemicals & Water Treatment,885,,broad,Corrosion control — DWM water items — 2026-10-20
+BLENDED PHOSPHATE,contains,Chemicals & Water Treatment,885,,broad,DWM water items — 2026-10-20
+POLYPHOSPHATE,contains,Chemicals & Water Treatment,885,,broad,DWM water items — 2026-10-20
+LEAD SERVICE LINE,contains,Construction & Trades Services,913,91392,exact,LSL replacement — water line work (NAICS 237110) — DWM water items — 2026-10-20
+SERVICE LINE,contains,Construction & Trades Services,913,91392,exact,Water service line work — DWM water items — 2026-10-20
 Books,exact,"Office, Print & Marketing",,,broad,
 Library Materials,exact,"Office, Print & Marketing",,,broad,
 Library materials,exact,"Office, Print & Marketing",,,broad,
@@ -163,7 +219,8 @@ POLICE UNIFORM,contains,"Public Safety, Uniforms & PPE",,,broad,Police uniforms 
 BALLISTIC VEST,contains,"Public Safety, Uniforms & PPE",,,broad,Ballistic vests — added 2026-05-06
 TACTICAL GEAR,contains,"Public Safety, Uniforms & PPE",,,broad,Tactical gear — added 2026-05-06
 RESPIRATOR,contains,"Public Safety, Uniforms & PPE",,,broad,Respirators — added 2026-05-06
-PPE,contains,"Public Safety, Uniforms & PPE",,,broad,Personal protective equipment — added 2026-05-06
+PPE ,contains,"Public Safety, Uniforms & PPE",,,broad,"PPE as a word (was 'PPE', which matched inside COPPER, SHIPPED, STOPPER…) — fixed 2026-10-20"
+ PPE,contains,"Public Safety, Uniforms & PPE",,,broad,PPE as a word at end of text — 2026-10-20
 SAFETY GLASSES,contains,"Public Safety, Uniforms & PPE",,,broad,Safety glasses — added 2026-05-06
 ASPHALT,contains,Construction Materials,745,,broad,Asphalt — added 2026-05-06
 CONCRETE,contains,Construction Materials,745,,broad,Concrete — added 2026-05-06
@@ -279,8 +336,8 @@ WINDOW WASHING,contains,"Landscaping, Grounds & Irrigation",910,,broad,Window wa
 TONER,contains,"IT, Telecom & Audio/Visual",207,,broad,Printer toner/supplies — NIGP 207 — added 2026-08-07
 SNOW REMOVAL,contains,"Landscaping, Grounds & Irrigation",,,broad,Snow removal service (no snow-services class in working set) — added 2026-08-07
 FUEL,contains,Vehicles & Fleet,405,,broad,Fuel (gasoline/diesel/fleet) — NIGP 405 — added 2026-08-07
-SEWER,contains,Construction & Trades Services,913,,broad,Sewer construction/lining/rehab — spend-file mining 2026-08
-WATER MAIN,contains,Construction & Trades Services,913,,broad,Water main construction/repair — 2026-08
+SEWER,contains,Construction & Trades Services,913,91392,exact,Sewer construction/lining/rehab — spend-file mining 2026-08; item 91392 so NAICS reads 237110 water/sewer line construction 2026-10-20
+WATER MAIN,contains,Construction & Trades Services,913,91392,exact,Water main construction/repair — 2026-08; item 91392 water-system main/line work (NAICS 237110) 2026-10-20
 REFUSE,contains,"Janitorial, Sanitation & Waste",485,,broad,Refuse/waste carts & collection — 2026-08
 RECYCLING CART,contains,"Janitorial, Sanitation & Waste",485,,broad,Recycling carts — 2026-08
 GARBAGE CART,contains,"Janitorial, Sanitation & Waste",485,,broad,Garbage carts — 2026-08
@@ -296,7 +353,7 @@ BRIDGE INSPECTION,contains,Professional & Administrative Services,,,broad,Bridge
 GRAFFITI REMOVAL,contains,Facilities Operations & Maintenance,,,broad,Graffiti removal service — 2026-08
 POLE PAINTING,contains,Facilities Operations & Maintenance,,,broad,Pole painting service — 2026-08
 STREET AND PARKWAY RESTORATION,contains,Construction & Trades Services,,,broad,Street/parkway restoration — 2026-08
-PARKWAY RESTORATION,contains,Construction & Trades Services,,,broad,Parkway restoration — 2026-08
+PARKWAY RESTORATION,contains,Construction & Trades Services,913,91350,exact,Parkway restoration — 2026-08; NIGP 913/91350 pavement & parkway restoration 2026-10-20
 UTILITY STRUCTURE ADJUSTMENT,contains,Construction & Trades Services,,,broad,Utility structure adjustment program — 2026-08
 HELICOPTER PARTS,contains,Vehicles & Fleet,,,broad,Helicopter/aircraft parts & repair — 2026-08
 MIG ROD,contains,Construction Materials,,,broad,Welding rod/wire consumable — 2026-08
@@ -328,7 +385,7 @@ GREEN CART,contains,"Janitorial, Sanitation & Waste",485,,broad,Organic/compost 
 STEEL WIRE BASKET,contains,"Janitorial, Sanitation & Waste",485,,broad,Street litter/wire baskets — 2026-08
 SWEEPING,contains,"Janitorial, Sanitation & Waste",,,broad,Street sweeping services — 2026-08
 GUARDRAIL,contains,"Landscaping, Grounds & Irrigation",988,,broad,Guardrail install/repair — aligned to existing 988 rule — 2026-08
-PHOSPHATE,contains,Chemicals & Water Treatment,,,broad,Blended phosphates for water/corrosion control — 2026-08
+PHOSPHATE,contains,Chemicals & Water Treatment,190,,broad,Blended phosphates for water/corrosion control — 2026-08; NIGP 190 phosphates 2026-10-20
 CORROSION CONTROL,contains,Chemicals & Water Treatment,,,broad,Corrosion-control water treatment — 2026-08
 STREET LIGHT POLE,contains,Construction Materials,,,broad,Street light poles/arms — 2026-08
 TRAFFIC SIGNAL POLE,contains,Construction Materials,,,broad,Traffic signal poles/arms — 2026-08
