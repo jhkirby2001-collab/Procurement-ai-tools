@@ -97,6 +97,9 @@ def clean_amount(series: pd.Series) -> pd.Series:
     if pd.api.types.is_numeric_dtype(series):
         return series.astype(float)
     s = series.astype(str).str.strip()
+    # Contract exports state ceilings as "Up To $809,250.00" / "Not To Exceed $…" / "NTE $…".
+    # Strip only those known prefixes, so free text like "PIPE 8 INCH" never reads as a number.
+    s = s.str.replace(r"(?i)^(up\s*to|not\s*to\s*exceed|nte)\s*:?\s*", "", regex=True)
     neg = s.str.startswith("(") & s.str.endswith(")")
     s = s.str.replace(r"[,$\s]", "", regex=True)
     s = s.str.replace(r"^\((.*)\)$", r"\1", regex=True)
@@ -168,7 +171,112 @@ def classify_series(desc: pd.Series, rules_df=None) -> pd.DataFrame:
     out.loc[no_desc, "Business_Category"] = CATCHALL
     out.loc[no_desc, "Classification_Method"] = METHOD_NO_DESC
     out.loc[no_desc, "Classification_Reason"] = "no description text on this row — grouped as General & Other"
-    return out
+    return add_naics(out)
+
+
+# ---------------------------------------------------------------------------
+# NAICS — the supplier's industry, alongside NIGP (what was bought)
+# ---------------------------------------------------------------------------
+# NIGP stays the classification. NAICS is added beside it because certification
+# (City MBE/WBE, federal DBE), goal-setting and federal reporting all run on
+# NAICS. The crosswalk was drafted once with AI, every code checked against the
+# official NAICS 2022 list, and is kept as an editable CSV — so this lookup is a
+# plain table read with no API call. It is a guide to the likely supplier
+# industry, not an official NIGP↔NAICS mapping: verify before relying on it.
+REF_DIR = Path(__file__).resolve().parent.parent / "data" / "reference"
+NAICS_CODES_FILE = REF_DIR / "naics_codes_2022_JHK3.csv"
+NAICS_XWALK_FILE = REF_DIR / "nigp_naics_crosswalk_JHK3.csv"
+NAICS_LABEL = "Spend by NAICS (supplier industry)"
+NAICS_COL = "NAICS"
+NAICS_SOURCE_COL = "NAICS source"
+NAICS_AGREE_COL = "Matches what was bought"
+NAICS_HINTS = ["naics"]
+
+_NAICS_CACHE: dict = {}
+
+
+def load_naics_titles() -> dict:
+    """{6-digit code: title} from the official NAICS 2022 list ({} if missing)."""
+    if "titles" not in _NAICS_CACHE:
+        try:
+            t = pd.read_csv(NAICS_CODES_FILE, dtype=str)
+            _NAICS_CACHE["titles"] = dict(zip(t["naics_code"], t["naics_title"]))
+        except (OSError, ValueError, KeyError):
+            _NAICS_CACHE["titles"] = {}
+    return _NAICS_CACHE["titles"]
+
+
+def load_naics_crosswalk() -> dict:
+    """{NIGP code (3- or 5-digit): crosswalk row dict} ({} if the file is missing)."""
+    if "xwalk" not in _NAICS_CACHE:
+        try:
+            x = pd.read_csv(NAICS_XWALK_FILE, dtype=str).fillna("")
+            _NAICS_CACHE["xwalk"] = {r["nigp_code"]: r for r in x.to_dict("records")}
+        except (OSError, ValueError, KeyError):
+            _NAICS_CACHE["xwalk"] = {}
+    return _NAICS_CACHE["xwalk"]
+
+
+def naics_for(item5="", class3="") -> dict:
+    """Likely supplier NAICS for one NIGP item/class: the item's own mapping when
+    it has one, else its class's. Empty fields when neither is mapped."""
+    xw = load_naics_crosswalk()
+    titles = load_naics_titles()
+    for code, level in ((str(item5 or "").strip(), "NIGP item"), (str(class3 or "").strip(), "NIGP class")):
+        r = xw.get(code) if code else None
+        if r and r.get("naics_primary"):
+            prim = r["naics_primary"]
+            return {
+                "NAICS_Code": prim,
+                "NAICS_Title": titles.get(prim, ""),
+                "NAICS_Alternates": r.get("naics_alternates", ""),
+                "NAICS_Confidence": r.get("confidence", ""),
+                "NAICS_Matched_On": level,
+            }
+    return {"NAICS_Code": "", "NAICS_Title": "", "NAICS_Alternates": "",
+            "NAICS_Confidence": "", "NAICS_Matched_On": ""}
+
+
+def add_naics(cls: pd.DataFrame) -> pd.DataFrame:
+    """Append NAICS columns to classify_series output (one lookup per distinct code)."""
+    keys = list(zip(cls["NIGP_Item_5digit"].astype(str), cls["NIGP_Class_3digit"].astype(str)))
+    memo = {k: naics_for(*k) for k in set(keys)}
+    extra = pd.DataFrame([memo[k] for k in keys], index=cls.index)
+    return pd.concat([cls, extra], axis=1)
+
+
+def normalize_naics(series: pd.Series) -> pd.Series:
+    """Pull a 2–6 digit NAICS code out of free-form cells ('237110', '237110 - Water…',
+    237110.0). Blank when no code is present."""
+    s = series.astype(str).str.extract(r"(?<!\d)(\d{2,6})(?:\.0)?(?!\d)", expand=False)
+    return s.fillna("")
+
+
+def spend_by_naics(df, amount_col=None, naics_col=None, top_n=25):
+    """Spend grouped by supplier NAICS. Uses the file's own NAICS column when there
+    is one; otherwise the NAICS mapped from what was bought (NIGP). When both exist,
+    shows how often the vendor's NAICS agrees with what was bought — the check
+    behind MWBE/DBE credit, which counts only work in a firm's certified codes."""
+    if "NAICS_Code" not in df and not (naics_col and naics_col in df):
+        return None
+    titles = load_naics_titles()
+    work = df.copy()
+    from_file = bool(naics_col and naics_col in work)
+    work["_naics"] = normalize_naics(work[naics_col]) if from_file else work["NAICS_Code"].fillna("").astype(str)
+    work = work[work["_naics"] != ""]
+    if work.empty:
+        return None
+    work[NAICS_COL] = work["_naics"].map(lambda c: f"{c} {titles.get(c, '')}".strip())
+    g, _ = _rollup(work, NAICS_COL, amount_col)
+    g[NAICS_SOURCE_COL] = "Your file" if from_file else "Mapped from what was bought (verify)"
+    if from_file and "NAICS_Code" in work:
+        mapped = work["NAICS_Code"].fillna("").astype(str)
+        both = mapped != ""
+        agree = both & (mapped.str[:4] == work["_naics"].str[:4])
+        stats = pd.DataFrame({"both": both, "agree": agree, NAICS_COL: work[NAICS_COL]}).groupby(NAICS_COL).sum()
+        pct = (stats["agree"] / stats["both"].where(stats["both"] > 0) * 100).round(0)
+        g[NAICS_AGREE_COL] = g[NAICS_COL].map(pct).map(lambda v: "" if pd.isna(v) else f"{v:.0f}%")
+    return g.head(top_n)
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +333,17 @@ def summary_tiles(df, category_col, amount_col=None, vendor_col=None,
             tiles["date_min"] = str(d.min().date())
             tiles["date_max"] = str(d.max().date())
     return tiles
+
+
+def row_scope_note(tiles):
+    """'Analyzed N of M rows' when the report covers only part of the uploaded
+    file, else None. Without it, totals silently disagree with the source file."""
+    total = tiles.get("source_rows")
+    done = tiles.get("transactions")
+    if not total or done is None or done >= total:
+        return None
+    return (f"Partial file: this report analyzes the first {done:,} of {total:,} rows "
+            f"({done / total:.1%}). Totals will not match the full source file.")
 
 
 def _rollup(df, group_col, amount_col):
@@ -947,7 +1066,9 @@ def profile_columns(df: pd.DataFrame) -> dict:
         datef = _date_frac(s) if (s.dtype == object or "date" in low or pd.api.types.is_datetime64_any_dtype(s)) else 0.0
 
         role, sub = "other", None
-        if datef >= 0.7 or (hint(low, DATE_HINTS) and datef >= 0.4):
+        if hint(low, NAICS_HINTS):
+            role = "naics"  # by name only: NAICS codes look like numbers or IDs
+        elif datef >= 0.7 or (hint(low, DATE_HINTS) and datef >= 0.4):
             role = "date"
         elif has_dollar >= 0.3 or (numf >= 0.8 and hint(low, AMOUNT_HINTS)):
             role = "amount"
@@ -991,10 +1112,11 @@ def profile_columns(df: pd.DataFrame) -> dict:
     vendor = pick("vendor", VENDOR_HINTS, exclude={desc})
     department = pick("department", DEPT_HINTS)
     date = pick("date", DATE_HINTS)
+    naics = pick("naics", NAICS_HINTS)
     dims = [c for c in cols if c["role"] == "dimension"]
     roles = {
         "description": desc, "amount": amount, "vendor": vendor,
-        "department": department, "date": date,
+        "department": department, "date": date, "naics": naics,
         "dimensions": [c["name"] for c in dims],
         "dimension_subtypes": {c["name"]: c["subtype"] for c in dims},
     }
@@ -1034,6 +1156,11 @@ def plan_analyses(profile: dict) -> list:
         "" if has("vendor") else "no vendor column")
     add("matrix", "Category × Department Matrix", has("department"),
         "" if has("department") else "no department column")
+    # Always feasible: NAICS is mapped from what was bought even when the file has
+    # no NAICS column. Pre-ticked when the file carries its own NAICS codes.
+    add(f"dim::{NAICS_LABEL}", NAICS_LABEL, True)
+    if has("naics"):
+        plan[-1]["default"] = True
     for dim in r.get("dimensions", []):
         sub = r.get("dimension_subtypes", {}).get(dim)
         label = {"contract": f"Contract vs Non-Contract ({dim})",
@@ -1069,7 +1196,8 @@ def default_selection(plan) -> list:
     """The pre-ticked analyses for a plan — the lean set, minus anything this
     file cannot support."""
     feasible = {p["key"] for p in plan if p["feasible"]}
-    return [k for k in DEFAULT_ANALYSES if k in feasible]
+    extra = [p["key"] for p in plan if p["feasible"] and p.get("default")]
+    return [k for k in DEFAULT_ANALYSES if k in feasible] + extra
 
 
 # ---------------------------------------------------------------------------
@@ -1962,6 +2090,14 @@ def _write_exec_summary(ws, title, tiles, cov, es):
         subtxt += f"   |   {tiles['date_min']} to {tiles['date_max']}"
     sub.value = subtxt
     sub.font = Font(size=11, italic=True, color=NAVY)
+    scope = row_scope_note(tiles)
+    if scope:
+        ws.merge_cells("B4:I4")
+        n = ws["B4"]
+        n.value = scope
+        n.font = Font(size=11, bold=True, color=RED)
+        n.alignment = Alignment(vertical="center", indent=1)
+        ws.row_dimensions[4].height = 20
 
     metrics = []
     if tiles.get("has_amount"):
@@ -2645,9 +2781,11 @@ def build_excel_report(path, *, tiles, cat_tbl, pareto_tbl, vendors_tbl,
 # ---------------------------------------------------------------------------
 # Orchestrator — compute every feasible analysis given detected roles
 # ---------------------------------------------------------------------------
-def compute_all(df, roles, max_dims=6):
+def compute_all(df, roles, max_dims=6, source_rows=None):
     """df must already carry a 'Business_Category' column (from classify_series).
-    Returns a dict of every analysis the roles support; infeasible ones are None."""
+    Returns a dict of every analysis the roles support; infeasible ones are None.
+    source_rows: row count of the full uploaded file when df is only its first
+    part, so the report can say it is partial (see row_scope_note)."""
     amt, ven = roles.get("amount"), roles.get("vendor")
     dep, dat = roles.get("department"), roles.get("date")
     desc = roles.get("description")
@@ -2655,6 +2793,7 @@ def compute_all(df, roles, max_dims=6):
     cov = coverage(df, "Business_Category")  # capture best-fit count before folding
     df = absorb_catchall(df, desc)
     tiles = summary_tiles(df, "Business_Category", amt, ven, dat)
+    tiles["source_rows"] = int(source_rows) if source_rows else int(len(df))
     cat = spend_by_category(df, "Business_Category", amt, desc_col=desc)
     classified_df = df[_is_classified(df["Business_Category"])]
     par, measure, n80 = pareto(classified_df, "Business_Category", amt)
@@ -2683,6 +2822,9 @@ def compute_all(df, roles, max_dims=6):
         tbl = spend_by_dimension(df, d, amt)
         if tbl is not None and len(tbl):
             dims.append((label, tbl))
+    naics_tbl = spend_by_naics(df, amt, roles.get("naics"))
+    if naics_tbl is not None and len(naics_tbl):
+        dims.insert(0, (NAICS_LABEL, naics_tbl))
 
     es = executive_summary(tiles, cat, n80, vend, cons, cov, dept_tbl,
                            trend=trend, tail=tail, concentration=conc,
@@ -2727,6 +2869,7 @@ def run(path, desc=None, amount=None, vendor=None, dept=None, out=None, sample=N
     else:
         df = pd.read_excel(path)
     df.columns = [str(c).strip() for c in df.columns]
+    source_rows = len(df)
     if sample:
         df = df.head(int(sample))
     prof = profile_columns(df)
@@ -2746,7 +2889,7 @@ def run(path, desc=None, amount=None, vendor=None, dept=None, out=None, sample=N
     cls = classify_series(df[roles["description"]])
     df = pd.concat([df.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
 
-    b = compute_all(df, roles)
+    b = compute_all(df, roles, source_rows=source_rows)
     print("\n=== EXECUTIVE SUMMARY ===")
     for ln in b["es"]["lines"]:
         print("  • " + ln)

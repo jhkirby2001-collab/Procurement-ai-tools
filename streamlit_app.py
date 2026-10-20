@@ -22,6 +22,7 @@ DEPLOYMENT (Streamlit Community Cloud):
 from __future__ import annotations
 
 import io
+import json
 import sys
 from pathlib import Path
 
@@ -32,6 +33,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "spend-analysis" / "scripts"))
 from classifier_JHK3 import classify_one, load_keyword_rules  # noqa: E402
 import spend_report_JHK3 as sr  # noqa: E402
+import objective_analysis_JHK3 as oa  # noqa: E402
 
 # -- Brand palette ---------------------------------------------------------
 CHI_NAVY = "#002F6C"
@@ -206,15 +208,21 @@ def init_session_state() -> None:
 
 
 # -- Helpers ---------------------------------------------------------------
+def with_naics(d: dict) -> dict:
+    """Add the likely supplier NAICS (mapped from the NIGP item/class) to a result."""
+    return {**d, **sr.naics_for(d.get("NIGP_Item_5digit", ""), d.get("NIGP_Class_3digit", ""))}
+
+
 def classify_with_history(description: str) -> dict:
     """Run classifier and append to in-session history (max 10 entries)."""
     rules = get_rules()
     result = classify_one(description, rules)
-    d = result.as_dict()
+    d = with_naics(result.as_dict())
     entry = {
         "Description": description.strip(),
         "Business_Category": d["Business_Category"] or "—",
         "NIGP_Code": d["NIGP_Code_Assigned"] or "—",
+        "NAICS": d["NAICS_Code"] or "—",
         "Confidence": d["Classification_Confidence"] or "—",
         "Review_Flag": d["Review_Flag"],
     }
@@ -257,6 +265,13 @@ def render_result_box(d: dict) -> None:
             f"  <span style='color:{CHI_GRAY}; font-weight:400; font-size:13px;'>"
             f"({level_label})</span></div>"
         )
+        if d.get("NAICS_Code"):
+            nigp_line_html += (
+                f"<div style='color:{CHI_NAVY}; font-size:14px; margin-top:4px;'>"
+                f"Likely supplier NAICS:  <strong>{d['NAICS_Code']}</strong> "
+                f"{d['NAICS_Title']}  <span style='color:{CHI_GRAY}; font-size:12px;'>"
+                f"(AI-drafted mapping — verify against the vendor's certification)</span></div>"
+            )
     elif d["Business_Category"] == "Grants & Pass-Through Funding":
         nigp_line_html = (
             f"<div style='color:{CHI_GRAY}; font-size:13px; font-style:italic; "
@@ -304,6 +319,13 @@ def render_detail_table(d: dict) -> None:
         ("NIGP 5-digit Item", d["NIGP_Item_5digit"] or "—"),
         ("NIGP Code Assigned", d["NIGP_Code_Assigned"] or "—"),
         ("Match Level", d["NIGP_Match_Level"] or "—"),
+        (
+            "Likely supplier NAICS",
+            f"{d['NAICS_Code']} {d['NAICS_Title']}  (from {d['NAICS_Matched_On']}; verify)"
+            if d.get("NAICS_Code")
+            else "—",
+        ),
+        ("Other possible NAICS", (d.get("NAICS_Alternates") or "").replace(";", ", ") or "—"),
         (
             "Confidence",
             f"{d['Classification_Confidence']}  ({d['Confidence_Score']:.2f})"
@@ -419,7 +441,7 @@ def page_bulk() -> None:
                 results = []
                 progress = st.progress(0.0, text="Classifying...")
                 for i, ln in enumerate(lines):
-                    r = classify_one(ln, rules).as_dict()
+                    r = with_naics(classify_one(ln, rules).as_dict())
                     r["Description"] = ln
                     results.append(r)
                     progress.progress((i + 1) / len(lines))
@@ -430,6 +452,8 @@ def page_bulk() -> None:
                     "Business_Category",
                     "NIGP_Code_Assigned",
                     "NIGP_Match_Level",
+                    "NAICS_Code",
+                    "NAICS_Title",
                     "Classification_Confidence",
                     "Confidence_Score",
                     "Review_Flag",
@@ -469,7 +493,7 @@ def page_bulk() -> None:
         progress = st.progress(0.0, text=f"Classifying {len(df_in):,} rows...")
         for i, row in df_in.iterrows():
             desc = str(row[desc_col]) if pd.notna(row[desc_col]) else ""
-            r = classify_one(desc, rules).as_dict()
+            r = with_naics(classify_one(desc, rules).as_dict())
             results.append(r)
             if (i + 1) % max(1, len(df_in) // 100) == 0:
                 progress.progress((i + 1) / len(df_in))
@@ -1262,6 +1286,10 @@ def _render_spend_report(res: dict, selected=None) -> None:
             sv = savings
     excel_bytes = res["excel"]
 
+    scope = sr.row_scope_note(tiles)
+    if scope:
+        st.warning(scope + " Raise **Rows to analyze** and regenerate to cover the whole file.")
+
     # Executive summary
     st.markdown("### Executive Summary")
     for ln in b["es"]["lines"]:
@@ -1296,7 +1324,10 @@ def _render_spend_report(res: dict, selected=None) -> None:
     st.markdown("### Summary")
     m = st.columns(4)
     m[0].metric("Total spend", _fmt_money(tiles["total_spend"]) if has_amt else "n/a")
-    m[1].metric("Transactions", f"{tiles['transactions']:,}")
+    _src = tiles.get("source_rows")
+    m[1].metric("Transactions", f"{tiles['transactions']:,}",
+                f"of {_src:,} in file" if _src and _src > tiles["transactions"] else None,
+                delta_color="off")
     m[2].metric("Categories", tiles["categories"])
     m[3].metric("Vendors", f"{tiles['vendors']:,}" if tiles["vendors"] is not None else "n/a")
 
@@ -1650,6 +1681,10 @@ def page_spend_report() -> None:
     with c3:
         date_col = st.selectbox("Date", [NONE] + cols,
             index=_opt_idx(roles.get("date")), key="sr_date")
+        naics_col = st.selectbox("Supplier NAICS code (optional)", [NONE] + cols,
+            index=_opt_idx(roles.get("naics")), key="sr_naics",
+            help="If your file has the vendor's NAICS code, the report uses it and checks it "
+                 "against what was bought. Without one, NAICS is mapped from the NIGP code.")
         dims_sel = st.multiselect(
             "Breakdown dimensions (contract flags, status, etc.)",
             options=cols, default=roles.get("dimensions", [])[:6],
@@ -1659,9 +1694,11 @@ def page_spend_report() -> None:
     vendor_col = None if vendor_col == NONE else vendor_col
     dept_col = None if dept_col == NONE else dept_col
     date_col = None if date_col == NONE else date_col
+    naics_col = None if naics_col == NONE else naics_col
 
     roles.update({"description": desc_col, "amount": amount_col, "vendor": vendor_col,
-                  "department": dept_col, "date": date_col, "dimensions": dims_sel})
+                  "department": dept_col, "date": date_col, "naics": naics_col,
+                  "dimensions": dims_sel})
 
     plan = sr.plan_analyses({"roles": roles})
     selected = _analysis_picker(plan)
@@ -1670,7 +1707,8 @@ def page_spend_report() -> None:
     if len(df_in) > 25000:
         st.warning(
             f"Large file ({len(df_in):,} rows). Classifying every row can take a couple of "
-            "minutes. You can cap the row count for a faster first look.")
+            "minutes. You can cap the row count for a faster first look — the cap keeps the "
+            "**first** N rows in file order, and the report will say it is partial.")
         max_rows = st.number_input(
             "Rows to analyze", min_value=1000, max_value=len(df_in),
             value=min(25000, len(df_in)), step=5000, key="sr_maxrows")
@@ -1681,7 +1719,7 @@ def page_spend_report() -> None:
             cls = sr.classify_series(work[desc_col], get_rules())
             work = pd.concat([work.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
 
-        b = sr.compute_all(work, roles)
+        b = sr.compute_all(work, roles, source_rows=len(df_in))
         excel_bytes = _build_excel_bytes(b, selected)
         # Store the whole computed bundle so it survives page navigation.
         st.session_state["sr_result"] = {
@@ -1998,6 +2036,196 @@ def _spend_report_methods_table() -> None:
 
 
 # =========================================================================
+# PAGE: Ask an Objective (work tools — second password, AI planning)
+# =========================================================================
+def _secret(name: str) -> str:
+    try:
+        return str(st.secrets.get(name, "") or "")
+    except (FileNotFoundError, KeyError):
+        return ""
+
+
+def check_work_password() -> bool:
+    """Work pages sit behind their own password, kept only in the app's secrets,
+    because they hold the API key and cost money per question."""
+    if st.session_state.get("work_ok"):
+        return True
+    expected = _secret("work_password")
+    if not expected:
+        st.info("The work tools are switched off. To turn them on, add `work_password` "
+                "(and `ANTHROPIC_API_KEY`) to this app's secrets.")
+        return False
+    pw = st.text_input("Work tools password", type="password", key="work_pw")
+    if st.button("Unlock work tools"):
+        if pw == expected:
+            st.session_state["work_ok"] = True
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+    return False
+
+
+def _plan_view(plan: dict) -> None:
+    st.markdown(f"**As I understand it:** {plan.get('restated_objective', '')}")
+    if plan.get("cannot_do"):
+        st.warning("**Not covered by this plan:**\n" + "\n".join(f"- {c}" for c in plan["cannot_do"]))
+    if plan.get("assumptions"):
+        st.markdown("**Assumptions**\n" + "\n".join(f"- {a}" for a in plan["assumptions"]))
+    st.markdown("**Steps**")
+    for i, (txt, step) in enumerate(zip(oa.describe_steps(plan), plan.get("steps", [])), 1):
+        why = f" — _{step['why']}_" if step.get("why") else ""
+        st.markdown(f"{i}. {_md_money_safe(txt)}{why}")
+
+
+def page_objective() -> None:
+    st.title("Ask an Objective")
+    st.markdown(
+        "Upload data, state what you or leadership want to know, and review the plan before "
+        "anything is calculated. **AI writes the plan and the summary; every number is calculated "
+        "by ordinary formulas from the steps you approve.** The AI sees column names and a few "
+        "sample values, not your whole file."
+    )
+    if not check_work_password():
+        return
+    api_key = _secret("ANTHROPIC_API_KEY")
+    if not api_key:
+        st.warning("No `ANTHROPIC_API_KEY` in this app's secrets, so plans can't be drafted yet.")
+
+    ss = st.session_state
+    ss.setdefault("obj_saved", [])
+
+    uploaded = st.file_uploader("Data file (CSV or Excel): contracts, payments or spend",
+                                type=["csv", "xlsx", "xls"], key="obj_file")
+    if uploaded is None:
+        st.info("Upload a file to begin.")
+        return
+    file_sig = (uploaded.name, uploaded.size)
+    if ss.get("obj_sig") != file_sig:
+        df = read_uploaded_table(uploaded)
+        df.columns = [str(c).strip() for c in df.columns]
+        ss.update(obj_sig=file_sig, obj_raw=df, obj_plan=None, obj_result=None)
+    df = ss["obj_raw"]
+    st.caption(f"{len(df):,} rows × {len(df.columns)} columns loaded from **{uploaded.name}**.")
+
+    roles = sr.profile_columns(df)["roles"]
+    cols = list(df.columns)
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        desc_col = st.selectbox(
+            "Description column to classify (adds Business Category, NIGP and NAICS columns)",
+            ["(don't classify)"] + cols,
+            index=(cols.index(roles["description"]) + 1) if roles.get("description") in cols else 0,
+            key="obj_desc")
+    work = df
+    if desc_col != "(don't classify)":
+        key = (file_sig, desc_col)
+        if ss.get("obj_cls_key") != key:
+            with st.spinner("Classifying (rules only)…"):
+                cls = sr.classify_series(df[desc_col], get_rules())
+            ss["obj_cls_key"], ss["obj_cls"] = key, pd.concat(
+                [df.reset_index(drop=True), cls.reset_index(drop=True)], axis=1)
+        work = ss["obj_cls"]
+
+    with c2:
+        saved_names = [s["name"] for s in ss["obj_saved"]]
+        pick = st.selectbox("Saved objectives", ["—"] + saved_names, key="obj_pick")
+    default_text = next((s["objective"] for s in ss["obj_saved"] if s["name"] == pick), "")
+    objective = st.text_area(
+        "Objective",
+        value=default_text,
+        height=110,
+        placeholder="e.g. Which treatment-chemical contracts expire in the next 180 days, who holds "
+                    "them, and what are they worth? Or paste leadership's request as written.",
+        key=f"obj_text_{pick}",
+    )
+    answers = ""
+    plan = ss.get("obj_plan")
+    if plan and plan.get("questions"):
+        st.markdown("**Questions before running:**\n" + "\n".join(f"- {q}" for q in plan["questions"]))
+        answers = st.text_area("Your answers (then click Draft plan again)", key="obj_answers")
+
+    b1, b2 = st.columns(2)
+    if b1.button("Draft plan", type="primary", disabled=not (objective.strip() and api_key)):
+        with st.spinner("Drafting a plan…"):
+            try:
+                ss["obj_plan"] = oa.plan_objective(objective, oa.profile_for_planner(work), api_key, answers)
+                ss["obj_result"] = None
+            except oa.AIUnavailable as e:
+                st.error(str(e))
+            except Exception as e:  # noqa: BLE001
+                st.error(f"Could not draft a plan: {e}")
+        plan = ss.get("obj_plan")
+    if b2.button("Save this objective", disabled=not objective.strip()):
+        name = objective.strip().split("\n")[0][:60]
+        ss["obj_saved"] = [s for s in ss["obj_saved"] if s["name"] != name] + [
+            {"name": name, "objective": objective.strip()}]
+        st.success(f"Saved “{name}”.")
+
+    if plan:
+        st.markdown("---")
+        st.markdown("### Plan: review before running")
+        _plan_view(plan)
+        with st.expander("Edit the plan directly (advanced)"):
+            edited = st.text_area("Plan (JSON)", json.dumps(plan, indent=2), height=300, key="obj_json")
+            if st.button("Use edited plan"):
+                try:
+                    ss["obj_plan"] = plan = json.loads(edited)
+                    st.success("Plan updated.")
+                except json.JSONDecodeError as e:
+                    st.error(f"That isn't valid JSON: {e}")
+        if st.button("Run this plan", type="primary"):
+            result = None
+            try:
+                result, caveats = oa.execute_plan(work, plan)
+            except oa.PlanError as e:
+                st.error(str(e))
+            if result is not None:
+                summary = ""
+                if api_key and len(result):
+                    with st.spinner("Writing the summary…"):
+                        try:
+                            summary = oa.summarize_result(objective, plan, result, caveats, api_key)
+                        except Exception as e:  # noqa: BLE001
+                            st.caption(f"Summary not generated ({e}). The table below is complete.")
+                ss["obj_result"] = (result, caveats, summary, objective)
+
+    res = ss.get("obj_result")
+    if res and plan:
+        result, caveats, summary, obj_text = res
+        st.markdown("---")
+        st.markdown(f"### {plan.get('result_title') or 'Result'}")
+        if summary:
+            st.markdown(_md_money_safe(summary))
+        for c in caveats:
+            st.caption(f"⚠ {c}")
+        st.dataframe(_arrow_safe(result), use_container_width=True, hide_index=True)
+        num_cols = [c for c in result.columns[1:] if pd.api.types.is_numeric_dtype(result[c])]
+        if 2 <= len(result) <= 40 and num_cols:
+            _safe_chart(lambda: sr.barh_png([str(x) for x in result.iloc[:, 0]], result[num_cols[0]].tolist(),
+                                            (plan.get("result_title") or "")[:48], value_label=num_cols[0],
+                                            money=False))
+        st.download_button(
+            "⬇  Download answer (Excel)",
+            data=oa.excel_bytes(obj_text, plan, result, caveats, summary, uploaded.name),
+            file_name="Objective_Analysis_JHK3.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        st.caption("AI-assisted draft: the plan and summary were drafted with AI; the numbers were "
+                   "calculated from the steps shown. Verify before relying on it.")
+
+    with st.expander("Keep saved objectives between sessions"):
+        st.download_button("Download saved objectives", json.dumps(ss["obj_saved"], indent=2),
+                           file_name="saved_objectives_JHK3.json", mime="application/json")
+        up = st.file_uploader("Load saved objectives", type=["json"], key="obj_saved_up")
+        if up is not None and st.button("Load"):
+            try:
+                ss["obj_saved"] = [s for s in json.loads(up.getvalue()) if "name" in s and "objective" in s]
+                st.success(f"Loaded {len(ss['obj_saved'])} objectives.")
+            except (json.JSONDecodeError, TypeError):
+                st.error("That file isn't a saved-objectives file.")
+
+
+# =========================================================================
 # Sidebar + dispatch
 # =========================================================================
 def render_sidebar() -> str:
@@ -2022,6 +2250,7 @@ def render_sidebar() -> str:
                 "Methodology",
                 "Business Categories",
                 "Rule Lookup",
+                "Ask an Objective (work)",
             ],
             label_visibility="collapsed",
         )
@@ -2070,6 +2299,8 @@ def main() -> None:
         page_categories()
     elif page == "Rule Lookup":
         page_rule_lookup()
+    elif page == "Ask an Objective (work)":
+        page_objective()
 
     render_footer()
 
