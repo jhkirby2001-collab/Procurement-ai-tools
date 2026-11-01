@@ -459,6 +459,7 @@ P("Who uses it", "Contract staff update it; the portfolio lead reviews it weekly
 
 H("2. The tabs")
 P("How To Use", "This guide.")
+P("Column Guide", "Every column on the Portfolio Tracker and Task Order Tracker: who fills it in (original list, you, or a formula), what it means, what to enter or how it is figured, an example, and which Alert Controls section changes it.")
 P("Dashboard", "One-page view for the portfolio owner and leadership: headline numbers, status mix, expirations by quarter, status by lane, workload by owner, and the 10 most urgent contracts. All formulas; nothing to type.")
 P("Summary", "Detailed counts by status, lane and owner, plus money totals. All formulas; nothing to type.")
 P("Portfolio Tracker", "One row per contract. Blue headers = you type. Grey headers marked (auto) = formulas, do not type over them.")
@@ -528,12 +529,14 @@ row[0] += 1
 P("10/31/2026", "Alert logic rebuilt: renewal-path lead times and Start-By date, Action Status categories, LAPSED / IN PROCESS / CLOSED statuses, burn-rate funds check, Next Action flag, Priority column, all rules moved to Alert Controls. Colours softened. Settings tab merged into Alert Controls. Broken formulas in the old row 7 removed.", bold_a=False)
 P("10/31/2026", "Dashboard tab added for portfolio owner and leadership reporting; Alert Controls section 9 added for dashboard settings.", bold_a=False)
 P("11/01/2026", "Task Order Tracker tab added for task orders and job order releases against master and construction (JOC) contracts; Contract Type column added to the Portfolio Tracker; Alert Controls sections 10-14 added; Dashboard tiles added. Task Order Dashboard and Task Order How To tabs added; tabs colour-coded (navy = contracts, teal = task orders, gold = controls).", bold_a=False)
+P("11/01/2026", "Column Guide tab added: every tracker column with its type, plain-language meaning, how it is figured and an example. Examples kept off the trackers so they never reach the dashboards.", bold_a=False)
 for _ in range(8): P("", "", bold_a=False)
 
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_dashboard_part_JHK3.py")).read())
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_taskorder_part_JHK3.py")).read())
-order = ["How To Use", "Dashboard", "Summary", "Portfolio Tracker", "Task Order How To", "Task Order Dashboard", "Task Order Tracker", "Alert Controls", "Original (as received)", "Dashboard Data"]
-for _n in ["How To Use", "Dashboard", "Summary", "Portfolio Tracker"]: wb[_n].sheet_properties.tabColor = "1F3864"
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_column_guide_part_JHK3.py")).read())
+order = ["How To Use", "Column Guide", "Dashboard", "Summary", "Portfolio Tracker", "Task Order How To", "Task Order Dashboard", "Task Order Tracker", "Alert Controls", "Original (as received)", "Dashboard Data"]
+for _n in ["How To Use", "Column Guide", "Dashboard", "Summary", "Portfolio Tracker"]: wb[_n].sheet_properties.tabColor = "1F3864"
 for _n in ["Task Order How To", "Task Order Dashboard", "Task Order Tracker"]: wb[_n].sheet_properties.tabColor = "0E5E5A"
 wb["Alert Controls"].sheet_properties.tabColor = "BF9000"
 wb._sheets = [wb[n] for n in order]

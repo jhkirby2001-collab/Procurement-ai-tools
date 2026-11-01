@@ -220,6 +220,7 @@ TP("Step 2", "Portfolio Tracker: enter the master's Total Contract Value. This i
 TP("Step 3", "The master now appears on the Task Order Dashboard. If its Contract Type is blank or Standard, releases against it are flagged NOT A MASTER.")
 
 TH("4. Entering a release (Task Order Tracker)")
+TP("Column Guide", "The Column Guide tab lists every Task Order Tracker column with an example value.")
 TP("Release ID", "Your own ID, e.g. R-001. Use one format for the whole team.")
 TP("Master PO", "Pick the master contract's PO from the dropdown. Master Description, Contract Type, Ceiling and End Date fill in automatically.")
 TP("Release / Task Order No.", "The number on the task order or job order release document.")
