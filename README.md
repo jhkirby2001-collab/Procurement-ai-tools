@@ -56,6 +56,9 @@ The taxonomy and the method re-point at any new spend extract or contract portfo
 
 ## Other projects
 
+### Portfolio Trackers — In Use
+**Location:** `/trackers/` — Excel Contract Tracker (expiration, funds and next-action alerts; task order / job order release tracking against master contracts; leadership dashboards) and a blank Project Tracker. Every rule and threshold is editable on a controls tab. See [trackers/README.md](trackers/README.md).
+
 ### Vendor Research Agent — In Development
 **Location:** `/vendor-research/` — automated agent that investigates vendors, analyzes market data, and generates research reports.
 
@@ -81,6 +84,7 @@ procurement-ai-tools/
 │   ├── data/                Reference data (rules, NIGP catalog)
 │   └── outputs/             Generated reports and analysis
 ├── outputs/                 Final classified data and deliverables
+├── trackers/                Contract Tracker, Project Tracker, staff quick start
 ├── streamlit_app.py         Web interface (NIGP-Sourced Procurement Category Mapper)
 ├── vendor-research/         In progress
 ├── dashboard/               Planned
