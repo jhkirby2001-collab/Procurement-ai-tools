@@ -534,7 +534,7 @@ P("Stoplight (RAG) status reporting", "Common project and portfolio management p
 P("Spending compared with time", "A simplified form of the earned value idea (planned vs. actual progress) described in the PMBOK Guide and the EIA-748 Earned Value Management standard. This tracker compares spending with elapsed time only; it is not a full earned value analysis.")
 P("Backward scheduling", "Standard planning method: required completion date minus lead time = latest start date. Used here to set the Start-By Date.")
 P("Colour and accessibility", "W3C Web Content Accessibility Guidelines (WCAG) 2.1: 1.4.1 Use of Color (don't rely on colour alone) and 1.4.3 Contrast. Red-green colour vision deficiency affects roughly 1 in 12 men (National Eye Institute).")
-P("Contract data", "Columns A-O come from the contract list as received (see Original tab), re-sorted by lane and end date. Lane is whichever of the Facility / Water-Sewer / Pipes / Valves / Meters / Chemical columns has an x. Proposed Owner follows the 10/21 transition meeting. Four start dates carried over with typos (e.g. 11/22/0024) are left as received; their % of Term Used shows 'Check start date'.")
+P("Contract data", "Columns A-O come from the contract list as received (see Original tab), re-sorted by lane and end date. Lane is whichever of the Facility / Water-Sewer / Pipes / Valves / Meters / Chemical columns has an x. Proposed Owner follows the 10/21 transition meeting. Four start dates on the original list were typed as text with year typos (e.g. 11/22/0024); they were converted to real dates on 11/02/2026 and are listed on the Data Check tab. The Original tab keeps them as received.")
 
 H("9. Change log")
 r = row[0]
@@ -546,6 +546,7 @@ P("10/31/2026", "Dashboard tab added for portfolio owner and leadership reportin
 P("11/01/2026", "Task Order Tracker tab added for task orders and job order releases against master and construction (JOC) contracts; Contract Type column added to the Portfolio Tracker; Alert Controls sections 10-14 added; Dashboard tiles added. Task Order Dashboard and Task Order How To tabs added; tabs colour-coded (navy = contracts, teal = task orders, gold = controls).", bold_a=False)
 P("11/01/2026", "Column Guide tab added: every tracker column with its type, plain-language meaning, how it is figured and an example. Examples kept off the trackers so they never reach the dashboards.", bold_a=False)
 P("11/02/2026", "Shared contracts added: 53 contracts from the BWS shared-contracts file added to the Portfolio Tracker and 17 existing rows enriched. New columns Owning Dept Code, Ownership, Spec Number, PO Contract Type and BWS File Notes; Alert Controls section 15; renewal path and three action statuses for shared contracts; Dashboard and Summary shared-contract sections; Data Check and Shared List (as received) tabs.", bold_a=False)
+P("11/02/2026", "Four original-list start dates typed as text with year typos (11/22/0024, 07/11/0007, 02/08/0024, 05/05/0023) converted to real dates; listed on the Data Check tab.", bold_a=False)
 for _ in range(8): P("", "", bold_a=False)
 
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_dashboard_part_JHK3.py")).read())
