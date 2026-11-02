@@ -384,6 +384,7 @@ title(readme, "Project Tracker", "Blank template - start here.")
 readme.column_dimensions["A"].width = 3; readme.column_dimensions["B"].width = 24; readme.column_dimensions["C"].width = 100
 r = 4
 sec(readme, "Tabs in this workbook")
+line(readme, "Column Guide", "Every column on the Project, Task and Issue trackers: whether you fill it in or it is a formula, what it means, and an example.")
 line(readme, "Dashboard", "Live summary of projects, tasks, issues, portfolios and workload. Formulas only - nothing to type.")
 line(readme, "Project Tracker", "One row per project, grouped by Portfolio. Task counts, % complete and Health calculate automatically.")
 line(readme, "Task Tracker", "Your task list. Link each task to a Project ID, set Impact + Urgency (Priority calculates), Status, Due Date and Frequency.")
@@ -420,6 +421,7 @@ line(readme, "Project Tracker", "P-001 | Portfolio: Process Improvement | Projec
 line(readme, "Task Tracker", "T-001 | P-001 | Draft new folder structure | Impact High, Urgency Medium -> Priority 2 | In Progress | Due 11/15/2026 | One-time")
 line(readme, "Issue Tracker", "I-001 | P-001 | Shared drive permissions not granted | High | Critical: No | Open | Target 11/06/2026")
 
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "project_tracker_column_guide_part_JHK3.py")).read())
 wb.properties.title = "Project Tracker"
 wb.save(OUT)
 print("saved", OUT)

@@ -17,6 +17,7 @@ Two Excel workbooks for running a contract and project portfolio, plus a one-pag
 | Tab | Purpose |
 |---|---|
 | How To Use | Training guide, the reasoning behind every alert, sources, change log |
+| Column Guide | Every Portfolio Tracker and Task Order Tracker column: who fills it in (original list, you, or a formula), what it means, how it is figured, an example, and which setting changes it |
 | Dashboard | One page for the portfolio owner and leadership: health tiles, status mix, contracts ending by quarter, status by lane and owner, Top 10 most urgent |
 | Summary | Counts by status, lane and owner; money totals |
 | Portfolio Tracker | One row per contract, with Renewal Path, Action Status, Next Action and Contract Type inputs and three calculated flags |
@@ -40,7 +41,7 @@ All of these numbers are starting values that the team can edit on Alert Control
 
 ## Project Tracker
 
-Blank template: Read Me, Dashboard, Project Tracker, Task Tracker, Issue Tracker, Priority Matrix, Guide, Lists. Task priority comes from Impact × Urgency; project health (Red / Amber / Green) comes from due dates, overdue tasks and open critical issues.
+Blank template: Read Me, Column Guide, Dashboard, Project Tracker, Task Tracker, Issue Tracker, Priority Matrix, Guide, Lists. Task priority comes from Impact × Urgency; project health (Red / Amber / Green) comes from due dates, overdue tasks and open critical issues.
 
 ---
 
@@ -72,5 +73,8 @@ openpyxl writes formulas without cached values, so open and save each workbook i
 | `contract_tracker_taskorder_part_JHK3.py` | Task Order Tracker, Contract Type column, Alert Controls sections 10-14 |
 | `contract_tracker_todash_part_JHK3.py` | Task Order Dashboard, Task Order How To |
 | `contract_tracker_testdata_part_JHK3.py` | Sample releases for testing (only with `TEST_TO=1`) |
+| `contract_tracker_column_guide_part_JHK3.py` | Contract Tracker Column Guide |
 | `build_project_tracker_JHK3.py` + `tracker_helpers_JHK3.py` | Project Tracker |
+| `project_tracker_column_guide_part_JHK3.py` | Project Tracker Column Guide |
+| `column_guide_JHK3.py` | Shared Column Guide writer used by both trackers |
 | `build_contract_quick_start_JHK3.js` | Staff Quick Start |

@@ -13,6 +13,9 @@ Contract Tracker, Project Tracker and Staff Quick Start for James's contracts ad
 - Avoid functions LibreOffice can't evaluate (XLOOKUP, FILTER, SORT, UNIQUE). Lists on dashboards use SMALL / MATCH on helper keys in the hidden `Dashboard Data` sheet.
 - After any build: recalculate, confirm zero formula errors, and render the dashboards (LibreOffice → PDF → PNG) to check the layout. `TEST_TO=1` loads sample releases; `RENDER_DASH=<sheet>` hides every other sheet.
 
+- **Column Guide tabs must stay in step with the trackers.** When a tracker column is added, moved, renamed, or changes between input and formula, update `contract_tracker_column_guide_part_JHK3.py` / `project_tracker_column_guide_part_JHK3.py` and re-run the header check (guide name and type vs. the tracker header and its "(auto)" marker).
+- Examples live on the Column Guide, never as sample rows on a tracker (sample rows would be counted on the dashboards). James agreed to this on 2026-11-01.
+
 ## Layout facts (Contract Tracker)
 
 - Portfolio Tracker columns: A-Q from the source list; R-X inputs (Renewal Path, Action Status, Next Action, Due Date, Done?, Total Contract Value, Expended); Y-AL calculated; AM-AQ notes; AR Contract Type.

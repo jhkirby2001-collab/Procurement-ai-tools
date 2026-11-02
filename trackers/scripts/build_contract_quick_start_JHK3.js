@@ -92,7 +92,7 @@ const doc = new Document({
       B([r("Save a copy somewhere else. The OneDrive Trackers folder is the only master copy.")]),
 
       h("Need help?"),
-      p([r("See the "), r("How To Use", { bold: true }), r(" tab in the tracker for the full guide, or ask your portfolio lead.")]),
+      p([r("Not sure what a column means? Check the "), r("Column Guide", { bold: true }), r(" tab: every column, whether you fill it in, and an example. The "), r("How To Use", { bold: true }), r(" tab has the full guide, or ask your portfolio lead.")]),
     ]
   }]
 });
