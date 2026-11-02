@@ -137,6 +137,18 @@ if shared_ws is not None:
             fixes.append((sr, po, "PO Contract Type", ctype, ctype_clean, "Spelling made consistent", tr)); _style_fixed(new[f"AV{tr}"])
         tracker_rows.setdefault(key, tr)
 
+# Original list: start dates typed as text with a year typo (e.g. 11/22/0024) -> real dates
+start_fixed = 0
+for r in range(2, 88):
+    v = new[f"C{r}"].value
+    if v is not None and not isinstance(v, _dt.datetime):
+        d, why = _parse_date(v)
+        if isinstance(d, _dt.datetime):
+            new[f"C{r}"] = d; new[f"C{r}"].number_format = "mm/dd/yyyy"; _style_fixed(new[f"C{r}"])
+            fixes.append(("Original list", new[f"A{r}"].value, "Start Date", v, d,
+                          "Text date with a year typo; converted to a real date" + (" (check: 0007 read as 2007)" if str(v).endswith("0007") else ""), r))
+            start_fixed += 1
+
 # Contracts only on the original list: owning department = their Dept Code (all 88 in the original list)
 set_from_dept = 0
 for r in range(2, 88):
@@ -176,8 +188,8 @@ new.conditional_formatting.add(f"AT2:AT{LAST}", FormulaRule(formula=['$AT2="Not 
 # ---- Data Check tab
 dc = wb.create_sheet("Data Check")
 dc.sheet_view.showGridLines = False
-dc["A1"] = "Data Check: shared contracts load"; dc["A1"].font = font(size=16, bold=True, color=NAVY)
-dc["A2"] = ("Every change made while loading the BWS shared-contracts file. Fixed cells on the Portfolio Tracker are shaded light yellow. "
+dc["A1"] = "Data Check: fixes made while loading"; dc["A1"].font = font(size=16, bold=True, color=NAVY)
+dc["A2"] = ("Every change made while loading the BWS shared-contracts file and fixing the original list's start dates. Fixed cells on the Portfolio Tracker are shaded light yellow. "
             "The untouched file is on the 'Shared List (as received)' tab.")
 dc["A2"].font = font(size=9, italic=True, color=GREY_HDR)
 n_new = SHARED_LAST_ROW - 87
@@ -185,6 +197,7 @@ summary = [
     ("Shared-file contracts added as new rows", n_new),
     ("Shared-file contracts already on your tracker (dates, owners and notes kept; code, spec, type, notes and value added)", n_over),
     ("Original-list contracts with no shared-file row: Owning Dept Code set from their Dept Code", set_from_dept),
+    ("Original-list start dates fixed (text dates with a year typo)", start_fixed),
     ("Changes listed below", len(fixes)),
 ]
 rr = 4
@@ -194,7 +207,7 @@ for lab, v in summary:
 dc[f"A{rr}"] = ("PO 87372 appears twice in the shared file (two descriptions). Both rows were kept as you asked; "
                 "the duplicate PO stays highlighted red on the tracker until you decide.")
 dc[f"A{rr}"].font = font(size=9, color="C00000"); rr += 2
-heads = ["#", "Shared file row", "PO", "Field", "As received", "Changed to", "Why", "Tracker row"]
+heads = ["#", "Source row", "PO", "Field", "As received", "Changed to", "Why", "Tracker row"]
 for j, h in enumerate(heads):
     c = dc.cell(rr, 1 + j, h); c.font = font(bold=True, color="FFFFFF"); c.fill = fill(NAVY); c.border = BOX
     c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
