@@ -146,7 +146,7 @@ for r in range(2, 88):
         if isinstance(d, _dt.datetime):
             new[f"C{r}"] = d; new[f"C{r}"].number_format = "mm/dd/yyyy"; _style_fixed(new[f"C{r}"])
             fixes.append(("Original list", new[f"A{r}"].value, "Start Date", v, d,
-                          "Text date with a year typo; converted to a real date" + (" (check: 0007 read as 2007)" if str(v).endswith("0007") else ""), r))
+                          "Text date with a year typo; converted to a real date" + (" (2007 confirmed)" if str(v).endswith("0007") else ""), r))
             start_fixed += 1
 
 # Contracts only on the original list: owning department = their Dept Code (all 88 in the original list)
