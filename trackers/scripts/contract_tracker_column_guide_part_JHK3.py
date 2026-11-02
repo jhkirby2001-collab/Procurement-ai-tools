@@ -52,6 +52,11 @@ CG_ROWS = [
     (PT_, "AP", "Additional Req No.", IN_, "A second requisition number, if there is one.", "The req number.", "751226", ""),
     (PT_, "AQ", "Vendor Contact", IN_, "Who to contact at the vendor.", "Name, title, phone and email.", "Name | Sales Rep | 555-0100", ""),
     (PT_, "AR", "Contract Type", IN_, "Whether the contract is standard or one that task orders / job order releases are issued against.", "Pick from the list: Standard, Master Service, Construction (JOC).", "Master Service", f"{AC_} section 10"),
+    (PT_, "AS", "Owning Dept Code", IN_, "The PO Dept Code of the department that owns the contract.", "A department code, numbers only. Loaded from the shared-contracts file; contracts only on the original list use their Dept Code.", "38", f"{AC_} section 15"),
+    (PT_, "AT", "Ownership", FX, "Whether your department owns the contract or shares another department's.", "Owned when Owning Dept Code equals your department code (88); Shared for any other code; Not set when the code is blank.", "Shared", f"{AC_} section 15"),
+    (PT_, "AU", "Spec Number", IN_, "The specification number for the contract.", "The spec number. Loaded from the shared-contracts file.", "1258382", ""),
+    (PT_, "AV", "PO Contract Type", IN_, "The purchasing category of the PO (commodities, work services, professional services...).", "Type it the same way each time. Spellings from the shared-contracts file were made consistent.", "COMMODITIES", ""),
+    (PT_, "AW", "BWS File Notes", IN_, "Notes carried over from the BWS shared-contracts file.", "Free text. Kept separate from Status /Notes so you can see what came from that file.", "Req 650032 submitted to DPS; compliance approved", ""),
     # ---------------- Task Order Tracker
     (TO_, "A", "Release ID", IN_, "Your team's ID for the release.", "One format for everyone, e.g. R-001.", "R-001", ""),
     (TO_, "B", "Master PO", IN_, "The master contract this release is issued against.", "Pick the PO from the dropdown (it lists the Portfolio Tracker POs).", "271670", ""),
@@ -83,7 +88,7 @@ CG_ROWS = [
     (TO_, "AB", "Notes", IN_, "Anything else about the release.", "Free text. For a change order, note the original release number.", "Change order to TO-2026-014", ""),
     # ---------------- other tabs (one line each)
     ("Alert Controls", "Blue cells", "Settings", IN_, "Every list, lead time, rule, threshold and colour the alerts use.", "Change blue cells and dropdowns only. Read the How To Use tab first; rules are checked top to bottom.", "Competitive rebid = 540 days", "-"),
-    ("Dashboard, Summary, Task Order Dashboard", "All", "All cells", FX, "Pictures and totals of the trackers for you and leadership.", "Nothing to type. They update when the trackers change.", "-", "-"),
+    ("Dashboard, Summary, Task Order Dashboard, Data Check", "All", "All cells", FX, "Pictures and totals of the trackers for you and leadership.", "Nothing to type. They update when the trackers change.", "-", "-"),
 ]
 
 add_column_guide(

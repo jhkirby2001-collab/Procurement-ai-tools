@@ -1,6 +1,8 @@
 """Build the Contract Tracker workbook.
 
-Usage: python build_contract_tracker_JHK3.py ../data/Contract_List_Source_JHK3.xlsx ../outputs/Contract_Tracker_2026_JHK3.xlsx
+Usage: python build_contract_tracker_JHK3.py ../data/Contract_List_Source_JHK3.xlsx ../outputs/Contract_Tracker_2026_JHK3.xlsx \
+           ../data/Shared_Contracts_BWS_Source_JHK3.xlsx
+The third argument (shared contracts list) is optional.
 Then recalculate (open and save in Excel, or LibreOffice headless) so formula values are cached.
 Optional env: TEST_TO=1 loads sample task-order releases; RENDER_DASH=<sheet> hides every other sheet (for rendering checks).
 """
@@ -92,7 +94,8 @@ hdr(12, {"B": "Slot", "C": "Renewal Path", "D": "Lead Time (days)", "I": "What i
 PATHS = [("Extension available", 240, "An option or time extension is left. Lead time covers the extension request through DPS approval."),
          ("Competitive rebid", 540, "No options left; a new solicitation is needed. Covers usage estimate, spec and M/WBE goal setting, DPS solicitation, award, plus cushion."),
          ("Sole source / NCRB", 365, "Non-competitive review. Covers the NCRB package, market research and price reasonableness review."),
-         ("Let expire", 0, "No replacement planned. Alert at the end date only; set Action Status to a Closed status once confirmed.")]
+         ("Let expire", 0, "No replacement planned. Alert at the end date only; set Action Status to a Closed status once confirmed."),
+         ("Owning dept renews", 365, "Shared contract: another department owns it and runs the renewal. Lead time is when your department's usage estimate and spec input are due.")]
 P0, P1 = 13, 22
 for i in range(10):
     r = P0 + i
@@ -113,7 +116,10 @@ STAT = [("Not started", "Normal", "Nothing submitted yet."),
         ("Awarded - pending execution", "In Process", "Award made; contract not yet executed."),
         ("Replaced / executed", "Closed", "New contract or extension is in place. This row no longer needs alerts."),
         ("Let expire", "Closed", "Bureau confirmed no replacement is needed."),
-        ("Voided / cancelled", "Closed", "PO voided or requirement cancelled.")]
+        ("Voided / cancelled", "Closed", "PO voided or requirement cancelled."),
+        ("Usage estimate sent to owning dept", "In Process", "Shared contract: your input has gone to the department that owns the contract."),
+        ("Waiting on owning dept", "In Process", "Shared contract: the owning department is running the renewal."),
+        ("DWM included in new contract", "Closed", "Shared contract: the replacement is in place and covers your department.")]
 S0, S1 = 27, 38
 for i in range(12):
     r = S0 + i
@@ -243,6 +249,8 @@ for src, dst in COPY.items():
     if w: new.column_dimensions[dst].width = w
     if src in old.column_dimensions and old.column_dimensions[src].hidden:
         new.column_dimensions[dst].hidden = True
+
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_shared_part_JHK3.py")).read())
 
 NEWCOLS = [  # (col, header, kind, width)
     ("R", "Renewal Path", "in", 22), ("S", "Action Status", "in", 22), ("T", "Next Action", "in", 32),
@@ -467,6 +475,8 @@ P("Task Order How To / Task Order Dashboard", "Instructions and charts for task 
 P("Task Order Tracker", "One row per task order / job order release, linked to its master contract by PO. Shows each master's ceiling, total committed and available balance, and flags releases that exceed the ceiling, outlast the master, are overpaid, or are ending.")
 P("Alert Controls", "Every list, threshold, rule and colour the alerts use. The only place to change the logic.")
 P("Original (as received)", "The list exactly as it was received. Never edited; used to check against the source.")
+P("Shared List (as received)", "The BWS shared-contracts file exactly as received. Never edited.")
+P("Data Check", "Every change made while loading the shared-contracts file: text dates and PO numbers converted, year typos fixed, contract-type spellings made consistent, and where the shared file disagreed with this tracker. Fixed cells are shaded light yellow on the Portfolio Tracker.")
 
 H("3. Weekly routine for staff")
 P("Step 1", "Sort the Portfolio Tracker by Priority (1 = most urgent). Work top down.")
@@ -483,6 +493,8 @@ P("Total Contract Value / Expended to Date", "Dollar amounts. Needed for the Fun
 
 P("Contract Type (last column of Portfolio Tracker)", "Standard, Master Service or Construction (JOC). Types marked 'Takes releases' on Alert Controls appear as masters on the Task Order Tracker and Dashboard.")
 P("Task Order Tracker", "Master PO (dropdown), release number, type, scope, bureau, issue/start/end dates, release amount, paid to date, status, optional M/WBE goal and actual. Enter a release change order as its own row with the change amount (negative for a decrease).")
+P("Owning Dept Code / Ownership", "Owning Dept Code is the PO Dept Code of the department that owns the contract. Ownership turns it into Owned (your code, set on Alert Controls section 15) or Shared (another department owns it, your department draws on it).")
+P("Spec Number, PO Contract Type, BWS File Notes", "Carried over from the shared-contracts file. BWS File Notes keeps that file's notes separate from this tracker's Status / Notes.")
 H("5. How the alerts work")
 P("Start-By Date", "End Date minus the Lead Time for the contract's Renewal Path. This is the last day to start renewal work and still finish before the contract ends.")
 P("Expiration Status", "Rules in Alert Controls section 4 are checked top to bottom; the first one that fits is shown. Default order: CLOSED (closed category) > LAPSED (past end date) > IN PROCESS (work submitted) > RED (180 days or less left, or Start-By date passed) > YELLOW (365 days or less, or Start-By within 90 days) > GREEN.")
@@ -491,6 +503,7 @@ P("Next Action Flag", "Days until the Next Action Due Date: OVERDUE when past du
 P("Priority", "The lowest (most urgent) Severity number among the three flags. Severity for each status is set in Alert Controls.")
 P("Worked example", "Competitive rebid, end date 400 days away. Lead time 540 days -> Start-By date was 140 days ago. Days to Start-By = -140, which is <= 0, so RED even though a year is left. With a plain 365-day rule it would have shown GREEN. If Action Status is set to 'Submitted to DPS' it shows IN PROCESS (blue) instead.")
 
+P("Shared contracts", "Shared contracts get the same alerts as owned ones. Pick the Renewal Path 'Owning dept renews' (365-day lead time = when your input is due) and use the owning-department Action Statuses to show where the other department stands.")
 H("6. Why the logic is designed this way")
 P("Start from the deadline and work backward", "Expiration risk depends on how long the renewal takes, not just on days left. A rebid needs about 18 months; an extension far less. Backward scheduling from the end date (end date minus lead time) shows when work must start, so alerts fire early enough to act.")
 P("Separate 'needs me' from 'in process'", "Management by exception: RED should mean someone on our team must act. Contracts already submitted show blue IN PROCESS so they are watched but don't hide the ones nobody has started.")
@@ -499,6 +512,7 @@ P("Spending compared with time", "75% spent means different things at month 6 an
 P("Rules in a table, not in formulas", "Thresholds and statuses are team decisions that will change. Keeping them on one tab means changes are visible, consistent across every row, and do not require editing formulas.")
 P("Colours", "Soft fills with dark text for readability, and the status word is always shown in the cell so the meaning never depends on colour alone (colour-blind readers, black-and-white printouts).")
 
+P("Shared contracts on one list", "Your department depends on shared contracts as much as on its own. Keeping them on the same list means one set of alerts, one priority order and one dashboard; the Ownership column separates them whenever you need to.")
 H("7. How to change the rules (after staff alignment)")
 P("Change a number", "Alert Controls: edit the blue cell (lead times, day limits, % limits, severity). Everything updates.")
 P("Add / rename a Renewal Path or Action Status", "Type it into an empty slot (or over an existing one) in section 2 or 3. It appears in the tracker dropdown. For a new Action Status, pick its 'Counts As' category. Renaming does not update rows that already use the old name; re-pick them.")
@@ -509,6 +523,7 @@ P("Master contracts", "Ceiling = Total Contract Value on the Portfolio Tracker. 
 P("Change task order settings", "Alert Controls sections 10-14: contract types and whether they take releases, release types, release statuses (committed? still open?), commitment thresholds, and release flag rules (label, condition, days, colour, severity, order). The list of release flag conditions is fixed; ask for a new one if you need it.")
 P("Dashboard settings", "Alert Controls section 9: the 'expiring soon' window used on the Dashboard tiles and which priorities appear in the Top 10 list.")
 P("Dashboard charts", "Chart colours are fixed to the starting statuses (CLOSED grey, LAPSED dark red, IN PROCESS blue, RED, YELLOW, GREEN). If you add a new expiration rule or lane, the tables update but the charts need their data range widened to show it.")
+P("Department code", "Alert Controls section 15: your department code (88) and the list of owning-department codes shown on the Dashboard.")
 P("Capacity", "10 renewal paths, 12 action statuses, 10 expiration rules, 8 funds rules, 8 next-action rules, 300 contract rows.")
 P("Log the change", "Record every rule change in the change log below so leadership can see what changed and why.")
 
@@ -530,12 +545,14 @@ P("10/31/2026", "Alert logic rebuilt: renewal-path lead times and Start-By date,
 P("10/31/2026", "Dashboard tab added for portfolio owner and leadership reporting; Alert Controls section 9 added for dashboard settings.", bold_a=False)
 P("11/01/2026", "Task Order Tracker tab added for task orders and job order releases against master and construction (JOC) contracts; Contract Type column added to the Portfolio Tracker; Alert Controls sections 10-14 added; Dashboard tiles added. Task Order Dashboard and Task Order How To tabs added; tabs colour-coded (navy = contracts, teal = task orders, gold = controls).", bold_a=False)
 P("11/01/2026", "Column Guide tab added: every tracker column with its type, plain-language meaning, how it is figured and an example. Examples kept off the trackers so they never reach the dashboards.", bold_a=False)
+P("11/02/2026", "Shared contracts added: 53 contracts from the BWS shared-contracts file added to the Portfolio Tracker and 17 existing rows enriched. New columns Owning Dept Code, Ownership, Spec Number, PO Contract Type and BWS File Notes; Alert Controls section 15; renewal path and three action statuses for shared contracts; Dashboard and Summary shared-contract sections; Data Check and Shared List (as received) tabs.", bold_a=False)
 for _ in range(8): P("", "", bold_a=False)
 
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_dashboard_part_JHK3.py")).read())
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_taskorder_part_JHK3.py")).read())
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_shared_report_part_JHK3.py")).read())
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_column_guide_part_JHK3.py")).read())
-order = ["How To Use", "Column Guide", "Dashboard", "Summary", "Portfolio Tracker", "Task Order How To", "Task Order Dashboard", "Task Order Tracker", "Alert Controls", "Original (as received)", "Dashboard Data"]
+order = ["How To Use", "Column Guide", "Dashboard", "Summary", "Portfolio Tracker", "Task Order How To", "Task Order Dashboard", "Task Order Tracker", "Alert Controls", "Original (as received)"] + [n for n in ("Shared List (as received)", "Data Check") if n in wb.sheetnames] + ["Dashboard Data"]
 for _n in ["How To Use", "Column Guide", "Dashboard", "Summary", "Portfolio Tracker"]: wb[_n].sheet_properties.tabColor = "1F3864"
 for _n in ["Task Order How To", "Task Order Dashboard", "Task Order Tracker"]: wb[_n].sheet_properties.tabColor = "0E5E5A"
 wb["Alert Controls"].sheet_properties.tabColor = "BF9000"
