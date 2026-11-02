@@ -101,7 +101,7 @@ pt.column_dimensions["AR"].width = 18
 for r in range(2, LAST + 1):
     pt[f"AR{r}"].border = BOX; pt[f"AR{r}"].font = font()
 dv(pt, "=" + CT_NAME, f"AR2:AR{LAST}")
-pt.auto_filter.ref = f"A1:AR{LAST}"
+pt.auto_filter.ref = f"A1:AW{LAST}"
 
 # =============== Task Order Tracker tab
 to = wb.create_sheet("Task Order Tracker")

@@ -18,12 +18,15 @@ Contract Tracker, Project Tracker and Staff Quick Start for James's contracts ad
 
 ## Layout facts (Contract Tracker)
 
-- Portfolio Tracker columns: A-Q from the source list; R-X inputs (Renewal Path, Action Status, Next Action, Due Date, Done?, Total Contract Value, Expended); Y-AL calculated; AM-AQ notes; AR Contract Type.
-- Alert Controls: 1 general, 2 renewal paths, 3 action statuses / categories (col K), 4 expiration rules, 5 funds rules, 6 next action rules, 7 colour key, 8 summary lanes / owners, 9 dashboard settings, 10 contract types, 11 release types, 12 release statuses, 13 commitment rules, 14 release flag rules (conditions are a fixed list in col K171+).
+- Portfolio Tracker columns: A-Q from the source list; R-X inputs (Renewal Path, Action Status, Next Action, Due Date, Done?, Total Contract Value, Expended); Y-AL calculated; AM-AQ notes; AR Contract Type; AS Owning Dept Code; AT Ownership (auto); AU Spec Number; AV PO Contract Type; AW BWS File Notes.
+- Rows: 2-87 original list (86 contracts), 88-140 shared-contracts list (53 contracts). The build takes the shared list as an optional third argument.
+- Alert Controls: 1 general, 2 renewal paths, 3 action statuses / categories (col K), 4 expiration rules, 5 funds rules, 6 next action rules, 7 colour key, 8 summary lanes / owners, 9 dashboard settings, 10 contract types, 11 release types, 12 release statuses, 13 commitment rules, 14 release flag rules (conditions are a fixed list in col K171+), 15 shared contracts (my department code D184 = 88; owning-dept code list C187-C198).
 - Data rows: tracker 2-300, Task Order Tracker 5-504.
 
 ## Open items
 
 - Charts use the starting status lists and colours; adding a rule or lane updates the tables, but the chart data range has to be widened by hand.
 - Release-flag conditions are a fixed list; a new kind of condition needs a formula change in `contract_tracker_taskorder_part_JHK3.py` (`rf_cond`).
-- James planned to clean the contract data, hide helper columns and protect Alert Controls himself.
+- James planned to clean the contract data, hide helper columns and protect Alert Controls himself. He is the only person updating the tracker for now (staff not yet using it).
+- Shared contracts (2026-11-02): James's rules for the load were to keep both PO 87372 rows (may be a separate service contract; he will review), fix text dates / year typos / text POs, keep the tracker's dates where the shared file differs, make contract-type spellings consistent, and carry the shared file's notes into BWS File Notes. Codes only for now; department names can come later. PO 28456 and 271670 are coded 85 in the shared file and PO 27036 carries Dept Code 38, so all three show as Shared until he confirms.
+- The four text start dates on the original list (e.g. 11/22/0024) were left as received; offer to fix them.
