@@ -18,10 +18,18 @@ Contract Tracker, Project Tracker and Staff Quick Start for James's contracts ad
 
 ## Layout facts (Contract Tracker)
 
-- Portfolio Tracker columns: A-Q from the source list; R-X inputs (Renewal Path, Action Status, Next Action, Due Date, Done?, Total Contract Value, Expended); Y-AL calculated; AM-AQ notes; AR Contract Type; AS Owning Dept Code; AT Ownership (auto); AU Spec Number; AV PO Contract Type; AW BWS File Notes.
+- Portfolio Tracker columns: A-Q from the source list; R-X inputs (Renewal Path, Action Status, Next Action, Due Date, Done?, Total Contract Value, Expended); Y-AL calculated; AM-AQ notes; AR Contract Type; AS Owning Dept Code; AT Ownership (auto); AU Spec Number; AV PO Contract Type; AW BWS File Notes; AX On DPS 365 Report? (auto); AY DPS 365 Comments (auto); AZ DPS Procurement Mgr (auto).
 - Rows: 2-87 original list (86 contracts), 88-140 shared-contracts list (53 contracts). The build takes the shared list as an optional third argument.
-- Alert Controls: 1 general, 2 renewal paths, 3 action statuses / categories (col K), 4 expiration rules, 5 funds rules, 6 next action rules, 7 colour key, 8 summary lanes / owners, 9 dashboard settings, 10 contract types, 11 release types, 12 release statuses, 13 commitment rules, 14 release flag rules (conditions are a fixed list in col K171+), 15 shared contracts (my department code D184 = 88; owning-dept code list C187-C198).
+- Alert Controls: 1 general, 2 renewal paths, 3 action statuses / categories (col K), 4 expiration rules, 5 funds rules, 6 next action rules, 7 colour key, 8 summary lanes / owners, 9 dashboard settings, 10 contract types, 11 release types, 12 release statuses, 13 commitment rules, 14 release flag rules (conditions are a fixed list in col K171+), 15 shared contracts (my department code D184 = 88; owning-dept code list C187-C198), 16 DPS 365 report (window D204 = 365; manager initials -> group C207-D216).
 - Data rows: tracker 2-300, Task Order Tracker 5-504.
+
+## DPS 365 report (added 2026-11-03)
+
+- Monthly DPS deliverable: every department contract ending within a year, including construction / professional-services contracts managed by JR and MA. James wants them for **visibility only** - they live on the DPS 365 Report tab, never on the Portfolio Tracker. Build arg 4.
+- **Never change tracker dates from the report** (James's decision). The tab shows Tracker End Date and "Differs" instead; 11 POs differ (DPS shows 181-day or 1-year extensions).
+- "Missing - check with DPS" on the tracker only for Owned contracts (shared ones sit on the owning department's report).
+- James manages Goods & Services with his staff and will take on meter supplies himself (owners not changed yet - confirm which contracts). JK = probably James; MJ / LJ = G&S staff (unconfirmed). PO 37877 (LJ) is on the report but not on the tracker.
+- Monthly routine: James attaches the new report + his latest tracker; rebuild with CARRY_USER / CARRY_BASE so his typed entries carry over (the build prints how many cells it carried). Base = the exact build his copy came from.
 
 ## Open items
 

@@ -21,12 +21,14 @@ Two Excel workbooks for running a contract and project portfolio, plus a one-pag
 | Dashboard | One page for the portfolio owner and leadership: health tiles, status mix, contracts ending by quarter, status by lane and owner, Top 10 most urgent |
 | Summary | Counts by status, lane and owner; money totals |
 | Portfolio Tracker | One row per contract (owned and shared), with Renewal Path, Action Status, Next Action, Contract Type and Owning Dept Code inputs, an Ownership column, and three calculated flags |
+| DPS 365 Report | The monthly DPS report of every department contract ending within a year, linked to the Portfolio Tracker: on my tracker?, responsibility (my portfolio / visibility only), tracker status and next action, end-date differences, and a suggested monthly comment |
 | Task Order How To | Guide to tracking task orders and job order releases |
 | Task Order Dashboard | Ceiling, committed, available and paid; committed vs. available by master; releases by status, flag, month and type; Top 10 flagged releases |
 | Task Order Tracker | One row per release, linked to its master contract by PO |
-| Alert Controls | Every list, lead time, rule, threshold and colour (sections 1-15) |
+| Alert Controls | Every list, lead time, rule, threshold and colour (sections 1-16) |
 | Original (as received) | The source contract list, unedited |
 | Shared List (as received) | The shared-contracts list, unedited |
+| DPS 365 (as received) | The DPS 365 report, unedited |
 | Data Check | Every change made while loading the shared-contracts list (text dates and PO numbers converted, typos fixed, spellings made consistent, conflicts with the tracker) |
 
 **How the alerts work**
@@ -58,7 +60,10 @@ cd trackers/scripts
 
 # Contract Tracker (from the source contract list and the shared-contracts list)
 python build_contract_tracker_JHK3.py ../data/Contract_List_Source_JHK3.xlsx ../outputs/Contract_Tracker_2026_JHK3.xlsx \
-    ../data/Shared_Contracts_BWS_Source_JHK3.xlsx
+    ../data/Shared_Contracts_BWS_Source_JHK3.xlsx ../data/DPS_365_Expiring_Report_JHK3.xlsx
+
+# Keep a working copy's typed entries when rebuilding: name the working copy and the build it came from
+CARRY_USER=<working copy>.xlsx CARRY_BASE=<build it came from>.xlsx python build_contract_tracker_JHK3.py ...
 
 # Project Tracker (blank)
 python build_project_tracker_JHK3.py ../outputs/Project_Tracker_JHK3.xlsx
@@ -80,6 +85,7 @@ openpyxl writes formulas without cached values, so open and save each workbook i
 | `contract_tracker_testdata_part_JHK3.py` | Sample releases for testing (only with `TEST_TO=1`) |
 | `contract_tracker_shared_part_JHK3.py` | Loads the shared-contracts list; Owning Dept Code / Ownership columns; Alert Controls section 15; Data Check and Shared List tabs |
 | `contract_tracker_shared_report_part_JHK3.py` | Shared-contract sections on the Dashboard and Summary |
+| `contract_tracker_dps365_part_JHK3.py` | DPS 365 Report tab, tracker columns On DPS 365 Report? / DPS 365 Comments / DPS Procurement Mgr, Alert Controls section 16, Dashboard DPS section |
 | `contract_tracker_column_guide_part_JHK3.py` | Contract Tracker Column Guide |
 | `build_project_tracker_JHK3.py` + `tracker_helpers_JHK3.py` | Project Tracker |
 | `project_tracker_column_guide_part_JHK3.py` | Project Tracker Column Guide |

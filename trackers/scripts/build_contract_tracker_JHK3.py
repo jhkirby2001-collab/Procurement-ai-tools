@@ -2,7 +2,9 @@
 
 Usage: python build_contract_tracker_JHK3.py ../data/Contract_List_Source_JHK3.xlsx ../outputs/Contract_Tracker_2026_JHK3.xlsx \
            ../data/Shared_Contracts_BWS_Source_JHK3.xlsx
-The third argument (shared contracts list) is optional.
+The third argument (shared contracts list) and fourth (DPS 365 expiring-contracts report) are optional.
+To keep a working copy's typed entries: CARRY_USER=<working copy> CARRY_BASE=<the build it came from> carries every
+input cell that was changed in the working copy into the new build.
 Then recalculate (open and save in Excel, or LibreOffice headless) so formula values are cached.
 Optional env: TEST_TO=1 loads sample task-order releases; RENDER_DASH=<sheet> hides every other sheet (for rendering checks).
 """
@@ -476,6 +478,8 @@ P("Task Order Tracker", "One row per task order / job order release, linked to i
 P("Alert Controls", "Every list, threshold, rule and colour the alerts use. The only place to change the logic.")
 P("Original (as received)", "The list exactly as it was received. Never edited; used to check against the source.")
 P("Shared List (as received)", "The BWS shared-contracts file exactly as received. Never edited.")
+P("DPS 365 Report", "The monthly DPS report of every department contract ending within a year (including ones managed by other procurement managers, for visibility). Grey columns show whether each contract is on your tracker, its responsibility group, your tracker status, next action and req #, and a suggested comment. Procurement managers fill in the DPS columns and return the report to DPS by the first of the month.")
+P("DPS 365 (as received)", "The DPS 365 report exactly as received. Never edited.")
 P("Data Check", "Every change made while loading the shared-contracts file: text dates and PO numbers converted, year typos fixed, contract-type spellings made consistent, and where the shared file disagreed with this tracker. Fixed cells are shaded light yellow on the Portfolio Tracker.")
 
 H("3. Weekly routine for staff")
@@ -495,6 +499,7 @@ P("Contract Type (last column of Portfolio Tracker)", "Standard, Master Service 
 P("Task Order Tracker", "Master PO (dropdown), release number, type, scope, bureau, issue/start/end dates, release amount, paid to date, status, optional M/WBE goal and actual. Enter a release change order as its own row with the change amount (negative for a decrease).")
 P("Owning Dept Code / Ownership", "Owning Dept Code is the PO Dept Code of the department that owns the contract. Ownership turns it into Owned (your code, set on Alert Controls section 15) or Shared (another department owns it, your department draws on it).")
 P("Spec Number, PO Contract Type, BWS File Notes", "Carried over from the shared-contracts file. BWS File Notes keeps that file's notes separate from this tracker's Status / Notes.")
+P("On DPS 365 Report? / DPS 365 Comments / DPS Procurement Mgr", "Formulas on the Portfolio Tracker. They show whether the PO is on the DPS 365 report, the comment and procurement manager entered there, and flag 'Missing - check with DPS' when your contract ends within a year but is not on the report. Tracker dates are never changed by the report.")
 H("5. How the alerts work")
 P("Start-By Date", "End Date minus the Lead Time for the contract's Renewal Path. This is the last day to start renewal work and still finish before the contract ends.")
 P("Expiration Status", "Rules in Alert Controls section 4 are checked top to bottom; the first one that fits is shown. Default order: CLOSED (closed category) > LAPSED (past end date) > IN PROCESS (work submitted) > RED (180 days or less left, or Start-By date passed) > YELLOW (365 days or less, or Start-By within 90 days) > GREEN.")
@@ -523,6 +528,8 @@ P("Master contracts", "Ceiling = Total Contract Value on the Portfolio Tracker. 
 P("Change task order settings", "Alert Controls sections 10-14: contract types and whether they take releases, release types, release statuses (committed? still open?), commitment thresholds, and release flag rules (label, condition, days, colour, severity, order). The list of release flag conditions is fixed; ask for a new one if you need it.")
 P("Dashboard settings", "Alert Controls section 9: the 'expiring soon' window used on the Dashboard tiles and which priorities appear in the Top 10 list.")
 P("Dashboard charts", "Chart colours are fixed to the starting statuses (CLOSED grey, LAPSED dark red, IN PROCESS blue, RED, YELLOW, GREEN). If you add a new expiration rule or lane, the tables update but the charts need their data range widened to show it.")
+P("DPS 365 report", "Alert Controls section 16: the report window (365 days) and which procurement manager initials count as your portfolio or visibility only.")
+P("Monthly DPS 365 routine", "1) Attach the new DPS report and your latest tracker, starting with 'Contract Tracker update: new 365 report'. 2) The DPS 365 Report tab is refreshed; your entries are kept. 3) For your rows, use the Suggested Comment to fill Additional Comments. 4) Check 'Missing from report' and 'End dates differ' on the Dashboard. 5) Send the DPS columns back to DPS by the first of the month.")
 P("Department code", "Alert Controls section 15: your department code (88) and the list of owning-department codes shown on the Dashboard.")
 P("Capacity", "10 renewal paths, 12 action statuses, 10 expiration rules, 8 funds rules, 8 next-action rules, 300 contract rows.")
 P("Log the change", "Record every rule change in the change log below so leadership can see what changed and why.")
@@ -547,19 +554,42 @@ P("11/01/2026", "Task Order Tracker tab added for task orders and job order rele
 P("11/01/2026", "Column Guide tab added: every tracker column with its type, plain-language meaning, how it is figured and an example. Examples kept off the trackers so they never reach the dashboards.", bold_a=False)
 P("11/02/2026", "Shared contracts added: 53 contracts from the BWS shared-contracts file added to the Portfolio Tracker and 17 existing rows enriched. New columns Owning Dept Code, Ownership, Spec Number, PO Contract Type and BWS File Notes; Alert Controls section 15; renewal path and three action statuses for shared contracts; Dashboard and Summary shared-contract sections; Data Check and Shared List (as received) tabs.", bold_a=False)
 P("11/02/2026", "Four original-list start dates typed as text with year typos (11/22/0024, 07/11/0007, 02/08/0024, 05/05/0023) converted to real dates; listed on the Data Check tab.", bold_a=False)
+P("11/03/2026", "DPS 365 Report tab added (124 department contracts ending within a year, linked to the tracker, with suggested comments); DPS 365 (as received) tab; Portfolio Tracker columns On DPS 365 Report?, DPS 365 Comments and DPS Procurement Mgr; Alert Controls section 16; Dashboard DPS 365 section. Tracker dates unchanged.", bold_a=False)
 for _ in range(8): P("", "", bold_a=False)
 
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_dashboard_part_JHK3.py")).read())
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_taskorder_part_JHK3.py")).read())
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_shared_report_part_JHK3.py")).read())
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_dps365_part_JHK3.py")).read())
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_column_guide_part_JHK3.py")).read())
-order = ["How To Use", "Column Guide", "Dashboard", "Summary", "Portfolio Tracker", "Task Order How To", "Task Order Dashboard", "Task Order Tracker", "Alert Controls", "Original (as received)"] + [n for n in ("Shared List (as received)", "Data Check") if n in wb.sheetnames] + ["Dashboard Data"]
-for _n in ["How To Use", "Column Guide", "Dashboard", "Summary", "Portfolio Tracker"]: wb[_n].sheet_properties.tabColor = "1F3864"
+order = ["How To Use", "Column Guide", "Dashboard", "Summary", "Portfolio Tracker", "DPS 365 Report", "Task Order How To", "Task Order Dashboard", "Task Order Tracker", "Alert Controls", "Original (as received)"] + [n for n in ("Shared List (as received)", "DPS 365 (as received)", "Data Check") if n in wb.sheetnames] + ["Dashboard Data"]
+for _n in ["How To Use", "Column Guide", "Dashboard", "Summary", "Portfolio Tracker", "DPS 365 Report"]: wb[_n].sheet_properties.tabColor = "1F3864"
 for _n in ["Task Order How To", "Task Order Dashboard", "Task Order Tracker"]: wb[_n].sheet_properties.tabColor = "0E5E5A"
 wb["Alert Controls"].sheet_properties.tabColor = "BF9000"
 wb._sheets = [wb[n] for n in order]
 wb.active = 0
 wb.properties.title = "Contract Tracker"
+# Carry a working copy's typed entries into this build (input cells only; formulas are rebuilt)
+if os.environ.get("CARRY_USER") and os.environ.get("CARRY_BASE"):
+    import datetime as _cdt
+    _u = openpyxl.load_workbook(os.environ["CARRY_USER"]); _b = openpyxl.load_workbook(os.environ["CARRY_BASE"])
+    _n = 0
+    for _bw in _b.worksheets:
+        if _bw.title not in _u.sheetnames or _bw.title not in wb.sheetnames:
+            continue
+        _uw = _u[_bw.title]; _tw = wb[_bw.title]
+        for _r in range(1, max(_bw.max_row, _uw.max_row) + 1):
+            for _c in range(1, max(_bw.max_column, _uw.max_column) + 1):
+                _bv = _bw.cell(_r, _c).value; _uv = _uw.cell(_r, _c).value
+                if _bv == _uv or (isinstance(_bv, str) and _bv.startswith("=")) or (isinstance(_uv, str) and _uv.startswith("=")):
+                    continue
+                if isinstance(_bv, (int, float)) and isinstance(_uv, (int, float)) and abs(_bv - _uv) < 1e-9:
+                    continue
+                _t = _tw.cell(_r, _c)
+                if isinstance(_t.value, str) and _t.value.startswith("="):
+                    continue
+                _t.value = _uv; _n += 1
+    print("carried", _n, "edited cells from", os.environ["CARRY_USER"])
 if os.environ.get("TEST_TO"):
     exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_testdata_part_JHK3.py")).read())
 if os.environ.get("RENDER_DASH"):
