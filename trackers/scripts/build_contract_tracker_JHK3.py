@@ -590,6 +590,14 @@ if os.environ.get("CARRY_USER") and os.environ.get("CARRY_BASE"):
                     continue
                 _t.value = _uv; _n += 1
     print("carried", _n, "edited cells from", os.environ["CARRY_USER"])
+    # owners list on Alert Controls section 8 follows the (carried) Proposed Owner column, unless the list itself was edited
+    _owner_list_edited = any(_b["Alert Controls"].cell(_r, 4).value != _u["Alert Controls"].cell(_r, 4).value
+                             for _r in range(OWN0, OWN0 + NGRP)) if "Alert Controls" in _u.sheetnames else False
+    if not _owner_list_edited:
+        _own = sorted({str(wb["Portfolio Tracker"][f"Q{_r}"].value).strip() for _r in range(2, LAST + 1)
+                       if wb["Portfolio Tracker"][f"Q{_r}"].value not in (None, "")})
+        for _i in range(NGRP):
+            wb["Alert Controls"][f"D{OWN0 + _i}"].value = _own[_i] if _i < len(_own) else None
 if os.environ.get("TEST_TO"):
     exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_testdata_part_JHK3.py")).read())
 if os.environ.get("RENDER_DASH"):

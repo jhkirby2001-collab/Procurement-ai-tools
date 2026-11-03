@@ -28,8 +28,8 @@ Contract Tracker, Project Tracker and Staff Quick Start for James's contracts ad
 - Monthly DPS deliverable: every department contract ending within a year, including construction / professional-services contracts managed by JR and MA. James wants them for **visibility only** - they live on the DPS 365 Report tab, never on the Portfolio Tracker. Build arg 4.
 - **Never change tracker dates from the report** (James's decision). The tab shows Tracker End Date and "Differs" instead; 11 POs differ (DPS shows 181-day or 1-year extensions).
 - "Missing - check with DPS" on the tracker only for Owned contracts (shared ones sit on the owning department's report).
-- James manages Goods & Services with his staff and will take on meter supplies himself (owners not changed yet - confirm which contracts). JK = probably James; MJ / LJ = G&S staff (unconfirmed). PO 37877 (LJ) is on the report but not on the tracker.
-- Monthly routine: James attaches the new report + his latest tracker; rebuild with CARRY_USER / CARRY_BASE so his typed entries carry over (the build prints how many cells it carried). Base = the exact build his copy came from.
+- James manages Goods & Services with his staff and took over meter supplies: Proposed Owner = James Kirby on all 9 Meters-lane contracts (2026-11-03). JK = James (confirmed); MJ / LJ = G&S staff (unconfirmed). PO 37877 (LJ) is on the report but not on the tracker.
+- Monthly routine: James attaches the new report + his latest tracker; rebuild with CARRY_USER / CARRY_BASE so his typed entries carry over (the build prints how many cells it carried). Base = the exact build his copy came from. The current repo output already includes his 11/2 entries and the meter owners, so it is the base for his next copy. Section 8's owner list is refreshed from the carried Proposed Owner column unless he edited the list.
 
 ## Open items
 
