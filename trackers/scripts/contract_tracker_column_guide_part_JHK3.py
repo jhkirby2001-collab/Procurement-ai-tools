@@ -57,6 +57,9 @@ CG_ROWS = [
     (PT_, "AU", "Spec Number", IN_, "The specification number for the contract.", "The spec number. Loaded from the shared-contracts file.", "1258382", ""),
     (PT_, "AV", "PO Contract Type", IN_, "The purchasing category of the PO (commodities, work services, professional services...).", "Type it the same way each time. Spellings from the shared-contracts file were made consistent.", "COMMODITIES", ""),
     (PT_, "AW", "BWS File Notes", IN_, "Notes carried over from the BWS shared-contracts file.", "Free text. Kept separate from Status /Notes so you can see what came from that file.", "Req 650032 submitted to DPS; compliance approved", ""),
+    (PT_, "AX", "On DPS 365 Report?", FX, "Whether this contract is on the monthly DPS 365 expiring-contracts report.", "Yes / No by PO. 'Missing - check with DPS' when one of your Owned contracts ends within a year (Alert Controls 16), isn't closed, and isn't on the report. Shared contracts appear on the owning department's report, so they are never flagged.", "Yes", f"{AC_} section 16"),
+    (PT_, "AY", "DPS 365 Comments", FX, "The comment the procurement manager entered on the DPS 365 report for this PO.", "Pulled from the DPS 365 Report tab (Additional Comments). Your own notes stay in Status /Notes.", "RX 744110 submitted 8/7/26", ""),
+    (PT_, "AZ", "DPS Procurement Mgr", FX, "Procurement manager initials on the DPS 365 report.", "Pulled from the DPS 365 Report tab.", "JK", ""),
     # ---------------- Task Order Tracker
     (TO_, "A", "Release ID", IN_, "Your team's ID for the release.", "One format for everyone, e.g. R-001.", "R-001", ""),
     (TO_, "B", "Master PO", IN_, "The master contract this release is issued against.", "Pick the PO from the dropdown (it lists the Portfolio Tracker POs).", "271670", ""),
@@ -86,6 +89,29 @@ CG_ROWS = [
     (TO_, "Z", "Release Flag", FX, "One alert for the release.", "First rule that fits: EXCEEDS CEILING, NOT A MASTER, OUTLASTS MASTER, OVERPAID, OVERDUE, ENDING SOON. Blank when nothing is wrong.", "ENDING SOON", f"{AC_} section 14"),
     (TO_, "AA", "M/WBE Gap", FX, "How far actual participation is from the goal.", "M/WBE Actual % minus Goal %. Red when below goal.", "-4%", ""),
     (TO_, "AB", "Notes", IN_, "Anything else about the release.", "Free text. For a change order, note the original release number.", "Change order to TO-2026-014", ""),
+    # ---------------- DPS 365 Report
+    ("DPS 365 Report", "A", "Current End Date", ORIG, "End date on the DPS report.", "As sent by DPS. Never copied to your tracker.", "04/30/2027", ""),
+    ("DPS 365 Report", "B", "Original Start Date", ORIG, "Start date on the DPS report.", "As sent by DPS.", "11/01/2018", ""),
+    ("DPS 365 Report", "C", "Spec Number", ORIG, "Specification number.", "As sent by DPS.", "338124", ""),
+    ("DPS 365 Report", "D", "PO Number", ORIG, "The contract's PO. Links the row to your tracker.", "As sent by DPS.", "84272", ""),
+    ("DPS 365 Report", "E", "PO Description", ORIG, "What the contract covers.", "As sent by DPS.", "Reprocessable materials", ""),
+    ("DPS 365 Report", "F", "No Longer Needed (X)", IN_, "Mark contracts the department no longer needs.", "Type X.", "X", ""),
+    ("DPS 365 Report", "G", "Provide Req # for extension request (Req #)", IN_, "Requisition for the extension.", "The req number from FMPS.", "714339", ""),
+    ("DPS 365 Report", "H", "Is Extension request within the term of the contract?", IN_, "Whether the extension fits within the contract's existing term.", "Pick Yes or No.", "Yes", ""),
+    ("DPS 365 Report", "I", "Req # for new request that is replacing expiring contract", IN_, "Requisition for the replacement contract.", "The req number from FMPS.", "744110", ""),
+    ("DPS 365 Report", "J", "Additional Comments", IN_, "The monthly status comment for DPS. Shows on your tracker in DPS 365 Comments.", "Update monthly. For your rows, start from the Suggested Comment.", "RX 744110 submitted 8/7/26", ""),
+    ("DPS 365 Report", "K", "Procurement Manager Initials", ORIG, "Who manages the contract.", "As sent by DPS. Sets the Responsibility group for rows not on your tracker.", "JK", f"{AC_} section 16"),
+    ("DPS 365 Report", "L", "On My Tracker?", FX, "Whether the PO is on your Portfolio Tracker.", "Yes / No by PO.", "Yes", ""),
+    ("DPS 365 Report", "M", "Responsibility", FX, "Whose contract it is.", "My portfolio when it's on your tracker; otherwise the group for the manager initials (Visibility only by default).", "My portfolio", f"{AC_} section 16"),
+    ("DPS 365 Report", "N", "Tracker End Date", FX, "The end date on your tracker.", "Looked up by PO. Shown for comparison only.", "10/31/2026", ""),
+    ("DPS 365 Report", "O", "End Dates Differ?", FX, "Whether DPS and your tracker disagree on the end date.", "'Differs' when the two dates aren't the same.", "Differs", ""),
+    ("DPS 365 Report", "P", "Tracker Expiration Status", FX, "Your tracker's time alert for the contract.", "Looked up from the Portfolio Tracker.", "LAPSED", f"{AC_} section 4"),
+    ("DPS 365 Report", "Q", "Renewal Path", FX, "Your tracker's renewal path.", "Looked up from the Portfolio Tracker.", "Extension available", ""),
+    ("DPS 365 Report", "R", "Action Status", FX, "Your tracker's action status.", "Looked up from the Portfolio Tracker.", "Submitted to DPS", ""),
+    ("DPS 365 Report", "S", "Next Action", FX, "Your tracker's next step.", "Looked up from the Portfolio Tracker.", "DPS must finish process", ""),
+    ("DPS 365 Report", "T", "Next Action Due", FX, "When that step is due.", "Looked up from the Portfolio Tracker.", "11/15/2026", ""),
+    ("DPS 365 Report", "U", "Tracker REQ No.", FX, "The req number on your tracker.", "Looked up from the Portfolio Tracker.", "748185", ""),
+    ("DPS 365 Report", "V", "Suggested Comment", FX, "A draft monthly comment built from your tracker.", "Today's date, action status, req number and next step. Copy it into Additional Comments and edit as needed.", "11/3/26 - Submitted to DPS; Req 748185; Next: DPS must finish process by 11/15/26", ""),
     # ---------------- other tabs (one line each)
     ("Alert Controls", "Blue cells", "Settings", IN_, "Every list, lead time, rule, threshold and colour the alerts use.", "Change blue cells and dropdowns only. Read the How To Use tab first; rules are checked top to bottom.", "Competitive rebid = 540 days", "-"),
     ("Dashboard, Summary, Task Order Dashboard, Data Check", "All", "All cells", FX, "Pictures and totals of the trackers for you and leadership.", "Nothing to type. They update when the trackers change.", "-", "-"),
@@ -93,6 +119,6 @@ CG_ROWS = [
 
 add_column_guide(
     wb, "Column Guide",
-    "Every column on the Portfolio Tracker and Task Order Tracker: who fills it in, what it means, and an example. "
+    "Every column on the Portfolio Tracker, DPS 365 Report and Task Order Tracker: who fills it in, what it means, and an example. "
     "Examples are shown here, not as sample rows on the trackers, so they never show up in the dashboards or totals.",
     CG_TYPES, CG_ROWS, index=1)
