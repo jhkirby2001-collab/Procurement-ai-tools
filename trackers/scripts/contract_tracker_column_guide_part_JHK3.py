@@ -60,6 +60,15 @@ CG_ROWS = [
     (PT_, "AX", "On DPS 365 Report?", FX, "Whether this contract is on the monthly DPS 365 expiring-contracts report.", "Yes / No by PO. 'Missing - check with DPS' when one of your Owned contracts ends within a year (Alert Controls 16), isn't closed, and isn't on the report. Shared contracts appear on the owning department's report, so they are never flagged.", "Yes", f"{AC_} section 16"),
     (PT_, "AY", "DPS 365 Comments", FX, "The comment the procurement manager entered on the DPS 365 report for this PO.", "Pulled from the DPS 365 Report tab (Additional Comments). Your own notes stay in Status /Notes.", "RX 744110 submitted 8/7/26", ""),
     (PT_, "AZ", "DPS Procurement Mgr", FX, "Procurement manager initials on the DPS 365 report.", "Pulled from the DPS 365 Report tab.", "JK", ""),
+    (PT_, "BA", "Burn Index", FX, "How fast money is being spent compared with time. 1.00 = on pace; above 1 = money runs out before the contract ends.", "% Expended divided by % of Term Used. Blank until 10% of the term has passed and money has been spent. Amber at 1.10, red at 1.25.", "1.32", f"{AC_} section 17"),
+    (PT_, "BB", "Projected Exhaustion Date", FX, "When the money runs out at the current spending pace.", "Start Date + days elapsed / % Expended. Blank when Burn Index is blank.", "03/15/2027", ""),
+    (PT_, "BC", "Funds Run Out Before End?", FX, "Early warning that a vendor limit increase is needed.", "'Yes - N days early' when the Projected Exhaustion Date is before the End Date; otherwise No.", "Yes - 142 days early", ""),
+    (PT_, "BD", "Supply Coverage", IN_, "How DWM keeps getting materials while a contract is lapsed or about to lapse.", "Pick from the list (Exhibit B, Alternate PO / contract, Extension pending, Stock on hand, Unconfirmed, No way to buy, Not needed). Yellow = suggested from your notes; confirm or change.", "Exhibit B", f"{AC_} section 18"),
+    (PT_, "BE", "Coverage PO / Note", IN_, "Proof of the coverage.", "The PO number, approval or note.", "PO 246545", ""),
+    (PT_, "BF", "Coverage Through", IN_, "When the coverage ends, if it does (approval expiry, stock run-out).", "A date (mm/dd/yyyy). The row turns amber 30 days before; after it passes, supply counts as At risk.", "01/31/2027", f"{AC_} section 19"),
+    (PT_, "BG", "Supply Status", FX, "Can DWM still buy what this contract covers?", "Your Supply Coverage choice; otherwise Unknown - confirm (lapsed), Not yet planned (ending within 90 days) or Active contract.", "Unknown - confirm", f"{AC_} section 19"),
+    (PT_, "BH", "Supply Risk", FX, "Supply Status in three words for the Dashboard.", "Covered / At risk / Not covered (from what the coverage choice counts as), Active or Closed.", "At risk", f"{AC_} section 18"),
+    (PT_, "BI", "Action Needed", FX, "Whether the contract needs YOUR action now. Turns the whole row red or amber.", "Act now: next action overdue, supply not covered, lapsed with supply at risk, or Priority 1-2 without a renewal in process. Plan: Priority 3, ending soon with no coverage, or coverage ending soon. Blank when the renewal is in process and supply is covered.", "Act now", f"{AC_} section 19"),
     # ---------------- Task Order Tracker
     (TO_, "A", "Release ID", IN_, "Your team's ID for the release.", "One format for everyone, e.g. R-001.", "R-001", ""),
     (TO_, "B", "Master PO", IN_, "The master contract this release is issued against.", "Pick the PO from the dropdown (it lists the Portfolio Tracker POs).", "271670", ""),
@@ -117,6 +126,16 @@ CG_ROWS = [
     ("Dashboard, Summary, Task Order Dashboard, Data Check", "All", "All cells", FX, "Pictures and totals of the trackers for you and leadership.", "Nothing to type. They update when the trackers change.", "-", "-"),
 ]
 
+# Working copy with a Reviewed column in A: show the Portfolio Tracker letters as the user sees them.
+if os.environ.get("REVIEWED_COL") == "1":
+    def _shift(colspec):
+        parts = colspec.split("-")
+        if all(p.isalpha() for p in parts):
+            return "-".join(L(CI(p) + 1) for p in parts)
+        return colspec
+    CG_ROWS = [((t, _shift(c)) + tuple(rest)) if t == PT_ else (t, c) + tuple(rest) for (t, c, *rest) in CG_ROWS]
+    _i = next(i for i, r in enumerate(CG_ROWS) if r[0] == PT_)
+    CG_ROWS.insert(_i, (PT_, "A", "Reviewed", IN_, "Your own check-off column for rows you have reviewed.", "Type y (or a date). No formula uses it.", "y", ""))
 add_column_guide(
     wb, "Column Guide",
     "Every column on the Portfolio Tracker, DPS 365 Report and Task Order Tracker: who fills it in, what it means, and an example. "

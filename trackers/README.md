@@ -25,7 +25,7 @@ Two Excel workbooks for running a contract and project portfolio, plus a one-pag
 | Task Order How To | Guide to tracking task orders and job order releases |
 | Task Order Dashboard | Ceiling, committed, available and paid; committed vs. available by master; releases by status, flag, month and type; Top 10 flagged releases |
 | Task Order Tracker | One row per release, linked to its master contract by PO |
-| Alert Controls | Every list, lead time, rule, threshold and colour (sections 1-16) |
+| Alert Controls | Every list, lead time, rule, threshold and colour (sections 1-19) |
 | Original (as received) | The source contract list, unedited |
 | Shared List (as received) | The shared-contracts list, unedited |
 | DPS 365 (as received) | The DPS 365 report, unedited |
@@ -37,6 +37,9 @@ Two Excel workbooks for running a contract and project portfolio, plus a one-pag
 - **Funds Flag.** % expended, and spending compared with the share of the term already used (RED at 75% spent or 20+ points ahead of time; YELLOW at 50% or 10+ points).
 - **Next Action Flag.** OVERDUE, DUE SOON (14 days), UPCOMING (30 days).
 - **Priority.** The most urgent of the three flags (1 = most urgent).
+- **Spending pace.** Burn Index = % spent / % of term used (amber 1.10, red 1.25), Projected Exhaustion Date, and "Funds Run Out Before End?" as the early warning for a vendor limit increase.
+- **Supply coverage.** For lapsed or soon-to-lapse contracts: how the department keeps buying (Exhibit B, alternate PO, vendor honoring an extension, stock on hand), shown as Supply Status / Supply Risk. The Dashboard shows lapsed contracts by renewal movement and supply coverage.
+- **Action Needed.** The whole row turns red (Act now) or amber (Plan) when a contract needs action; renewals in process with supply covered are not highlighted.
 - **Task orders.** Ceiling = the master's Total Contract Value. Committed = releases whose status counts as committed. Available = ceiling − committed. The commitment flag goes YELLOW at 75%, RED at 90% and OVER CEILING at 100%. Each release gets one flag: EXCEEDS CEILING, NOT A MASTER, OUTLASTS MASTER, OVERPAID, OVERDUE or ENDING SOON.
 
 - **Shared contracts.** Contracts owned by another department (by PO Dept Code) that the department draws on sit on the same list. Ownership reads Owned when the Owning Dept Code equals the department code on Alert Controls section 15, otherwise Shared. They get the same alerts, a "Owning dept renews" renewal path and their own Dashboard section.
@@ -62,8 +65,10 @@ cd trackers/scripts
 python build_contract_tracker_JHK3.py ../data/Contract_List_Source_JHK3.xlsx ../outputs/Contract_Tracker_2026_JHK3.xlsx \
     ../data/Shared_Contracts_BWS_Source_JHK3.xlsx ../data/DPS_365_Expiring_Report_JHK3.xlsx
 
-# Keep a working copy's typed entries when rebuilding: name the working copy and the build it came from
-CARRY_USER=<working copy>.xlsx CARRY_BASE=<build it came from>.xlsx python build_contract_tracker_JHK3.py ...
+# Keep a working copy's typed entries when rebuilding (REVIEWED_COL=1 if it has the Reviewed column in A):
+REVIEWED_COL=1 CARRY_USER=<working copy>.xlsx python build_contract_tracker_JHK3.py ... 
+python recalc.py <output>            # from the xlsx tooling
+python insert_reviewed_column_JHK3.py <output> D2 Q2
 
 # Project Tracker (blank)
 python build_project_tracker_JHK3.py ../outputs/Project_Tracker_JHK3.xlsx
@@ -85,6 +90,8 @@ openpyxl writes formulas without cached values, so open and save each workbook i
 | `contract_tracker_testdata_part_JHK3.py` | Sample releases for testing (only with `TEST_TO=1`) |
 | `contract_tracker_shared_part_JHK3.py` | Loads the shared-contracts list; Owning Dept Code / Ownership columns; Alert Controls section 15; Data Check and Shared List tabs |
 | `contract_tracker_shared_report_part_JHK3.py` | Shared-contract sections on the Dashboard and Summary |
+| `contract_tracker_supply_part_JHK3.py` | Burn Index, Projected Exhaustion Date, supply coverage, Action Needed row highlight, lapsed renewal x supply KPIs, Alert Controls sections 17-19 |
+| `insert_reviewed_column_JHK3.py` | Adds the working copy's Reviewed column at A of the Portfolio Tracker with LibreOffice so every reference shifts as in Excel, and restores its freeze panes |
 | `contract_tracker_dps365_part_JHK3.py` | DPS 365 Report tab, tracker columns On DPS 365 Report? / DPS 365 Comments / DPS Procurement Mgr, Alert Controls section 16, Dashboard DPS section |
 | `contract_tracker_column_guide_part_JHK3.py` | Contract Tracker Column Guide |
 | `build_project_tracker_JHK3.py` + `tracker_helpers_JHK3.py` | Project Tracker |

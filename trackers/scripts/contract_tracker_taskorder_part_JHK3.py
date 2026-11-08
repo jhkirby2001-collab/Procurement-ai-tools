@@ -11,7 +11,7 @@ def slot_rows(start, n):
         ctl[f"B{r}"] = i + 1; ctl[f"B{r}"].font = font(color=GREY_HDR); ctl[f"B{r}"].border = BOX
         yield i, r
 
-sec(120, "10. Contract Types  (dropdown on the Portfolio Tracker, last column)",
+sec(120, "10. Contract Types  (dropdown on the Portfolio Tracker, Contract Type column)",
     "'Takes releases?' = Yes means task orders / job order releases can be issued against it and its ceiling is tracked on the Task Order Tracker.")
 hdr(122, {"B": "Slot", "C": "Contract Type", "D": "Takes releases?", "I": "What it means"})
 CT = [("Standard", "No", "Single contract; spending tracked on the Portfolio Tracker."),
@@ -206,13 +206,13 @@ for r in range(2, LAST + 1):
 DDc = lambda c: f"'Dashboard Data'!${c}$2:${c}${LAST}"
 
 # =============== Dashboard: tiles row + master contracts section
-sh("B14", "Task orders and releases")
-tile("B", 15, "MASTER CONTRACTS", f'=COUNTIF({DDc("Y")},"Yes")', "Contract Type takes releases")
-tile("E", 15, "OPEN RELEASES", f'=COUNTIF({TO("R")},"Yes")', "Still open on the Task Order Tracker")
-tile("H", 15, "COMMITTED ON MASTERS", f'=SUM({DDc("Z")})', "Committed releases", MON)
-tile("K", 15, "AVAILABLE ON MASTERS", f'=SUM({DDc("AF")})', "Ceiling minus committed", MON)
-tile("N", 15, "MASTERS NEAR CEILING", f'=COUNTIF({DDc("AD")},"<=3")', "Commitment flag severity 1-3", alert=("FFF4D6", "8A6100"))
-tile("Q", 15, "RELEASES FLAGGED", f'=COUNTIF({TO("Z")},"?*")', "Detail on the Task Order Dashboard", alert=("FBE3E3", "C00000"))
+sh("B25", "Task orders and releases")
+tile("B", 26, "MASTER CONTRACTS", f'=COUNTIF({DDc("Y")},"Yes")', "Contract Type takes releases")
+tile("E", 26, "OPEN RELEASES", f'=COUNTIF({TO("R")},"Yes")', "Still open on the Task Order Tracker")
+tile("H", 26, "COMMITTED ON MASTERS", f'=SUM({DDc("Z")})', "Committed releases", MON)
+tile("K", 26, "AVAILABLE ON MASTERS", f'=SUM({DDc("AF")})', "Ceiling minus committed", MON)
+tile("N", 26, "MASTERS NEAR CEILING", f'=COUNTIF({DDc("AD")},"<=3")', "Commitment flag severity 1-3", alert=("FFF4D6", "8A6100"))
+tile("Q", 26, "RELEASES FLAGGED", f'=COUNTIF({TO("Z")},"?*")', "Detail on the Task Order Dashboard", alert=("FBE3E3", "C00000"))
 
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_todash_part_JHK3.py")).read())
 

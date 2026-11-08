@@ -110,18 +110,18 @@ tile("E", 5, "NEED ACTION NOW", f'=COUNTIF({PT("AL")},"<="&{TOPMAX})', "Priority
 tile("H", 5, "LAPSED", f'=COUNTIFS({PT("AD")},"<0",{OPEN})', "Past end date, not closed", alert=("FBE3E3", "C00000"))
 tile("K", 5, "EXPIRING SOON", f'=COUNTIFS({PT("AD")},">=0",{PT("AD")},"<="&{SOON},{OPEN})',
      '="Ending within "&' + SOON + '&" days"', alert=("FFF4D6", "8A6100"))
-tile("N", 5, "IN PROCESS", f'=COUNTIF({PT("AH")},"In Process")', "Renewal work submitted")
+tile("N", 5, "IN PROCESS", f'=COUNTIF({PT("AH")},{AC}!$K$29)', "Renewal work submitted (incl. lapsed)")
 tile("Q", 5, "NEXT ACTIONS OVERDUE", f'=COUNTIF({PT("AK")},{AC}!$C${N0})', "Past their due date", alert=("FBE3E3", "C00000"))
 db.column_dimensions["S"].width = 11
 
-sh("B9", "Money")
+sh("B20", "Money")
 MON = '$#,##0;($#,##0);"-"'
-tile("B", 10, "TOTAL CONTRACT VALUE", f'=SUM({PT("W")})', "Entered so far", MON)
-tile("E", 10, "EXPENDED TO DATE", f'=SUM({PT("X")})', "Entered so far", MON)
-tile("H", 10, "REMAINING BALANCE", f'=SUM({PT("Y")})', "Value minus expended", MON)
-tile("K", 10, "FUNDS AT RISK", f'=COUNTIF({PT("AC")},{AC}!$C${U0})', "Contracts with a red funds flag", alert=("FBE3E3", "C00000"))
-tile("N", 10, "DOLLARS ENTERED", f'=COUNT({PT("Z")})', '="of "&COUNTA(' + PT("A") + ')&" contracts"')
-tile("Q", 10, "RENEWAL PATH SET", f'=IFERROR(COUNTA({PT("R")})/COUNTA({PT("A")}),0)', "Share of contracts with a plan", "0%")
+tile("B", 21, "TOTAL CONTRACT VALUE", f'=SUM({PT("W")})', "Entered so far", MON)
+tile("E", 21, "EXPENDED TO DATE", f'=SUM({PT("X")})', "Entered so far", MON)
+tile("H", 21, "REMAINING BALANCE", f'=SUM({PT("Y")})', "Value minus expended", MON)
+tile("K", 21, "FUNDS AT RISK", f'=COUNTIF({PT("AC")},{AC}!$C${U0})', "Contracts with a red funds flag", alert=("FBE3E3", "C00000"))
+tile("N", 21, "FUNDS RUN OUT EARLY", f'=COUNTIF({PT("BC")},"Yes*")', '="Before end date; "&COUNT(' + PT("X") + ')&" of "&COUNTA(' + PT("A") + ')&" have spending entered"', alert=("FBE3E3", "C00000"))
+tile("Q", 21, "RENEWAL PATH SET", f'=IFERROR(COUNTA({PT("R")})/COUNTA({PT("A")}),0)', "Share of contracts with a plan", "0%")
 
 # ---- charts
 def colour_series(series, hexes):
@@ -129,14 +129,14 @@ def colour_series(series, hexes):
         pt = DataPoint(idx=i); pt.graphicalProperties.solidFill = h; pt.graphicalProperties.line.solidFill = "FFFFFF"
         series.dPt.append(pt)
 
-sh("B19", "Where the portfolio stands")
+sh("B30", "Where the portfolio stands")
 pie = PieChart(); pie.title = "Contracts by expiration status"
 pie.add_data(Reference(dd, min_col=2, min_row=3, max_row=2 + NSTAT), titles_from_data=False)
 pie.set_categories(Reference(dd, min_col=1, min_row=3, max_row=2 + NSTAT))
 colour_series(pie.series[0], [CHART_HEX[c] for c in start_colours])
 pie.dataLabels = DataLabelList(showVal=True, showPercent=False, showCatName=False, showSerName=False, showLegendKey=False, showLeaderLines=False)
 pie.height, pie.width = 8.5, 13
-db.add_chart(pie, "B21")
+db.add_chart(pie, "B32")
 
 qb = BarChart(); qb.type = "col"; qb.title = "When contracts end (open contracts)"; qb.legend = None
 qb.add_data(Reference(dd, min_col=5, min_row=3, max_row=12), titles_from_data=False)
@@ -145,9 +145,9 @@ colour_series(qb.series[0], ["C00000"] + ["1F3864"] * 9)
 qb.dataLabels = DataLabelList(showVal=True, showPercent=False, showCatName=False, showSerName=False, showLegendKey=False)
 qb.y_axis.majorGridlines = None; qb.y_axis.title = "Contracts"
 qb.height, qb.width = 8.5, 17
-db.add_chart(qb, "J21")
+db.add_chart(qb, "J32")
 
-sh("B39", "By lane and by owner")
+sh("B50", "By lane and by owner")
 lb = BarChart(); lb.type = "bar"; lb.grouping = "stacked"; lb.overlap = 100; lb.title = "Expiration status by lane"
 lb.add_data(Reference(dd, min_col=10, max_col=9 + NSTAT, min_row=2, max_row=2 + NL), titles_from_data=True)
 lb.set_categories(Reference(dd, min_col=9, min_row=3, max_row=2 + NL))
@@ -155,7 +155,7 @@ for sr, c in zip(lb.series, start_colours):
     sr.graphicalProperties.solidFill = CHART_HEX[c]; sr.graphicalProperties.line.solidFill = CHART_HEX[c]
 lb.x_axis.scaling.orientation = "maxMin"; lb.y_axis.majorGridlines = None
 lb.height, lb.width = 9, 13
-db.add_chart(lb, "B41")
+db.add_chart(lb, "B52")
 
 ob = BarChart(); ob.type = "bar"; ob.title = "Workload by owner"
 ob.add_data(Reference(dd, min_col=20, max_col=21, min_row=2, max_row=2 + NO), titles_from_data=True)
@@ -163,10 +163,10 @@ ob.set_categories(Reference(dd, min_col=19, min_row=3, max_row=2 + NO))
 ob.series[0].graphicalProperties.solidFill = "6FA8DC"; ob.series[1].graphicalProperties.solidFill = "C00000"
 ob.x_axis.scaling.orientation = "maxMin"; ob.y_axis.majorGridlines = None
 ob.height, ob.width = 9, 17
-db.add_chart(ob, "J41")
+db.add_chart(ob, "J52")
 
 # ---- Top 10 list
-T0 = 61
+T0 = 72
 sh(f"B{T0}", "Top 10 contracts needing action")
 db[f"B{T0+1}"] = '="Priority 1-"&' + TOPMAX + '&", most urgent first, then fewest days left. Full detail is on the Portfolio Tracker."'
 db[f"B{T0+1}"].font = font(size=9, italic=True, color=GREY_HDR)

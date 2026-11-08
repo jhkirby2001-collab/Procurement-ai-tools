@@ -91,7 +91,7 @@ for nm, fc, tc in PALETTE:
     t = f'IFERROR(INDEX({AC}!$G${CM0}:$G${CM1},MATCH($K{hr2+1},{AC}!$C${CM0}:$C${CM1},0)),"")="{nm}"'
     tdb.conditional_formatting.add(f"K{hr2+1}:K{hr2+15}", FormulaRule(formula=[t], fill=fill(fc), font=Font(color=tc, bold=True), stopIfTrue=True))
 tdb.conditional_formatting.add(f"H{hr2+1}:H{hr2+15}", FormulaRule(formula=[f'AND(ISNUMBER(H{hr2+1}),H{hr2+1}<0)'], font=Font(color="C00000", bold=True)))
-tdb[f"B{hr2+16}"] = (f'=IF(COUNT({DDc("AE")})=0,"No master contracts yet. Set Contract Type on the Portfolio Tracker (last column).",'
+tdb[f"B{hr2+16}"] = (f'=IF(COUNT({DDc("AE")})=0,"No master contracts yet. Set Contract Type on the Portfolio Tracker (Contract Type column).",'
                      f'IF(COUNT({DDc("AE")})>15,"+ "&(COUNT({DDc("AE")})-15)&" more masters; see the Task Order Tracker.","Ceiling = Total Contract Value on the Portfolio Tracker."))')
 tdb[f"B{hr2+16}"].font = font(size=9, italic=True, color=GREY_HDR)
 
@@ -215,7 +215,7 @@ TP("Available", "Ceiling minus Committed. What is left to issue new releases. Th
 TP("Paid", "What has actually been paid on releases. A master can be lightly paid but fully committed.")
 
 TH("3. One-time setup for each master contract")
-TP("Step 1", "Portfolio Tracker: in the last column (Contract Type), pick Master Service or Construction (JOC).")
+TP("Step 1", "Portfolio Tracker: in the Contract Type column, pick Master Service or Construction (JOC).")
 TP("Step 2", "Portfolio Tracker: enter the master's Total Contract Value. This is the ceiling.")
 TP("Step 3", "The master now appears on the Task Order Dashboard. If its Contract Type is blank or Standard, releases against it are flagged NOT A MASTER.")
 
