@@ -42,17 +42,18 @@ sec(244, "19. Whole-row highlight and supply windows",
     "A row is highlighted when the contract needs YOUR action. Renewals in process with supply covered are not highlighted.")
 hdr(246, {"B": "#", "C": "Setting", "D": "Value", "I": "What it does"})
 for i, (k, v, n) in enumerate([
-        ("'Act now' (red row) = Priority at or below", 2, "Also: next action overdue, supply not covered, or lapsed with supply at risk."),
-        ("'Plan' (amber row) = Priority at or below", 3, "Also: contract ending inside the supply window with no coverage, or coverage ending soon."),
+        ("'Act now' (red row) = Priority at or below", 2, "Also: supply not covered, or lapsed with supply at risk."),
+        ("'Plan' (amber row) = Priority at or below", 3, "Also: contract ending inside the supply window with no coverage."),
         ("Plan supply coverage for contracts ending within (days)", 90, "Before a contract lapses, Supply Status asks for a plan ('Not yet planned')."),
-        ("Coverage Through warning (days)", 30, "Coverage ending within this many days turns the row 'Plan'; after it ends the supply is At risk.")]):
+        ("(not used)", None, "Coverage Through was removed with the Coverage PO / Note column (11/2026).")]):
     r = 247 + i
     ctl[f"B{r}"] = i + 1; ctl[f"B{r}"].font = font(); ctl[f"B{r}"].border = BOX
     ctl[f"C{r}"] = k; ctl[f"C{r}"].font = font(); ctl[f"C{r}"].border = BOX; ctl[f"C{r}"].alignment = Alignment(wrap_text=True)
+    if v is None:
+        ctl[f"D{r}"].border = BOX; note(f"I{r}", n); ctl.merge_cells(f"E{r}:H{r}"); continue
     inp(f"D{r}", v, "0"); ctl[f"D{r}"].fill = fill("FFFF00"); note(f"I{r}", n); ctl.merge_cells(f"E{r}:H{r}")
-ACT_N, PLAN_N, PLAN_WIN, COV_WARN = (f"{AC}!$D$247", f"{AC}!$D$248", f"{AC}!$D$249", f"{AC}!$D$250")
+ACT_N, PLAN_N, PLAN_WIN = (f"{AC}!$D$247", f"{AC}!$D$248", f"{AC}!$D$249")
 INPROC, NORMAL = f"{AC}!$K$29", f"{AC}!$K$28"
-OVERDUE_LBL = f"{AC}!$C${N0}"
 
 # ---------------- Portfolio Tracker columns BA-BI
 SUP = [  # col, header, kind, width, formula
@@ -66,23 +67,21 @@ SUP = [  # col, header, kind, width, formula
     ("BE", "Coverage PO / Note", "in", 24, None),
     ("BF", "Coverage Through", "in", 11, None),
     ("BG", "Supply Status", "auto", 20,
-     lambda r: (f'=IF(A{r}="","",IF(BD{r}<>"",BD{r}&IF(AND(ISNUMBER(BF{r}),BF{r}<TODAY())," (coverage ended)",""),'
+     lambda r: (f'=IF(A{r}="","",IF(BD{r}<>"",BD{r},'
                 f'IF(AH{r}={CLOSED_CAT},"",IF(AND(ISNUMBER(AD{r}),AD{r}<0),"Unknown - confirm",'
                 f'IF(AND(ISNUMBER(AD{r}),AD{r}<={PLAN_WIN}),"Not yet planned","Active contract")))))')),
     ("BH", "Supply Risk", "auto", 11,
-     lambda r: (f'=IF(A{r}="","",IF(BD{r}<>"",IF(AND(ISNUMBER(BF{r}),BF{r}<TODAY()),"At risk",'
-                f'IFERROR(INDEX({COV_CAT},MATCH(BD{r},{COV_NAME},0)),"At risk")),'
+     lambda r: (f'=IF(A{r}="","",IF(BD{r}<>"",'
+                f'IFERROR(INDEX({COV_CAT},MATCH(BD{r},{COV_NAME},0)),"At risk"),'
                 f'IF(AH{r}={CLOSED_CAT},"Closed",IF(AND(ISNUMBER(AD{r}),AD{r}<={PLAN_WIN}),"At risk","Active"))))')),
     ("BI", "Action Needed", "auto", 11, None),
 ]
 def _action(r):
     ok_ip = f'AND(AH{r}={INPROC},OR(BH{r}="Covered",BH{r}="Active"))'
     near = f'AND(ISNUMBER(AD{r}),AD{r}<={PLAN_WIN})'
-    over = f'AK{r}={OVERDUE_LBL}'
-    cov_soon = f'AND(ISNUMBER(BF{r}),BF{r}>=TODAY(),BF{r}-TODAY()<={COV_WARN})'
-    needs = (f'OR({over},AND({near},OR(BH{r}="At risk",BH{r}="Not covered")),'
-             f'AND(ISNUMBER(AL{r}),AL{r}<={PLAN_N},NOT({ok_ip})),{cov_soon})')
-    act = (f'OR({over},BH{r}="Not covered",AND(ISNUMBER(AL{r}),AL{r}<={ACT_N},NOT({ok_ip})),'
+    needs = (f'OR(AND({near},OR(BH{r}="At risk",BH{r}="Not covered")),'
+             f'AND(ISNUMBER(AL{r}),AL{r}<={PLAN_N},NOT({ok_ip})))')
+    act = (f'OR(BH{r}="Not covered",AND(ISNUMBER(AL{r}),AL{r}<={ACT_N},NOT({ok_ip})),'
            f'AND(ISNUMBER(AD{r}),AD{r}<0,BH{r}="At risk"))')
     return f'=IF(OR(A{r}="",AH{r}={CLOSED_CAT}),"",IF(NOT({needs}),"",IF({act},"Act now","Plan")))'
 SUP[-1] = ("BI", "Action Needed", "auto", 11, _action)
@@ -102,8 +101,14 @@ for col, h, kind, w, fn in SUP:
     if col in ("BH", "BI"):
         for r in range(2, LAST + 1): new[f"{col}{r}"].font = font(bold=True)
 dv(new, "=" + COV_NAME, f"BD2:BD{LAST}")
-v = DataValidation(type="date", operator="greaterThan", formula1="36526", allow_blank=True, showErrorMessage=True, error="Enter a date (mm/dd/yyyy).")
-new.add_data_validation(v); v.add(f"BF2:BF{LAST}")
+# Status & Notes (BJ): the one notes column. Filled by the build from the old note columns; finalize_layout moves it to
+# right after the lane columns.
+c = new["BJ1"]; c.value = "Status & Notes"
+c.font = font(bold=True, color="FFFFFF"); c.fill = fill(BLUE_HDR); c.border = BOX
+c.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+new.column_dimensions["BJ"].width = 60
+for r in range(2, LAST + 1):
+    x = new[f"BJ{r}"]; x.border = BOX; x.font = font(); x.alignment = Alignment(vertical="top", wrap_text=True)
 # cell colours
 new.conditional_formatting.add(f"BA2:BA{LAST}", FormulaRule(formula=[f'AND(ISNUMBER($BA2),$BA2>={BURN_RED})'], fill=fill("F4A6A6"), font=Font(color="7A0000", bold=True), stopIfTrue=True))
 new.conditional_formatting.add(f"BA2:BA{LAST}", FormulaRule(formula=[f'AND(ISNUMBER($BA2),$BA2>={BURN_AMB})'], fill=fill("FFD966"), font=Font(color="5C4400", bold=True), stopIfTrue=True))
@@ -113,9 +118,9 @@ for val, fc, tc in [("Covered", "C6EFCE", "1E5631"), ("At risk", "FFD966", "5C44
 new.conditional_formatting.add(f"BI2:BI{LAST}", FormulaRule(formula=['$BI2="Act now"'], fill=fill("C00000"), font=Font(color="FFFFFF", bold=True), stopIfTrue=True))
 new.conditional_formatting.add(f"BI2:BI{LAST}", FormulaRule(formula=['$BI2="Plan"'], fill=fill("FFD966"), font=Font(color="5C4400", bold=True), stopIfTrue=True))
 # whole-row highlight: added last, so the status cells keep their own stronger colours
-new.conditional_formatting.add(f"A2:BI{LAST}", FormulaRule(formula=['$BI2="Act now"'], fill=fill("F8D7D7")))
-new.conditional_formatting.add(f"A2:BI{LAST}", FormulaRule(formula=['$BI2="Plan"'], fill=fill("FFF2D0")))
-new.auto_filter.ref = f"A1:BI{LAST}"
+new.conditional_formatting.add(f"A2:BJ{LAST}", FormulaRule(formula=['$BI2="Act now"'], fill=fill("F8D7D7")))
+new.conditional_formatting.add(f"A2:BJ{LAST}", FormulaRule(formula=['$BI2="Plan"'], fill=fill("FFF2D0")))
+new.auto_filter.ref = f"A1:BJ{LAST}"
 
 # ---------------- Dashboard: lapsed renewal x supply (rows 9-19)
 LAP = f'{PT("AD")},"<0",{PT("AH")},"<>"&{CLOSED_CAT}'

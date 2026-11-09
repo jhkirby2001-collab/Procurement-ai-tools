@@ -75,13 +75,13 @@ HELP = [  # (col, header, width, formula)
     ("O", "End Dates Differ?", 9, lambda rr: f'=IF(OR(N{rr}="",NOT(ISNUMBER($A{rr}))),"",IF(N{rr}<>$A{rr},"Differs",""))'),
     ("P", "Tracker Expiration Status", 12, lambda rr: f'=IF(L{rr}<>"Yes","",{look(rr,"AI")})'),
     ("Q", "Renewal Path", 16, lambda rr: f'=IF(L{rr}<>"Yes","",IF({look(rr,"R")}="","",{look(rr,"R")}))'),
-    ("R", "Action Status", 16, lambda rr: f'=IF(L{rr}<>"Yes","",IF({look(rr,"S")}="","",{look(rr,"S")}))'),
-    ("S", "Next Action", 24, lambda rr: f'=IF(L{rr}<>"Yes","",IF({look(rr,"T")}="","",{look(rr,"T")}))'),
-    ("T", "Next Action Due", 11, lambda rr: f'=IF(L{rr}<>"Yes","",IF({look(rr,"U")}="","",{look(rr,"U")}))'),
+    ("R", "Renewal Stage", 16, lambda rr: f'=IF(L{rr}<>"Yes","",IF({look(rr,"S")}="","",{look(rr,"S")}))'),
+    ("S", "Status & Notes (tracker)", 40, lambda rr: f'=IF(L{rr}<>"Yes","",IF({look(rr,"BJ")}="","",{look(rr,"BJ")}))'),
+    ("T", "Supply Status", 14, lambda rr: f'=IF(L{rr}<>"Yes","",IF({look(rr,"BG")}="","",{look(rr,"BG")}))'),
     ("U", "Tracker REQ No.", 11, lambda rr: f'=IF(L{rr}<>"Yes","",IF({look(rr,"AO")}="","",{look(rr,"AO")}))'),
     ("V", "Suggested Comment", 46, lambda rr: (
-        f'=IF(L{rr}<>"Yes","",TRIM(TEXT(TODAY(),"m/d/yy")&" - "&IF(R{rr}<>"",R{rr},"Status not set")'
-        f'&IF(ISNUMBER(U{rr}),"; Req "&U{rr},"")&IF(S{rr}<>"","; Next: "&S{rr}&IF(ISNUMBER(T{rr})," by "&TEXT(T{rr},"m/d/yy"),""),"")))')),
+        f'=IF(L{rr}<>"Yes","",TRIM(TEXT(TODAY(),"m/d/yy")&" - "&IF(R{rr}<>"",R{rr},"Stage not set")'
+        f'&IF(ISNUMBER(U{rr}),"; Req "&U{rr},"")&IF(T{rr}<>"","; Supply: "&T{rr},"")))')),
 ]
 HR = 5
 for j, h in enumerate(DPS_HEADS):
@@ -111,7 +111,7 @@ for i in range(DPS_N):
     for col, h, w, fn in HELP:
         c = dp[f"{col}{rr}"]; c.value = fn(rr); c.fill = fill("F2F2F2"); c.border = BOX
         c.font = font(size=9); c.alignment = Alignment(vertical="top", wrap_text=(col in ("S", "V")))
-    dp[f"N{rr}"].number_format = "mm/dd/yyyy"; dp[f"T{rr}"].number_format = "mm/dd/yyyy"
+    dp[f"N{rr}"].number_format = "mm/dd/yyyy"
 dv(dp, '"X"', f"F{D0}:F{D1}", "Type X if the contract is no longer needed.")
 dv(dp, '"Yes,No"', f"H{D0}:H{D1}")
 for nm, fc, tc in PALETTE:
