@@ -246,7 +246,7 @@ TP("Commitment flag (per master)", "OVER CEILING at 100% committed, RED at 90%, 
 TH("6. Weekly routine")
 TP("Step 1", "Log any new release the day it is issued, with its Issue Date and amount. Update status as it moves.")
 TP("Step 2", "Open the Task Order Dashboard. Check Masters Near Ceiling and the Top 10 flagged releases.")
-TP("Step 3", "For any master at RED or OVER CEILING, start the funding increase or replacement contract (track it on the Portfolio Tracker's Next Action).")
+TP("Step 3", "For any master at RED or OVER CEILING, start the funding increase or replacement contract (note it in the Portfolio Tracker's Status & Notes).")
 TP("Step 4", "Monthly: update Paid to Date and close out completed releases.")
 
 TH("7. Change orders and special cases")

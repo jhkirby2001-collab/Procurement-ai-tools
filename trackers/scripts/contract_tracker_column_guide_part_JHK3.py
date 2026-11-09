@@ -68,7 +68,7 @@ CG_ROWS = [
     (PT_, "BF", "Coverage Through", IN_, "When the coverage ends, if it does (approval expiry, stock run-out).", "A date (mm/dd/yyyy). The row turns amber 30 days before; after it passes, supply counts as At risk.", "01/31/2027", f"{AC_} section 19"),
     (PT_, "BG", "Supply Status", FX, "Can DWM still buy what this contract covers?", "Your Supply Coverage choice; otherwise Unknown - confirm (lapsed), Not yet planned (ending within 90 days) or Active contract.", "Unknown - confirm", f"{AC_} section 19"),
     (PT_, "BH", "Supply Risk", FX, "Supply Status in three words for the Dashboard.", "Covered / At risk / Not covered (from what the coverage choice counts as), Active or Closed.", "At risk", f"{AC_} section 18"),
-    (PT_, "BI", "Action Needed", FX, "Whether the contract needs YOUR action now. Turns the whole row red or amber.", "Act now: next action overdue, supply not covered, lapsed with supply at risk, or Priority 1-2 without a renewal in process. Plan: Priority 3, ending soon with no coverage, or coverage ending soon. Blank when the renewal is in process and supply is covered.", "Act now", f"{AC_} section 19"),
+    (PT_, "BI", "Action Needed", FX, "Whether the contract needs YOUR action now: Act now (dark red) or Plan (amber). Only this cell is coloured unless the whole-row option is on.", "Act now: next action overdue, supply not covered, lapsed with supply at risk, or Priority 1-2 without a renewal in process. Plan: Priority 3, ending soon with no coverage, or coverage ending soon. Blank when the renewal is in process and supply is covered.", "Act now", f"{AC_} section 19"),
     # ---------------- Task Order Tracker
     (TO_, "A", "Release ID", IN_, "Your team's ID for the release.", "One format for everyone, e.g. R-001.", "R-001", ""),
     (TO_, "B", "Master PO", IN_, "The master contract this release is issued against.", "Pick the PO from the dropdown (it lists the Portfolio Tracker POs).", "271670", ""),
@@ -126,16 +126,60 @@ CG_ROWS = [
     ("Dashboard, Summary, Task Order Dashboard, Data Check", "All", "All cells", FX, "Pictures and totals of the trackers for you and leadership.", "Nothing to type. They update when the trackers change.", "-", "-"),
 ]
 
-# Working copy with a Reviewed column in A: show the Portfolio Tracker letters as the user sees them.
-if os.environ.get("REVIEWED_COL") == "1":
-    def _shift(colspec):
-        parts = colspec.split("-")
-        if all(p.isalpha() for p in parts):
-            return "-".join(L(CI(p) + 1) for p in parts)
-        return colspec
-    CG_ROWS = [((t, _shift(c)) + tuple(rest)) if t == PT_ else (t, c) + tuple(rest) for (t, c, *rest) in CG_ROWS]
-    _i = next(i for i, r in enumerate(CG_ROWS) if r[0] == PT_)
-    CG_ROWS.insert(_i, (PT_, "A", "Reviewed", IN_, "Your own check-off column for rows you have reviewed.", "Type y (or a date). No formula uses it.", "y", ""))
+# Final layout (contract_tracker_layout_JHK3.FINAL_ORDER): drop removed columns, rename, add the new ones, and show the
+# Portfolio Tracker letters exactly as they appear after finalize_layout_JHK3.py.
+from contract_tracker_layout_JHK3 import FINAL_ORDER
+_n = lambda h: " ".join(str(h).replace("(auto)", "").split())
+_final = {_n(h): i for i, h in enumerate(FINAL_ORDER)}
+_GONE = {"Next Action", "Next Action Due Date", "Next Action Done?", "Days Until Next Action", "Next Action Flag",
+         "Notes / Next Action", "Status /Notes", "BWS File Notes", "DPS 365 Comments", "Coverage PO / Note", "Coverage Through"}
+_FIX = {
+    "Action Status": ("Renewal Stage", "Where the renewal work stands right now (formerly Action Status). Drives IN PROCESS / CLOSED and the lapsed-movement KPI.",
+                      "Pick from the list, e.g. Not started, Req drafted, Submitted to DPS, Replaced / executed."),
+    "Action Category": (None, "Groups the Renewal Stage into Normal, In Process or Closed. Helper column (collapsed).",
+                        "Looked up from the Renewal Stage. Blank counts as Normal."),
+    "Priority (1 = most urgent)": (None, "How urgent this contract is overall. Sort by this column and work top down.",
+                                   "The more urgent of the Expiration Status and Funds Flag, using each status's severity number."),
+    "Supply Status": (None, "Can DWM still buy what this contract covers?",
+                      "Your Supply Coverage choice; otherwise Unknown - confirm (lapsed), Not yet planned (ending within 90 days) or Active contract."),
+    "Supply Coverage": (None, "How DWM keeps getting materials while a contract is lapsed or about to lapse.",
+                        "Pick from the list. Put the proof (PO number, approval) in Status & Notes. Yellow = suggested from your notes; confirm or change."),
+    "Action Needed": (None, "Whether the contract needs YOUR action now: Act now (dark red) or Plan (amber). Only this cell is coloured unless the whole-row option is on.",
+                      "Act now: supply not covered, lapsed with supply at risk, or Priority 1-2 without a renewal in process. Plan: Priority 3 or ending soon with no coverage. Blank when the renewal is in process and supply is covered."),
+}
+_HELPER = {"Lead Time (days)", "Days Until Start-By", "Action Category", "Spending Ahead of Time (pts)"}
+_pt_rows = []
+for _row in CG_ROWS:
+    if _row[0] != PT_ or _row[2] in _GONE:
+        continue
+    _t, _c, _name, _ty, _mean, _how, _ex, _set = _row
+    if _name in _FIX:
+        _nn, _mm, _hh = _FIX[_name]
+        _name = _nn or _name; _mean = _mm; _how = _hh
+        if _name == "Renewal Stage": _ex = "Submitted to DPS"
+    if _name in _HELPER and "collapsed" not in _mean:
+        _mean += " Helper column (click + above the column letters to show)."
+    if _c == "I-N":
+        _c = "J-O"
+    else:
+        _c = L(_final[_n(_name)] + 1)
+    _pt_rows.append((_t, _c, _name, _ty, _mean, _how, _ex, _set))
+_pt_rows.append((PT_, L(_final["Reviewed"] + 1), "Reviewed", IN_, "Your own check-off column for rows you have reviewed.", "Type y (or a date). No formula uses it.", "y", ""))
+_pt_rows.append((PT_, L(_final["Status & Notes"] + 1), "Status & Notes", IN_,
+                 "The one notes column: status, next steps, BWS shared-list notes and DPS 365 comments for the contract.",
+                 "Add new notes at the top with a date. Lines are labelled Status / Notes / Next / BWS / DPS 365 / Coverage. The old separate note columns are on the Archive - Removed Columns tab.",
+                 "11/9/26 - Req 748185 with DPS; follow up 11/15", ""))
+_pt_rows.sort(key=lambda r: CI(r[1].split("-")[0]))
+_first = next(i for i, r in enumerate(CG_ROWS) if r[0] == PT_)
+CG_ROWS = CG_ROWS[:_first] + _pt_rows + [r for r in CG_ROWS[_first:] if r[0] != PT_]
+_DPSFIX = {"R": ("Renewal Stage", "Your tracker's renewal stage.", "Looked up from the Portfolio Tracker."),
+           "S": ("Status & Notes (tracker)", "Your tracker's Status & Notes.", "Looked up from the Portfolio Tracker."),
+           "T": ("Supply Status", "Can DWM still buy (from your tracker).", "Looked up from the Portfolio Tracker."),
+           "V": ("Suggested Comment", "A draft monthly comment built from your tracker.", "Today's date, renewal stage, req number and supply status. Copy it into Additional Comments and edit as needed.")}
+_DPSEX = {"R": "Submitted to DPS", "S": "Status: Req 748185 with DPS...", "T": "Exhibit B",
+          "V": "11/9/26 - Submitted to DPS; Req 748185; Supply: Exhibit B"}
+CG_ROWS = [((r[0], r[1], _DPSFIX[r[1]][0], r[3], _DPSFIX[r[1]][1], _DPSFIX[r[1]][2], _DPSEX[r[1]], r[7]))
+           if (r[0] == "DPS 365 Report" and r[1] in _DPSFIX) else r for r in CG_ROWS]
 add_column_guide(
     wb, "Column Guide",
     "Every column on the Portfolio Tracker, DPS 365 Report and Task Order Tracker: who fills it in, what it means, and an example. "

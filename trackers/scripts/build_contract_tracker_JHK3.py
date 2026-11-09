@@ -4,7 +4,7 @@ Usage: python build_contract_tracker_JHK3.py ../data/Contract_List_Source_JHK3.x
            ../data/Shared_Contracts_BWS_Source_JHK3.xlsx
 The third argument (shared contracts list) and fourth (DPS 365 expiring-contracts report) are optional.
 To keep a working copy's typed entries: CARRY_USER=<working copy> carries every input cell from it into the new build.
-If the working copy has the Reviewed column in A: add REVIEWED_COL=1, then run insert_reviewed_column_JHK3.py on the output.
+If the working copy has the Reviewed column in A: add REVIEWED_COL=1. Then: recalc.py <out>, then finalize_layout_JHK3.py <out>.
 Then recalculate (open and save in Excel, or LibreOffice headless) so formula values are cached.
 Optional env: TEST_TO=1 loads sample task-order releases; RENDER_DASH=<sheet> hides every other sheet (for rendering checks).
 """
@@ -80,8 +80,8 @@ sec(4, "1. General settings")
 hdr(6, {"B": "#", "C": "Setting", "D": "Value", "I": "What it does"})
 GEN = [("Default lead time when no Renewal Path is chosen (days)", 540, None,
         "Used until a Renewal Path is picked. Set to the longest path so nothing is under-warned."),
-       ("Value that marks a Next Action as done", "Yes", None,
-        "When the 'Next Action Done?' column equals this, the Next Action flag clears.")]
+       ("(retired) Value that marked a Next Action as done", "Yes", None,
+        "Not used since the Next Action columns were removed (11/2026).")]
 for i, (k, v, f, n) in enumerate(GEN):
     r = 7 + i
     ctl[f"B{r}"] = i + 1; ctl[f"B{r}"].font = font(); ctl[f"B{r}"].border = BOX
@@ -96,7 +96,7 @@ hdr(12, {"B": "Slot", "C": "Renewal Path", "D": "Lead Time (days)", "I": "What i
 PATHS = [("Extension available", 240, "An option or time extension is left. Lead time covers the extension request through DPS approval."),
          ("Competitive rebid", 540, "No options left; a new solicitation is needed. Covers usage estimate, spec and M/WBE goal setting, DPS solicitation, award, plus cushion."),
          ("Sole source / NCRB", 365, "Non-competitive review. Covers the NCRB package, market research and price reasonableness review."),
-         ("Let expire", 0, "No replacement planned. Alert at the end date only; set Action Status to a Closed status once confirmed."),
+         ("Let expire", 0, "No replacement planned. Alert at the end date only; set Renewal Stage to a Closed stage once confirmed."),
          ("Owning dept renews", 365, "Shared contract: another department owns it and runs the renewal. Lead time is when your department's usage estimate and spec input are due.")]
 P0, P1 = 13, 22
 for i in range(10):
@@ -108,8 +108,8 @@ for i in range(10):
 PATH_NAME, PATH_LEAD = f"{AC}!$C${P0}:$C${P1}", f"{AC}!$D${P0}:$D${P1}"
 
 # --- 3. Action statuses + categories
-sec(24, "3. Action Status  (dropdown on the tracker)", "Each status 'counts as' a category. The rules in section 4 use the category, so new statuses work as soon as you give them one.")
-hdr(26, {"B": "Slot", "C": "Action Status", "D": "Counts As (category)", "I": "What it means", "K": "Categories (editable)"})
+sec(24, "3. Renewal Stage  (dropdown on the tracker; formerly Action Status)", "Each status 'counts as' a category. The rules in section 4 use the category, so new statuses work as soon as you give them one.")
+hdr(26, {"B": "Slot", "C": "Renewal Stage", "D": "Counts As (category)", "I": "What it means", "K": "Categories (editable)"})
 STAT = [("Not started", "Normal", "Nothing submitted yet."),
         ("Req drafted", "Normal", "Requisition or package being prepared by our team. Still in our hands."),
         ("Submitted to DPS", "In Process", "Package is with DPS. Clock is running on their side."),
@@ -146,7 +146,7 @@ sec(40, "4. Expiration Status rules  (time left on the contract)",
     "Checked top to bottom; the FIRST rule that matches wins. A rule matches when the category fits AND (days to expiration <= its limit OR days to Start-By <= its limit). Both limits blank = always matches.")
 hdr(42, {"B": "Order", "C": "Status Label", "D": "Applies when category is", "E": "Days to expiration at or under",
          "F": "Days to Start-By date at or under", "G": "Colour", "H": "Severity (1 = most urgent)", "I": "What it means / why"})
-EXP = [("CLOSED", "Closed", None, None, "Grey", 9, "Action Status counts as Closed. Kept for the record; excluded from the to-do list."),
+EXP = [("CLOSED", "Closed", None, None, "Grey", 9, "Renewal Stage counts as Closed. Kept for the record; excluded from the to-do list."),
        ("LAPSED", "Any", -1, None, "Dark Red", 1, "Past the end date and not closed. Department may be buying without a contract. Top priority."),
        ("IN PROCESS", "In Process", None, None, "Blue", 5, "Renewal work is submitted and moving. Watch it, but no action from you right now."),
        ("RED", "Any", 180, 0, "Red", 2, "Six months or less left, OR the Start-By date has passed with no action submitted. Act now."),
@@ -179,7 +179,7 @@ for i in range(8):
 dv(ctl, "=" + COLOR_REF, f"G{U0}:G{U1}")
 
 # --- 6. Next action rules
-sec(66, "6. Next Action Flag rules",
+sec(66, "6. Next Action Flag rules  (RETIRED 11/2026 - the Next Action columns were removed; nothing uses these rules)",
     "First match wins. Matches when days until the Next Action Due Date <= its limit (blank = always). No flag when there is no due date or the action is marked done.")
 hdr(68, {"B": "Order", "C": "Flag Label", "E": "Days until due at or under", "G": "Colour", "H": "Severity (1 = most urgent)", "I": "What it means / why"})
 NXT = [("OVERDUE", -1, "Red", 2, "Due date has passed and the action is not marked done."),
@@ -255,7 +255,7 @@ for src, dst in COPY.items():
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_shared_part_JHK3.py")).read())
 
 NEWCOLS = [  # (col, header, kind, width)
-    ("R", "Renewal Path", "in", 22), ("S", "Action Status", "in", 22), ("T", "Next Action", "in", 32),
+    ("R", "Renewal Path", "in", 22), ("S", "Renewal Stage", "in", 22), ("T", "Next Action", "in", 32),
     ("U", "Next Action Due Date", "in", 12), ("V", "Next Action Done?", "in", 9),
     ("W", "Total Contract Value ($)", "in", 15), ("X", "Expended to Date ($)", "in", 15),
     ("Y", "Remaining Balance ($)", "auto", 15), ("Z", "% Expended", "auto", 10), ("AA", "% of Term Used", "auto", 10),
@@ -321,8 +321,8 @@ for r in range(2, LAST + 1):
     f["AI"] = f'=IF(D{r}="","",' + slot_chain(range(E0, E1 + 1), exp_cond(r), "C") + ")"
     f["AJ"] = f'=IF(OR(NOT(ISNUMBER(U{r})),V{r}={DONE_VAL}),"",U{r}-TODAY())'
     f["AK"] = f'=IF(AJ{r}="","",' + slot_chain(range(N0, N1 + 1), next_cond(r), "C") + ")"
-    f["AL"] = (f'=IF(A{r}="","",IF(MIN({sev(f"AI{r}",E0,E1)},{sev(f"AC{r}",U0,U1)},{sev(f"AK{r}",N0,N1)})=99,"",'
-               f'MIN({sev(f"AI{r}",E0,E1)},{sev(f"AC{r}",U0,U1)},{sev(f"AK{r}",N0,N1)})))')
+    f["AL"] = (f'=IF(A{r}="","",IF(MIN({sev(f"AI{r}",E0,E1)},{sev(f"AC{r}",U0,U1)})=99,"",'
+               f'MIN({sev(f"AI{r}",E0,E1)},{sev(f"AC{r}",U0,U1)})))')
     for col, frm in f.items():
         c = new[f"{col}{r}"]; c.value = frm
         c.font = font(); c.fill = fill("F2F2F2"); c.border = BOX
@@ -408,7 +408,6 @@ def status_block(top, col0, title, a, b, rng, total_label=True):
 
 nxt = status_block(12, "A", "Expiration Status", E0, E1, PT("AI"))
 nxt = status_block(nxt + 1, "A", "Funds Flag", U0, U1, PT("AC"))
-nxt = status_block(nxt + 1, "A", "Next Action Flag", N0, N1, PT("AK"))
 
 def matrix(top, title, grp0, grp_rng):
     shead(f"A{top}", title)
@@ -484,33 +483,32 @@ P("Data Check", "Every change made while loading the shared-contracts file: text
 
 H("3. Weekly routine for staff")
 P("Step 1", "Sort the Portfolio Tracker by Priority (1 = most urgent). Work top down.")
-P("Step 2", "For each contract you touched: update Action Status, Next Action, Next Action Due Date, and Status / Notes.")
-P("Step 3", "When a next action is finished, set 'Next Action Done?' to Yes, then enter the next one (or clear the date).")
+P("Step 2", "For each contract you touched: update Renewal Stage and add a dated line at the top of Status & Notes.")
+P("Step 3", "Write your next step and its date at the top of Status & Notes (e.g. 11/9/26 - follow up with DPS by 11/15). Update Renewal Stage when the renewal moves.")
 P("Step 4", "Monthly: update Expended to Date from the financial system so the Funds Flag stays current.")
 P("Step 5", "If a contract has no Renewal Path yet, pick one. Until then it is treated as the longest path (see Alert Controls, setting 1).")
 
 H("4. Columns you fill in")
 P("Renewal Path", "How this contract will be continued: extension, competitive rebid, sole source, or let expire. Sets the lead time.")
-P("Action Status", "Where the renewal work stands. Each status counts as Normal, In Process or Closed (Alert Controls section 3).")
-P("Next Action / Due Date / Done?", "The single next step, when it is due, and Yes when finished.")
+P("Renewal Stage", "Where the renewal work stands (formerly Action Status). Each stage counts as Normal, In Process or Closed (Alert Controls section 3). This is what the In Process / movement KPIs count.")
+P("Status & Notes", "The one notes column, right after the contract details. Your notes come first, then the BWS shared-list notes and the DPS 365 comment, each labelled. Add new notes at the top with a date. The removed note columns are kept on the Archive - Removed Columns tab.")
 P("Total Contract Value / Expended to Date", "Dollar amounts. Needed for the Funds Flag.")
 
 P("Contract Type (Portfolio Tracker)", "Standard, Master Service or Construction (JOC). Types marked 'Takes releases' on Alert Controls appear as masters on the Task Order Tracker and Dashboard.")
 P("Task Order Tracker", "Master PO (dropdown), release number, type, scope, bureau, issue/start/end dates, release amount, paid to date, status, optional M/WBE goal and actual. Enter a release change order as its own row with the change amount (negative for a decrease).")
 P("Owning Dept Code / Ownership", "Owning Dept Code is the PO Dept Code of the department that owns the contract. Ownership turns it into Owned (your code, set on Alert Controls section 15) or Shared (another department owns it, your department draws on it).")
-P("Spec Number, PO Contract Type, BWS File Notes", "Carried over from the shared-contracts file. BWS File Notes keeps that file's notes separate from this tracker's Status / Notes.")
-P("On DPS 365 Report? / DPS 365 Comments / DPS Procurement Mgr", "Formulas on the Portfolio Tracker. They show whether the PO is on the DPS 365 report, the comment and procurement manager entered there, and flag 'Missing - check with DPS' when your contract ends within a year but is not on the report. Tracker dates are never changed by the report.")
+P("Spec Number, PO Contract Type", "Carried over from the shared-contracts file. The BWS file's notes are in Status & Notes (lines starting BWS:).")
+P("On DPS 365 Report? / DPS Procurement Mgr", "Formulas on the Portfolio Tracker. They show whether the PO is on the DPS 365 report and its procurement manager (the DPS comment is in Status & Notes, lines starting DPS 365:), and flag 'Missing - check with DPS' when your contract ends within a year but is not on the report. Tracker dates are never changed by the report.")
 P("Reviewed (column A)", "Your own check-off column. Type anything (e.g. y or a date) when you have reviewed the row. Not used by any formula.")
-P("Supply Coverage / Coverage PO / Note / Coverage Through", "For lapsed or soon-to-lapse contracts: how DWM keeps getting materials (pick from the list on Alert Controls section 18), the PO or note that proves it, and when that coverage ends. Values shaded yellow were suggested from your notes; confirm or change them.")
+P("Supply Coverage", "For lapsed or soon-to-lapse contracts: how DWM keeps getting materials (pick from the list on Alert Controls section 18). Put the proof (PO number, approval, run-out date) in Status & Notes. Values shaded yellow were suggested from your notes; confirm or change them.")
 H("5. How the alerts work")
 P("Start-By Date", "End Date minus the Lead Time for the contract's Renewal Path. This is the last day to start renewal work and still finish before the contract ends.")
 P("Expiration Status", "Rules in Alert Controls section 4 are checked top to bottom; the first one that fits is shown. Default order: CLOSED (closed category) > LAPSED (past end date) > IN PROCESS (work submitted) > RED (180 days or less left, or Start-By date passed) > YELLOW (365 days or less, or Start-By within 90 days) > GREEN.")
 P("Funds Flag", "% Expended = Expended / Total Value. % of Term Used = days elapsed / total contract days. 'Spending ahead of time' = % Expended minus % of Term Used. RED at 75% spent or 20+ points ahead of time; YELLOW at 50% or 10+ points ahead.")
-P("Next Action Flag", "Days until the Next Action Due Date: OVERDUE when past due, DUE SOON within 14 days, UPCOMING within 30 days. Clears when Done? = Yes.")
 P("Burn Index / Projected Exhaustion Date / Funds Run Out Before End?", "Burn Index = % spent divided by % of term used (1.00 = on pace; amber at 1.10, red at 1.25). Blank until 10% of the term has passed and money has been spent. Projected Exhaustion Date = when the money runs out at the current pace. Funds Run Out Before End? says Yes - N days early when that is before the end date: start a vendor limit increase.")
 P("Supply Status / Supply Risk", "Supply Status is never blank: Active contract, your Supply Coverage choice, Not yet planned (ending within 90 days, no coverage entered) or Unknown - confirm (lapsed, no coverage entered). Supply Risk turns it into Covered / At risk / Not covered for the Dashboard.")
-P("Action Needed and row colours", "The whole row turns red (Act now) or amber (Plan) when the contract needs your action: next action overdue, supply not covered, lapsed with supply at risk, or Priority 1-2 (Act now) / 3 (Plan) without a renewal in process. A renewal in process with supply covered is NOT highlighted. Levels on Alert Controls section 19.")
-P("Priority", "The lowest (most urgent) Severity number among the three flags. Severity for each status is set in Alert Controls.")
+P("Action Needed", "Column Z shows Act now (dark red) or Plan (amber) when the contract needs your action: supply not covered, lapsed with supply at risk, or Priority 1-2 (Act now) / 3 (Plan) without a renewal in process. A renewal in process with supply covered shows nothing. Only that cell is coloured; to colour the whole row as well, set Alert Controls section 19 setting 4 to Yes. Levels on Alert Controls section 19.")
+P("Priority", "The lowest (most urgent) Severity number of the Expiration Status and the Funds Flag. Severity for each status is set in Alert Controls.")
 P("Worked example", "Competitive rebid, end date 400 days away. Lead time 540 days -> Start-By date was 140 days ago. Days to Start-By = -140, which is <= 0, so RED even though a year is left. With a plain 365-day rule it would have shown GREEN. If Action Status is set to 'Submitted to DPS' it shows IN PROCESS (blue) instead.")
 
 P("Shared contracts", "Shared contracts get the same alerts as owned ones. Pick the Renewal Path 'Owning dept renews' (365-day lead time = when your input is due) and use the owning-department Action Statuses to show where the other department stands.")
@@ -525,7 +523,7 @@ P("Colours", "Soft fills with dark text for readability, and the status word is 
 P("Shared contracts on one list", "Your department depends on shared contracts as much as on its own. Keeping them on the same list means one set of alerts, one priority order and one dashboard; the Ownership column separates them whenever you need to.")
 H("7. How to change the rules (after staff alignment)")
 P("Change a number", "Alert Controls: edit the blue cell (lead times, day limits, % limits, severity). Everything updates.")
-P("Add / rename a Renewal Path or Action Status", "Type it into an empty slot (or over an existing one) in section 2 or 3. It appears in the tracker dropdown. For a new Action Status, pick its 'Counts As' category. Renaming does not update rows that already use the old name; re-pick them.")
+P("Add / rename a Renewal Path or Renewal Stage", "Type it into an empty slot (or over an existing one) in section 2 or 3. It appears in the tracker dropdown. For a new Action Status, pick its 'Counts As' category. Renaming does not update rows that already use the old name; re-pick them.")
 P("Add a new category", "Section 3, column K: type it under Closed. It can then be used in 'Counts As' and in the rule tables' 'Applies when' column.")
 P("Add or change a status rule", "Sections 4-6: fill an empty slot. Order matters: the first matching rule wins, so put specific rules above general ones and keep a catch-all (blank limits) last. Pick its Colour and Severity.")
 P("Change a colour", "Pick a different name in the Colour column. Available colours are listed in section 7. Adding a brand-new colour needs a new conditional formatting rule (ask whoever maintains the file).")
@@ -536,7 +534,7 @@ P("Dashboard charts", "Chart colours are fixed to the starting statuses (CLOSED 
 P("DPS 365 report", "Alert Controls section 16: the report window (365 days) and which procurement manager initials count as your portfolio or visibility only.")
 P("Monthly DPS 365 routine", "1) Attach the new DPS report and your latest tracker, starting with 'Contract Tracker update: new 365 report'. 2) The DPS 365 Report tab is refreshed; your entries are kept. 3) For your rows, use the Suggested Comment to fill Additional Comments. 4) Check 'Missing from report' and 'End dates differ' on the Dashboard. 5) Send the DPS columns back to DPS by the first of the month.")
 P("Lapsed contracts for leadership", "Dashboard rows 9-19: how many lapsed contracts have renewals in process (% with movement), how many DWM can still buy on (supply covered), what is at risk, lapsed 90+ days with no action, and average days lapsed, plus a one-sentence summary. A lapsed contract keeps the LAPSED status (it is a compliance fact); the movement and supply show underneath it.")
-P("Spending pace, supply and row highlight settings", "Alert Controls sections 17 (Burn Index levels), 18 (Supply Coverage choices and what each counts as; add your own in the empty slots) and 19 (row highlight levels, supply planning window, coverage warning).")
+P("Spending pace, supply and Action Needed settings", "Alert Controls sections 17 (Burn Index levels), 18 (Supply Coverage choices and what each counts as; add your own in the empty slots) and 19 (Action Needed levels, supply planning window, whole-row colour on / off).")
 P("Department code", "Alert Controls section 15: your department code (88) and the list of owning-department codes shown on the Dashboard.")
 P("Capacity", "12 supply coverage choices, 10 renewal paths, 12 action statuses, 10 expiration rules, 8 funds rules, 8 next-action rules, 300 contract rows.")
 P("Log the change", "Record every rule change in the change log below so leadership can see what changed and why.")
@@ -563,6 +561,8 @@ P("11/02/2026", "Shared contracts added: 53 contracts from the BWS shared-contra
 P("11/02/2026", "Four original-list start dates typed as text with year typos (11/22/0024, 07/11/0007, 02/08/0024, 05/05/0023) converted to real dates; listed on the Data Check tab.", bold_a=False)
 P("11/03/2026", "DPS 365 Report tab added (124 department contracts ending within a year, linked to the tracker, with suggested comments); DPS 365 (as received) tab; Portfolio Tracker columns On DPS 365 Report?, DPS 365 Comments and DPS Procurement Mgr; Alert Controls section 16; Dashboard DPS 365 section. Tracker dates unchanged.", bold_a=False)
 P("11/08/2026", "Added Burn Index, Projected Exhaustion Date, Funds Run Out Before End?, Supply Coverage / Coverage PO / Note / Coverage Through, Supply Status, Supply Risk and Action Needed (whole-row red / amber highlight). Dashboard: lapsed renewal x supply KPIs, grid, chart and summary sentence; Funds run out early tile. Alert Controls sections 17-19. Your Reviewed column (A) and all your entries kept.", bold_a=False)
+P("11/09/2026", "Simplified the Portfolio Tracker: one Status & Notes column (P) combining the note columns, Next Action text, BWS notes and DPS 365 comments; Action Status renamed Renewal Stage; Next Action / Due / Done?, Next Action Flag, Coverage PO / Note and Coverage Through removed (values on the Archive - Removed Columns tab); money columns grouped; helper columns collapsed (+/-).", bold_a=False)
+P("11/09/2026", "Whole-row red / amber colour turned off at James's request: only the Action Needed cell (Z) and the status cells are coloured; LAPSED stays dark red. Alert Controls section 19 setting 4 turns the row colour back on.", bold_a=False)
 for _ in range(8): P("", "", bold_a=False)
 
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_dashboard_part_JHK3.py")).read())
@@ -571,7 +571,7 @@ exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tra
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_dps365_part_JHK3.py")).read())
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_supply_part_JHK3.py")).read())
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_column_guide_part_JHK3.py")).read())
-order = ["How To Use", "Column Guide", "Dashboard", "Summary", "Portfolio Tracker", "DPS 365 Report", "Task Order How To", "Task Order Dashboard", "Task Order Tracker", "Alert Controls", "Original (as received)"] + [n for n in ("Shared List (as received)", "DPS 365 (as received)", "Data Check") if n in wb.sheetnames] + ["Dashboard Data"]
+order = ["How To Use", "Column Guide", "Dashboard", "Summary", "Portfolio Tracker", "DPS 365 Report", "Task Order How To", "Task Order Dashboard", "Task Order Tracker", "Alert Controls", "Original (as received)"] + [n for n in ("Shared List (as received)", "DPS 365 (as received)", "Data Check", "Archive - Removed Columns") if n in wb.sheetnames] + ["Dashboard Data"]
 for _n in ["How To Use", "Column Guide", "Dashboard", "Summary", "Portfolio Tracker", "DPS 365 Report"]: wb[_n].sheet_properties.tabColor = "1F3864"
 for _n in ["Task Order How To", "Task Order Dashboard", "Task Order Tracker"]: wb[_n].sheet_properties.tabColor = "0E5E5A"
 wb["Alert Controls"].sheet_properties.tabColor = "BF9000"
@@ -610,6 +610,9 @@ if os.environ.get("CARRY_USER"):
                     continue
                 if _name == "Alert Controls" and not (_t.font and _t.font.color and str(_t.font.color.rgb).endswith("0000FF")):
                     continue           # only the blue input cells on Alert Controls
+                if (_name == "Alert Controls" and str(_tw.cell(_r, 3).value or "").startswith("Colour the whole row")
+                        and _uw.cell(_r, 3).value != _tw.cell(_r, 3).value):
+                    continue           # setting slot reused (was Coverage Through warning): don't carry the old number
                 if not _same(_t.value, _uv):
                     _t.value = _uv; _n += 1
     if REVIEWED:
@@ -617,6 +620,12 @@ if os.environ.get("CARRY_USER"):
         for _r in range(1, _uw.max_row + 1):
             wb["Portfolio Tracker"][f"ZZ{_r}"].value = _uw.cell(_r, 1).value
     print("carried", _n, "input cells from", os.environ["CARRY_USER"], "(Reviewed column parked in ZZ)" if REVIEWED else "")
+# The Reviewed column always exists (parked in ZZ until finalize_layout_JHK3.py moves it to A).
+_pz = wb["Portfolio Tracker"]
+_pz["ZZ1"] = "Reviewed"
+_pz["ZZ1"].font = font(bold=True, color="FFFFFF"); _pz["ZZ1"].fill = fill(BLUE_HDR); _pz["ZZ1"].border = BOX
+_pz["ZZ1"].alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+_pz.column_dimensions["ZZ"].width = 10
 
 # Supply Coverage suggestions from the notes, for lapsed / soon-to-lapse contracts with no coverage entered.
 import re as _sre, datetime as _sdt
@@ -645,8 +654,6 @@ for _r in range(2, LAST + 1):
             _val = "Alternate PO / contract"; _note = f"PO {_m.group(1)} (from notes)"
     if _val:
         _pt[f"BD{_r}"] = _val; _pt[f"BD{_r}"].fill = fill("FFF2CC")
-        if _pt[f"BE{_r}"].value in (None, ""):
-            _pt[f"BE{_r}"] = _note; _pt[f"BE{_r}"].fill = fill("FFF2CC")
         _sugg.append((_r, _pt[f"A{_r}"].value, _val, _note, _txt[:160]))
 if _sugg and "Data Check" in wb.sheetnames:
     _dc = wb["Data Check"]; _r0 = _dc.max_row + 3
@@ -659,6 +666,64 @@ if _sugg and "Data Check" in wb.sheetnames:
             _c = _dc.cell(_r0 + 1 + _i, 1 + _j, _v); _c.font = font(); _c.border = BOX
             _c.alignment = Alignment(wrap_text=True, vertical="top")
     print("supply coverage suggested on", len(_sugg), "rows")
+
+# Status & Notes: combine the old note columns (only where Status & Notes is still empty) and archive them.
+_dps = wb["DPS 365 Report"] if "DPS 365 Report" in wb.sheetnames else None
+_dps_note = {}
+if _dps is not None:
+    for _r in range(6, 306):
+        if _dps[f"D{_r}"].value not in (None, "") and _dps[f"J{_r}"].value not in (None, ""):
+            _dps_note[_dps[f"D{_r}"].value] = _dps[f"J{_r}"].value
+def _txt(v):
+    if v is None: return ""
+    if isinstance(v, _sdt.datetime): return v.strftime("%m/%d/%Y")
+    return str(v).strip()
+_ARCH = [("T", "Next Action"), ("U", "Next Action Due Date"), ("V", "Next Action Done?"), ("AM", "Notes / Next Action"),
+         ("AN", "Status /Notes"), ("AW", "BWS File Notes"), (None, "DPS 365 Comment"), ("BE", "Coverage PO / Note"),
+         ("BF", "Coverage Through")]
+_arch_rows = []; _merged = 0
+for _r in range(2, LAST + 1):
+    _po = _pt[f"A{_r}"].value
+    if _po in (None, ""):
+        continue
+    _vals = {h: (_dps_note.get(_po) if c is None else _pt[f"{c}{_r}"].value) for c, h in _ARCH}
+    if any(v not in (None, "") for v in _vals.values()):
+        _arch_rows.append((_r, _po, _pt[f"B{_r}"].value, _vals))
+    if _pt[f"BJ{_r}"].value in (None, ""):
+        _parts = []
+        if _txt(_vals["Status /Notes"]): _parts.append("Status: " + _txt(_vals["Status /Notes"]))
+        if _txt(_vals["Notes / Next Action"]): _parts.append("Notes: " + _txt(_vals["Notes / Next Action"]))
+        if _txt(_vals["Next Action"]):
+            _nx = "Next: " + _txt(_vals["Next Action"])
+            if _txt(_vals["Next Action Due Date"]): _nx += " (due " + _txt(_vals["Next Action Due Date"]) + ")"
+            if _txt(_vals["Next Action Done?"]): _nx += " [done: " + _txt(_vals["Next Action Done?"]) + "]"
+            _parts.append(_nx)
+        if _txt(_vals["BWS File Notes"]): _parts.append("BWS: " + _txt(_vals["BWS File Notes"]))
+        if _txt(_vals["DPS 365 Comment"]): _parts.append("DPS 365: " + _txt(_vals["DPS 365 Comment"]))
+        _cv = [_txt(_vals["Coverage PO / Note"]), _txt(_vals["Coverage Through"])]
+        if _cv[0] and "(from notes)" not in _cv[0]: _parts.append("Coverage: " + _cv[0] + (" through " + _cv[1] if _cv[1] else ""))
+        if _parts:
+            _pt[f"BJ{_r}"] = "\n".join(_parts); _merged += 1
+_ar = wb.create_sheet("Archive - Removed Columns")
+_ar.sheet_view.showGridLines = False
+_ar["A1"] = "Archive - Removed Columns"; _ar["A1"].font = font(size=16, bold=True, color=NAVY)
+_ar["A2"] = ("Values from the Portfolio Tracker columns removed on " + _today.strftime("%m/%d/%Y") +
+             " (combined into Status & Notes). Kept for reference; nothing here feeds a formula.")
+_ar["A2"].font = font(size=9, italic=True, color=GREY_HDR)
+_hd = ["Tracker row", "PO Number", "PO Description"] + [h for _, h in _ARCH]
+for _j, _h in enumerate(_hd):
+    _c = _ar.cell(4, 1 + _j, _h); _c.font = font(bold=True, color="FFFFFF"); _c.fill = fill(NAVY); _c.border = BOX
+    _c.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+for _i, (_r, _po, _desc, _vals) in enumerate(_arch_rows):
+    for _j, _v in enumerate([_r, _po, _desc] + [_vals[h] for _, h in _ARCH]):
+        _c = _ar.cell(5 + _i, 1 + _j, _v); _c.font = font(size=9); _c.border = BOX
+        _c.alignment = Alignment(wrap_text=True, vertical="top")
+        if isinstance(_v, _sdt.datetime): _c.number_format = "mm/dd/yyyy"
+for _col, _w in zip("ABCDEFGHIJKL", [8, 10, 30, 30, 11, 8, 40, 40, 40, 40, 20, 11]):
+    _ar.column_dimensions[_col].width = _w
+_ar.freeze_panes = "D5"; _ar.auto_filter.ref = f"A4:L{4 + len(_arch_rows)}"
+wb._sheets.remove(_ar); wb._sheets.insert(wb._sheets.index(wb["Dashboard Data"]), _ar)
+print("Status & Notes combined on", _merged, "rows; archived", len(_arch_rows), "rows")
 
 if os.environ.get("TEST_TO"):
     exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_testdata_part_JHK3.py")).read())

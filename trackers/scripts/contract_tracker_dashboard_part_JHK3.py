@@ -111,7 +111,7 @@ tile("H", 5, "LAPSED", f'=COUNTIFS({PT("AD")},"<0",{OPEN})', "Past end date, not
 tile("K", 5, "EXPIRING SOON", f'=COUNTIFS({PT("AD")},">=0",{PT("AD")},"<="&{SOON},{OPEN})',
      '="Ending within "&' + SOON + '&" days"', alert=("FFF4D6", "8A6100"))
 tile("N", 5, "IN PROCESS", f'=COUNTIF({PT("AH")},{AC}!$K$29)', "Renewal work submitted (incl. lapsed)")
-tile("Q", 5, "NEXT ACTIONS OVERDUE", f'=COUNTIF({PT("AK")},{AC}!$C${N0})', "Past their due date", alert=("FBE3E3", "C00000"))
+tile("Q", 5, "ROWS MARKED ACT NOW", f'=COUNTIF({PT("BI")},"Act now")', "Action Needed column on the tracker", alert=("FBE3E3", "C00000"))
 db.column_dimensions["S"].width = 11
 
 sh("B20", "Money")
@@ -172,7 +172,7 @@ db[f"B{T0+1}"] = '="Priority 1-"&' + TOPMAX + '&", most urgent first, then fewes
 db[f"B{T0+1}"].font = font(size=9, italic=True, color=GREY_HDR)
 cols = [("B", "#", None, 4), ("C", "PO Number", "A", 11), ("D", "Description", "B", 30), ("G", "Vendor", "E", 22),
         ("I", "Owner", "Q", 16), ("K", "Lane", "P", 11), ("L", "End Date", "D", 11), ("M", "Days Left", "AD", 9),
-        ("N", "Expiration", "AI", 12), ("O", "Funds", "AC", 9), ("P", "Next Action", "AK", 11), ("Q", "Action Status", "S", 16)]
+        ("N", "Expiration", "AI", 12), ("O", "Funds", "AC", 9), ("P", "Supply", "BH", 11), ("Q", "Renewal Stage", "S", 16)]
 merges = {"D": "F", "G": "H", "I": "J", "Q": "S"}
 hr = T0 + 2
 for col, h, _, _ in cols:
