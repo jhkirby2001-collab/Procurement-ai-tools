@@ -39,7 +39,7 @@ Two Excel workbooks for running a contract and project portfolio, plus a one-pag
 - **Priority.** The more urgent of the expiration and funds flags (1 = most urgent).
 - **Spending pace.** Burn Index = % spent / % of term used (amber 1.10, red 1.25), Projected Exhaustion Date, and "Funds Run Out Before End?" as the early warning for a vendor limit increase.
 - **Supply coverage.** For lapsed or soon-to-lapse contracts: how the department keeps buying (Exhibit B, alternate PO, vendor honoring an extension, stock on hand), shown as Supply Status / Supply Risk. The Dashboard shows lapsed contracts by renewal movement and supply coverage.
-- **Action Needed.** The whole row turns red (Act now) or amber (Plan) when a contract needs action; renewals in process with supply covered are not highlighted.
+- **Action Needed.** The Action Needed cell shows Act now (dark red) or Plan (amber) when a contract needs action; renewals in process with supply covered show nothing. Whole-row colour is off by default and can be switched on (Alert Controls section 19, setting 4).
 - **Task orders.** Ceiling = the master's Total Contract Value. Committed = releases whose status counts as committed. Available = ceiling − committed. The commitment flag goes YELLOW at 75%, RED at 90% and OVER CEILING at 100%. Each release gets one flag: EXCEEDS CEILING, NOT A MASTER, OUTLASTS MASTER, OVERPAID, OVERDUE or ENDING SOON.
 
 - **Shared contracts.** Contracts owned by another department (by PO Dept Code) that the department draws on sit on the same list. Ownership reads Owned when the Owning Dept Code equals the department code on Alert Controls section 15, otherwise Shared. They get the same alerts, a "Owning dept renews" renewal path and their own Dashboard section.
@@ -90,7 +90,7 @@ openpyxl writes formulas without cached values, so open and save each workbook i
 | `contract_tracker_testdata_part_JHK3.py` | Sample releases for testing (only with `TEST_TO=1`) |
 | `contract_tracker_shared_part_JHK3.py` | Loads the shared-contracts list; Owning Dept Code / Ownership columns; Alert Controls section 15; Data Check and Shared List tabs |
 | `contract_tracker_shared_report_part_JHK3.py` | Shared-contract sections on the Dashboard and Summary |
-| `contract_tracker_supply_part_JHK3.py` | Burn Index, Projected Exhaustion Date, supply coverage, Action Needed row highlight, lapsed renewal x supply KPIs, Alert Controls sections 17-19 |
+| `contract_tracker_supply_part_JHK3.py` | Burn Index, Projected Exhaustion Date, supply coverage, Action Needed flag (optional whole-row colour), lapsed renewal x supply KPIs, Alert Controls sections 17-19 |
 | `contract_tracker_layout_JHK3.py` | Final Portfolio Tracker column order, removed columns and collapsed helper columns |
 | `finalize_layout_JHK3.py` | Moves the Portfolio Tracker columns into the final layout with LibreOffice (every reference follows), deletes removed columns, groups helpers, sets freeze panes |
 | `contract_tracker_dps365_part_JHK3.py` | DPS 365 Report tab, tracker columns On DPS 365 Report? / DPS 365 Comments / DPS Procurement Mgr, Alert Controls section 16, Dashboard DPS section |

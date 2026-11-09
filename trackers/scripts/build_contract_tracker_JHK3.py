@@ -507,7 +507,7 @@ P("Expiration Status", "Rules in Alert Controls section 4 are checked top to bot
 P("Funds Flag", "% Expended = Expended / Total Value. % of Term Used = days elapsed / total contract days. 'Spending ahead of time' = % Expended minus % of Term Used. RED at 75% spent or 20+ points ahead of time; YELLOW at 50% or 10+ points ahead.")
 P("Burn Index / Projected Exhaustion Date / Funds Run Out Before End?", "Burn Index = % spent divided by % of term used (1.00 = on pace; amber at 1.10, red at 1.25). Blank until 10% of the term has passed and money has been spent. Projected Exhaustion Date = when the money runs out at the current pace. Funds Run Out Before End? says Yes - N days early when that is before the end date: start a vendor limit increase.")
 P("Supply Status / Supply Risk", "Supply Status is never blank: Active contract, your Supply Coverage choice, Not yet planned (ending within 90 days, no coverage entered) or Unknown - confirm (lapsed, no coverage entered). Supply Risk turns it into Covered / At risk / Not covered for the Dashboard.")
-P("Action Needed and row colours", "The whole row turns red (Act now) or amber (Plan) when the contract needs your action: supply not covered, lapsed with supply at risk, or Priority 1-2 (Act now) / 3 (Plan) without a renewal in process. A renewal in process with supply covered is NOT highlighted. Levels on Alert Controls section 19.")
+P("Action Needed", "Column Z shows Act now (dark red) or Plan (amber) when the contract needs your action: supply not covered, lapsed with supply at risk, or Priority 1-2 (Act now) / 3 (Plan) without a renewal in process. A renewal in process with supply covered shows nothing. Only that cell is coloured; to colour the whole row as well, set Alert Controls section 19 setting 4 to Yes. Levels on Alert Controls section 19.")
 P("Priority", "The lowest (most urgent) Severity number of the Expiration Status and the Funds Flag. Severity for each status is set in Alert Controls.")
 P("Worked example", "Competitive rebid, end date 400 days away. Lead time 540 days -> Start-By date was 140 days ago. Days to Start-By = -140, which is <= 0, so RED even though a year is left. With a plain 365-day rule it would have shown GREEN. If Action Status is set to 'Submitted to DPS' it shows IN PROCESS (blue) instead.")
 
@@ -534,7 +534,7 @@ P("Dashboard charts", "Chart colours are fixed to the starting statuses (CLOSED 
 P("DPS 365 report", "Alert Controls section 16: the report window (365 days) and which procurement manager initials count as your portfolio or visibility only.")
 P("Monthly DPS 365 routine", "1) Attach the new DPS report and your latest tracker, starting with 'Contract Tracker update: new 365 report'. 2) The DPS 365 Report tab is refreshed; your entries are kept. 3) For your rows, use the Suggested Comment to fill Additional Comments. 4) Check 'Missing from report' and 'End dates differ' on the Dashboard. 5) Send the DPS columns back to DPS by the first of the month.")
 P("Lapsed contracts for leadership", "Dashboard rows 9-19: how many lapsed contracts have renewals in process (% with movement), how many DWM can still buy on (supply covered), what is at risk, lapsed 90+ days with no action, and average days lapsed, plus a one-sentence summary. A lapsed contract keeps the LAPSED status (it is a compliance fact); the movement and supply show underneath it.")
-P("Spending pace, supply and row highlight settings", "Alert Controls sections 17 (Burn Index levels), 18 (Supply Coverage choices and what each counts as; add your own in the empty slots) and 19 (row highlight levels, supply planning window, coverage warning).")
+P("Spending pace, supply and Action Needed settings", "Alert Controls sections 17 (Burn Index levels), 18 (Supply Coverage choices and what each counts as; add your own in the empty slots) and 19 (Action Needed levels, supply planning window, whole-row colour on / off).")
 P("Department code", "Alert Controls section 15: your department code (88) and the list of owning-department codes shown on the Dashboard.")
 P("Capacity", "12 supply coverage choices, 10 renewal paths, 12 action statuses, 10 expiration rules, 8 funds rules, 8 next-action rules, 300 contract rows.")
 P("Log the change", "Record every rule change in the change log below so leadership can see what changed and why.")
@@ -562,6 +562,7 @@ P("11/02/2026", "Four original-list start dates typed as text with year typos (1
 P("11/03/2026", "DPS 365 Report tab added (124 department contracts ending within a year, linked to the tracker, with suggested comments); DPS 365 (as received) tab; Portfolio Tracker columns On DPS 365 Report?, DPS 365 Comments and DPS Procurement Mgr; Alert Controls section 16; Dashboard DPS 365 section. Tracker dates unchanged.", bold_a=False)
 P("11/08/2026", "Added Burn Index, Projected Exhaustion Date, Funds Run Out Before End?, Supply Coverage / Coverage PO / Note / Coverage Through, Supply Status, Supply Risk and Action Needed (whole-row red / amber highlight). Dashboard: lapsed renewal x supply KPIs, grid, chart and summary sentence; Funds run out early tile. Alert Controls sections 17-19. Your Reviewed column (A) and all your entries kept.", bold_a=False)
 P("11/09/2026", "Simplified the Portfolio Tracker: one Status & Notes column (P) combining the note columns, Next Action text, BWS notes and DPS 365 comments; Action Status renamed Renewal Stage; Next Action / Due / Done?, Next Action Flag, Coverage PO / Note and Coverage Through removed (values on the Archive - Removed Columns tab); money columns grouped; helper columns collapsed (+/-).", bold_a=False)
+P("11/09/2026", "Whole-row red / amber colour turned off at James's request: only the Action Needed cell (Z) and the status cells are coloured; LAPSED stays dark red. Alert Controls section 19 setting 4 turns the row colour back on.", bold_a=False)
 for _ in range(8): P("", "", bold_a=False)
 
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_dashboard_part_JHK3.py")).read())
@@ -609,6 +610,9 @@ if os.environ.get("CARRY_USER"):
                     continue
                 if _name == "Alert Controls" and not (_t.font and _t.font.color and str(_t.font.color.rgb).endswith("0000FF")):
                     continue           # only the blue input cells on Alert Controls
+                if (_name == "Alert Controls" and str(_tw.cell(_r, 3).value or "").startswith("Colour the whole row")
+                        and _uw.cell(_r, 3).value != _tw.cell(_r, 3).value):
+                    continue           # setting slot reused (was Coverage Through warning): don't carry the old number
                 if not _same(_t.value, _uv):
                     _t.value = _uv; _n += 1
     if REVIEWED:

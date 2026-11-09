@@ -68,7 +68,7 @@ CG_ROWS = [
     (PT_, "BF", "Coverage Through", IN_, "When the coverage ends, if it does (approval expiry, stock run-out).", "A date (mm/dd/yyyy). The row turns amber 30 days before; after it passes, supply counts as At risk.", "01/31/2027", f"{AC_} section 19"),
     (PT_, "BG", "Supply Status", FX, "Can DWM still buy what this contract covers?", "Your Supply Coverage choice; otherwise Unknown - confirm (lapsed), Not yet planned (ending within 90 days) or Active contract.", "Unknown - confirm", f"{AC_} section 19"),
     (PT_, "BH", "Supply Risk", FX, "Supply Status in three words for the Dashboard.", "Covered / At risk / Not covered (from what the coverage choice counts as), Active or Closed.", "At risk", f"{AC_} section 18"),
-    (PT_, "BI", "Action Needed", FX, "Whether the contract needs YOUR action now. Turns the whole row red or amber.", "Act now: next action overdue, supply not covered, lapsed with supply at risk, or Priority 1-2 without a renewal in process. Plan: Priority 3, ending soon with no coverage, or coverage ending soon. Blank when the renewal is in process and supply is covered.", "Act now", f"{AC_} section 19"),
+    (PT_, "BI", "Action Needed", FX, "Whether the contract needs YOUR action now: Act now (dark red) or Plan (amber). Only this cell is coloured unless the whole-row option is on.", "Act now: next action overdue, supply not covered, lapsed with supply at risk, or Priority 1-2 without a renewal in process. Plan: Priority 3, ending soon with no coverage, or coverage ending soon. Blank when the renewal is in process and supply is covered.", "Act now", f"{AC_} section 19"),
     # ---------------- Task Order Tracker
     (TO_, "A", "Release ID", IN_, "Your team's ID for the release.", "One format for everyone, e.g. R-001.", "R-001", ""),
     (TO_, "B", "Master PO", IN_, "The master contract this release is issued against.", "Pick the PO from the dropdown (it lists the Portfolio Tracker POs).", "271670", ""),
@@ -144,7 +144,7 @@ _FIX = {
                       "Your Supply Coverage choice; otherwise Unknown - confirm (lapsed), Not yet planned (ending within 90 days) or Active contract."),
     "Supply Coverage": (None, "How DWM keeps getting materials while a contract is lapsed or about to lapse.",
                         "Pick from the list. Put the proof (PO number, approval) in Status & Notes. Yellow = suggested from your notes; confirm or change."),
-    "Action Needed": (None, "Whether the contract needs YOUR action now. Turns the whole row red or amber.",
+    "Action Needed": (None, "Whether the contract needs YOUR action now: Act now (dark red) or Plan (amber). Only this cell is coloured unless the whole-row option is on.",
                       "Act now: supply not covered, lapsed with supply at risk, or Priority 1-2 without a renewal in process. Plan: Priority 3 or ending soon with no coverage. Blank when the renewal is in process and supply is covered."),
 }
 _HELPER = {"Lead Time (days)", "Days Until Start-By", "Action Category", "Spending Ahead of Time (pts)"}

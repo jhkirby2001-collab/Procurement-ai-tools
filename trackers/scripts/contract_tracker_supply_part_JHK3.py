@@ -1,5 +1,5 @@
 # Spending pace (burn index, projected exhaustion), supply coverage for lapsed / soon-to-lapse contracts,
-# whole-row "Action Needed" highlight, and the lapsed renewal x supply KPIs on the Dashboard and Summary.
+# "Action Needed" flag (optional whole-row colour), and the lapsed renewal x supply KPIs on the Dashboard and Summary.
 # Exec'd inside build_contract_tracker_JHK3.py after the DPS 365 part (uses its globals). Column letters here are
 # the build layout; the optional Reviewed column (insert_reviewed_column_JHK3.py) shifts everything one to the right.
 
@@ -38,21 +38,23 @@ for i, v in enumerate(["Covered", "At risk", "Not covered", "Closed"]):
 dv(ctl, f"={AC}!$K${CV0}:$K${CV0+3}", f"D{CV0}:D{CV1}")
 COV_NAME, COV_CAT = f"{AC}!$C${CV0}:$C${CV1}", f"{AC}!$D${CV0}:$D${CV1}"
 
-sec(244, "19. Whole-row highlight and supply windows",
-    "A row is highlighted when the contract needs YOUR action. Renewals in process with supply covered are not highlighted.")
+sec(244, "19. Action Needed levels and supply windows",
+    "Action Needed (column Z) shows Act now / Plan when the contract needs YOUR action. Renewals in process with supply covered show nothing. Setting 4 turns the whole-row colour on or off.")
 hdr(246, {"B": "#", "C": "Setting", "D": "Value", "I": "What it does"})
 for i, (k, v, n) in enumerate([
-        ("'Act now' (red row) = Priority at or below", 2, "Also: supply not covered, or lapsed with supply at risk."),
-        ("'Plan' (amber row) = Priority at or below", 3, "Also: contract ending inside the supply window with no coverage."),
+        ("'Act now' = Priority at or below", 2, "Also: supply not covered, or lapsed with supply at risk."),
+        ("'Plan' = Priority at or below", 3, "Also: contract ending inside the supply window with no coverage."),
         ("Plan supply coverage for contracts ending within (days)", 90, "Before a contract lapses, Supply Status asks for a plan ('Not yet planned')."),
-        ("(not used)", None, "Coverage Through was removed with the Coverage PO / Note column (11/2026).")]):
+        ("Colour the whole row too? (Yes / No)", "No", "No = only the Action Needed cell is coloured (James, 11/09/2026). Yes = the whole row turns light red (Act now) or light amber (Plan).")]):
     r = 247 + i
     ctl[f"B{r}"] = i + 1; ctl[f"B{r}"].font = font(); ctl[f"B{r}"].border = BOX
     ctl[f"C{r}"] = k; ctl[f"C{r}"].font = font(); ctl[f"C{r}"].border = BOX; ctl[f"C{r}"].alignment = Alignment(wrap_text=True)
-    if v is None:
-        ctl[f"D{r}"].border = BOX; note(f"I{r}", n); ctl.merge_cells(f"E{r}:H{r}"); continue
+    if isinstance(v, str):
+        inp(f"D{r}", v); ctl[f"D{r}"].fill = fill("FFFF00"); note(f"I{r}", n); ctl.merge_cells(f"E{r}:H{r}")
+        ctl[f"K{r}"], ctl[f"K{r+1}"] = "Yes", "No"; ctl[f"K{r}"].font = ctl[f"K{r+1}"].font = font(color="808080", size=9)
+        dv(ctl, f"={AC}!$K${r}:$K${r+1}", f"D{r}"); continue
     inp(f"D{r}", v, "0"); ctl[f"D{r}"].fill = fill("FFFF00"); note(f"I{r}", n); ctl.merge_cells(f"E{r}:H{r}")
-ACT_N, PLAN_N, PLAN_WIN = (f"{AC}!$D$247", f"{AC}!$D$248", f"{AC}!$D$249")
+ACT_N, PLAN_N, PLAN_WIN, ROW_HL = (f"{AC}!$D$247", f"{AC}!$D$248", f"{AC}!$D$249", f"{AC}!$D$250")
 INPROC, NORMAL = f"{AC}!$K$29", f"{AC}!$K$28"
 
 # ---------------- Portfolio Tracker columns BA-BI
@@ -117,9 +119,9 @@ for val, fc, tc in [("Covered", "C6EFCE", "1E5631"), ("At risk", "FFD966", "5C44
     new.conditional_formatting.add(f"BH2:BH{LAST}", FormulaRule(formula=[f'$BH2="{val}"'], fill=fill(fc), font=Font(color=tc, bold=True), stopIfTrue=True))
 new.conditional_formatting.add(f"BI2:BI{LAST}", FormulaRule(formula=['$BI2="Act now"'], fill=fill("C00000"), font=Font(color="FFFFFF", bold=True), stopIfTrue=True))
 new.conditional_formatting.add(f"BI2:BI{LAST}", FormulaRule(formula=['$BI2="Plan"'], fill=fill("FFD966"), font=Font(color="5C4400", bold=True), stopIfTrue=True))
-# whole-row highlight: added last, so the status cells keep their own stronger colours
-new.conditional_formatting.add(f"A2:BJ{LAST}", FormulaRule(formula=['$BI2="Act now"'], fill=fill("F8D7D7")))
-new.conditional_formatting.add(f"A2:BJ{LAST}", FormulaRule(formula=['$BI2="Plan"'], fill=fill("FFF2D0")))
+# optional whole-row colour (Alert Controls 19 setting 4, off by default): added last, so the status cells keep their own colours
+new.conditional_formatting.add(f"A2:BJ{LAST}", FormulaRule(formula=[f'AND({ROW_HL}="Yes",$BI2="Act now")'], fill=fill("F8D7D7")))
+new.conditional_formatting.add(f"A2:BJ{LAST}", FormulaRule(formula=[f'AND({ROW_HL}="Yes",$BI2="Plan")'], fill=fill("FFF2D0")))
 new.auto_filter.ref = f"A1:BJ{LAST}"
 
 # ---------------- Dashboard: lapsed renewal x supply (rows 9-19)

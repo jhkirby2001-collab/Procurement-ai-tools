@@ -111,7 +111,7 @@ tile("H", 5, "LAPSED", f'=COUNTIFS({PT("AD")},"<0",{OPEN})', "Past end date, not
 tile("K", 5, "EXPIRING SOON", f'=COUNTIFS({PT("AD")},">=0",{PT("AD")},"<="&{SOON},{OPEN})',
      '="Ending within "&' + SOON + '&" days"', alert=("FFF4D6", "8A6100"))
 tile("N", 5, "IN PROCESS", f'=COUNTIF({PT("AH")},{AC}!$K$29)', "Renewal work submitted (incl. lapsed)")
-tile("Q", 5, "ROWS MARKED ACT NOW", f'=COUNTIF({PT("BI")},"Act now")', "Whole row red on the tracker", alert=("FBE3E3", "C00000"))
+tile("Q", 5, "ROWS MARKED ACT NOW", f'=COUNTIF({PT("BI")},"Act now")', "Action Needed column on the tracker", alert=("FBE3E3", "C00000"))
 db.column_dimensions["S"].width = 11
 
 sh("B20", "Money")
