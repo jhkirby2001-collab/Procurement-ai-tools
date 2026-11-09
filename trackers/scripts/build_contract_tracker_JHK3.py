@@ -80,8 +80,8 @@ sec(4, "1. General settings")
 hdr(6, {"B": "#", "C": "Setting", "D": "Value", "I": "What it does"})
 GEN = [("Default lead time when no Renewal Path is chosen (days)", 540, None,
         "Used until a Renewal Path is picked. Set to the longest path so nothing is under-warned."),
-       ("Value that marks a Next Action as done", "Yes", None,
-        "When the 'Next Action Done?' column equals this, the Next Action flag clears.")]
+       ("(retired) Value that marked a Next Action as done", "Yes", None,
+        "Not used since the Next Action columns were removed (11/2026).")]
 for i, (k, v, f, n) in enumerate(GEN):
     r = 7 + i
     ctl[f"B{r}"] = i + 1; ctl[f"B{r}"].font = font(); ctl[f"B{r}"].border = BOX
@@ -484,7 +484,7 @@ P("Data Check", "Every change made while loading the shared-contracts file: text
 H("3. Weekly routine for staff")
 P("Step 1", "Sort the Portfolio Tracker by Priority (1 = most urgent). Work top down.")
 P("Step 2", "For each contract you touched: update Renewal Stage and add a dated line at the top of Status & Notes.")
-P("Step 3", "When a next action is finished, set 'Next Action Done?' to Yes, then enter the next one (or clear the date).")
+P("Step 3", "Write your next step and its date at the top of Status & Notes (e.g. 11/9/26 - follow up with DPS by 11/15). Update Renewal Stage when the renewal moves.")
 P("Step 4", "Monthly: update Expended to Date from the financial system so the Funds Flag stays current.")
 P("Step 5", "If a contract has no Renewal Path yet, pick one. Until then it is treated as the longest path (see Alert Controls, setting 1).")
 
@@ -492,25 +492,23 @@ H("4. Columns you fill in")
 P("Renewal Path", "How this contract will be continued: extension, competitive rebid, sole source, or let expire. Sets the lead time.")
 P("Renewal Stage", "Where the renewal work stands (formerly Action Status). Each stage counts as Normal, In Process or Closed (Alert Controls section 3). This is what the In Process / movement KPIs count.")
 P("Status & Notes", "The one notes column, right after the contract details. Your notes come first, then the BWS shared-list notes and the DPS 365 comment, each labelled. Add new notes at the top with a date. The removed note columns are kept on the Archive - Removed Columns tab.")
-P("Next Action / Due Date / Done?", "The single next step, when it is due, and Yes when finished.")
 P("Total Contract Value / Expended to Date", "Dollar amounts. Needed for the Funds Flag.")
 
 P("Contract Type (Portfolio Tracker)", "Standard, Master Service or Construction (JOC). Types marked 'Takes releases' on Alert Controls appear as masters on the Task Order Tracker and Dashboard.")
 P("Task Order Tracker", "Master PO (dropdown), release number, type, scope, bureau, issue/start/end dates, release amount, paid to date, status, optional M/WBE goal and actual. Enter a release change order as its own row with the change amount (negative for a decrease).")
 P("Owning Dept Code / Ownership", "Owning Dept Code is the PO Dept Code of the department that owns the contract. Ownership turns it into Owned (your code, set on Alert Controls section 15) or Shared (another department owns it, your department draws on it).")
-P("Spec Number, PO Contract Type, BWS File Notes", "Carried over from the shared-contracts file. BWS File Notes keeps that file's notes separate from this tracker's Status / Notes.")
-P("On DPS 365 Report? / DPS 365 Comments / DPS Procurement Mgr", "Formulas on the Portfolio Tracker. They show whether the PO is on the DPS 365 report, the comment and procurement manager entered there, and flag 'Missing - check with DPS' when your contract ends within a year but is not on the report. Tracker dates are never changed by the report.")
+P("Spec Number, PO Contract Type", "Carried over from the shared-contracts file. The BWS file's notes are in Status & Notes (lines starting BWS:).")
+P("On DPS 365 Report? / DPS Procurement Mgr", "Formulas on the Portfolio Tracker. They show whether the PO is on the DPS 365 report and its procurement manager (the DPS comment is in Status & Notes, lines starting DPS 365:), and flag 'Missing - check with DPS' when your contract ends within a year but is not on the report. Tracker dates are never changed by the report.")
 P("Reviewed (column A)", "Your own check-off column. Type anything (e.g. y or a date) when you have reviewed the row. Not used by any formula.")
-P("Supply Coverage / Coverage PO / Note / Coverage Through", "For lapsed or soon-to-lapse contracts: how DWM keeps getting materials (pick from the list on Alert Controls section 18), the PO or note that proves it, and when that coverage ends. Values shaded yellow were suggested from your notes; confirm or change them.")
+P("Supply Coverage", "For lapsed or soon-to-lapse contracts: how DWM keeps getting materials (pick from the list on Alert Controls section 18). Put the proof (PO number, approval, run-out date) in Status & Notes. Values shaded yellow were suggested from your notes; confirm or change them.")
 H("5. How the alerts work")
 P("Start-By Date", "End Date minus the Lead Time for the contract's Renewal Path. This is the last day to start renewal work and still finish before the contract ends.")
 P("Expiration Status", "Rules in Alert Controls section 4 are checked top to bottom; the first one that fits is shown. Default order: CLOSED (closed category) > LAPSED (past end date) > IN PROCESS (work submitted) > RED (180 days or less left, or Start-By date passed) > YELLOW (365 days or less, or Start-By within 90 days) > GREEN.")
 P("Funds Flag", "% Expended = Expended / Total Value. % of Term Used = days elapsed / total contract days. 'Spending ahead of time' = % Expended minus % of Term Used. RED at 75% spent or 20+ points ahead of time; YELLOW at 50% or 10+ points ahead.")
-P("Next Action Flag", "Days until the Next Action Due Date: OVERDUE when past due, DUE SOON within 14 days, UPCOMING within 30 days. Clears when Done? = Yes.")
 P("Burn Index / Projected Exhaustion Date / Funds Run Out Before End?", "Burn Index = % spent divided by % of term used (1.00 = on pace; amber at 1.10, red at 1.25). Blank until 10% of the term has passed and money has been spent. Projected Exhaustion Date = when the money runs out at the current pace. Funds Run Out Before End? says Yes - N days early when that is before the end date: start a vendor limit increase.")
 P("Supply Status / Supply Risk", "Supply Status is never blank: Active contract, your Supply Coverage choice, Not yet planned (ending within 90 days, no coverage entered) or Unknown - confirm (lapsed, no coverage entered). Supply Risk turns it into Covered / At risk / Not covered for the Dashboard.")
-P("Action Needed and row colours", "The whole row turns red (Act now) or amber (Plan) when the contract needs your action: next action overdue, supply not covered, lapsed with supply at risk, or Priority 1-2 (Act now) / 3 (Plan) without a renewal in process. A renewal in process with supply covered is NOT highlighted. Levels on Alert Controls section 19.")
-P("Priority", "The lowest (most urgent) Severity number among the three flags. Severity for each status is set in Alert Controls.")
+P("Action Needed and row colours", "The whole row turns red (Act now) or amber (Plan) when the contract needs your action: supply not covered, lapsed with supply at risk, or Priority 1-2 (Act now) / 3 (Plan) without a renewal in process. A renewal in process with supply covered is NOT highlighted. Levels on Alert Controls section 19.")
+P("Priority", "The lowest (most urgent) Severity number of the Expiration Status and the Funds Flag. Severity for each status is set in Alert Controls.")
 P("Worked example", "Competitive rebid, end date 400 days away. Lead time 540 days -> Start-By date was 140 days ago. Days to Start-By = -140, which is <= 0, so RED even though a year is left. With a plain 365-day rule it would have shown GREEN. If Action Status is set to 'Submitted to DPS' it shows IN PROCESS (blue) instead.")
 
 P("Shared contracts", "Shared contracts get the same alerts as owned ones. Pick the Renewal Path 'Owning dept renews' (365-day lead time = when your input is due) and use the owning-department Action Statuses to show where the other department stands.")
@@ -563,6 +561,7 @@ P("11/02/2026", "Shared contracts added: 53 contracts from the BWS shared-contra
 P("11/02/2026", "Four original-list start dates typed as text with year typos (11/22/0024, 07/11/0007, 02/08/0024, 05/05/0023) converted to real dates; listed on the Data Check tab.", bold_a=False)
 P("11/03/2026", "DPS 365 Report tab added (124 department contracts ending within a year, linked to the tracker, with suggested comments); DPS 365 (as received) tab; Portfolio Tracker columns On DPS 365 Report?, DPS 365 Comments and DPS Procurement Mgr; Alert Controls section 16; Dashboard DPS 365 section. Tracker dates unchanged.", bold_a=False)
 P("11/08/2026", "Added Burn Index, Projected Exhaustion Date, Funds Run Out Before End?, Supply Coverage / Coverage PO / Note / Coverage Through, Supply Status, Supply Risk and Action Needed (whole-row red / amber highlight). Dashboard: lapsed renewal x supply KPIs, grid, chart and summary sentence; Funds run out early tile. Alert Controls sections 17-19. Your Reviewed column (A) and all your entries kept.", bold_a=False)
+P("11/09/2026", "Simplified the Portfolio Tracker: one Status & Notes column (P) combining the note columns, Next Action text, BWS notes and DPS 365 comments; Action Status renamed Renewal Stage; Next Action / Due / Done?, Next Action Flag, Coverage PO / Note and Coverage Through removed (values on the Archive - Removed Columns tab); money columns grouped; helper columns collapsed (+/-).", bold_a=False)
 for _ in range(8): P("", "", bold_a=False)
 
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract_tracker_dashboard_part_JHK3.py")).read())

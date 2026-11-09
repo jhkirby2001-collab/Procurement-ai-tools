@@ -23,12 +23,15 @@ except ImportError:
     env = dict(os.environ)
 
 def basic_str(s):
-    return '"' + s.replace('"', '""').replace("\n", '" & Chr(10) & "') + '"'
+    from xml.sax.saxutils import escape
+    return escape('"' + s.replace('"', '""').replace("\n", '" & Chr(10) & "') + '"')
 
 order = ", ".join(basic_str(h) for h in FINAL_ORDER)
 removed = ", ".join(basic_str(h) for h in REMOVED)
 h0, h1 = FINAL_ORDER.index(HELPERS[0]), FINAL_ORDER.index(HELPERS[-1])
 
+LOG = str(path) + ".finalize.log"
+if os.path.exists(LOG): os.remove(LOG)
 MACRO = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE script:module PUBLIC "-//OpenOffice.org//DTD OfficeDocument 1.0//EN" "module.dtd">
 <script:module xmlns:script="http://openoffice.org/2000/script" script:name="Module1" script:language="StarBasic">
@@ -43,10 +46,31 @@ MACRO = f"""<?xml version="1.0" encoding="UTF-8"?>
       FindHeader = -1
     End Function
 
+    Sub LogLine(t As String)
+      Dim f As Integer
+      f = FreeFile
+      Open "{LOG}" For Append As #f
+      Print #f, t
+      Close #f
+    End Sub
+
     Sub Finalize()
+      On Error GoTo Failed
       Dim doc As Object, sh As Object, src As Object, cols As Object
       Dim order As Variant, removed As Variant, i As Long, j As Long, w As Long, vis As Boolean
+      Dim tries As Integer, en As Object, comp As Object
       doc = ThisComponent
+      tries = 0
+      Do While Not HasUnoInterfaces(doc, "com.sun.star.sheet.XSpreadsheetDocument") And tries &lt; 120
+        Wait 500
+        en = StarDesktop.Components.createEnumeration()
+        Do While en.hasMoreElements()
+          comp = en.nextElement()
+          If HasUnoInterfaces(comp, "com.sun.star.sheet.XSpreadsheetDocument") Then doc = comp
+        Loop
+        tries = tries + 1
+      Loop
+      LogLine "document ready after " &amp; tries
       sh = doc.Sheets.getByName("Portfolio Tracker")
       cols = sh.Columns
       order = Array({order})
@@ -64,6 +88,7 @@ MACRO = f"""<?xml version="1.0" encoding="UTF-8"?>
           cols.getByIndex(i).Width = w
           cols.getByIndex(i).IsVisible = vis
         End If
+        LogLine "placed " &amp; i
       Next i
       For i = 0 To UBound(removed)
         j = FindHeader(sh, removed(i))
@@ -73,12 +98,24 @@ MACRO = f"""<?xml version="1.0" encoding="UTF-8"?>
       grp = sh.getCellRangeByPosition({h0}, 0, {h1}, 299).getRangeAddress()
       sh.group(grp, com.sun.star.table.TableOrientation.COLUMNS)
       sh.hideDetail(grp)
+      LogLine "grouped"
       doc.calculateAll()
       doc.store()
+      LogLine "stored"
       doc.close(True)
+      Exit Sub
+    Failed:
+      LogLine "ERROR " &amp; Err &amp; " line " &amp; Erl &amp; ": " &amp; Error$
+      On Error Resume Next
+      If HasUnoInterfaces(doc, "com.sun.star.util.XCloseable") Then doc.close(True)
+      StarDesktop.terminate()
     End Sub
 </script:module>"""
 
+if os.environ.get("DUMP_MACRO"):
+    print(MACRO); sys.exit(0)
+for _lock in path.parent.glob(".~lock." + path.name + "#"):
+    _lock.unlink()          # a stale lock from an interrupted run stops LibreOffice opening the file
 with tempfile.TemporaryDirectory(prefix="lo_profile_") as prof:
     url = Path(prof).as_uri()
     subprocess.run(["soffice", "--headless", "--terminate_after_init", f"-env:UserInstallation={url}"],
@@ -88,8 +125,9 @@ with tempfile.TemporaryDirectory(prefix="lo_profile_") as prof:
     r = subprocess.run(["soffice", "--headless", "--norestore", f"-env:UserInstallation={url}",
                         "vnd.sun.star.script:Standard.Module1.Finalize?language=Basic&location=application", str(path)],
                        env=env, capture_output=True, text=True, timeout=1500)
-    if r.returncode != 0 or path.stat().st_mtime == before:
-        sys.exit(f"LibreOffice did not update the file: {r.stderr.strip() or r.returncode}")
+    log = open(LOG).read() if os.path.exists(LOG) else ""
+    if r.returncode != 0 or path.stat().st_mtime == before or "ERROR" in log or "stored" not in log:
+        sys.exit(f"LibreOffice did not finish: {log[-500:] or r.stderr.strip() or r.returncode}")
 
 # Sheet XML: freeze A-C + row 1; whole-row highlight and filter span every column.
 last = get_column_letter(len(FINAL_ORDER))

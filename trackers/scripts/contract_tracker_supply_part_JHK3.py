@@ -22,9 +22,9 @@ sec(227, "18. Supply coverage  (how DWM keeps getting materials when a contract 
     "Choices for the Supply Coverage dropdown. 'Counts as' drives Supply Risk, the Dashboard and row highlighting. Add your own in the empty slots.")
 hdr(229, {"B": "Slot", "C": "Supply Coverage", "D": "Counts as", "I": "What it means", "K": "Counts-as values (fixed)"})
 COV = [("Exhibit B", "Covered", "Buying under Exhibit B while the renewal is in process."),
-       ("Alternate PO / contract", "Covered", "Another PO or another department's contract covers the need. Put the PO in Coverage PO / Note."),
+       ("Alternate PO / contract", "Covered", "Another PO or another department's contract covers the need. Put the PO in Status & Notes."),
        ("Extension pending - vendor honoring", "Covered", "Vendor keeps supplying while the extension is processed."),
-       ("Stock on hand", "Covered", "Inventory covers needs until the new contract. Put the run-out date in Coverage Through."),
+       ("Stock on hand", "Covered", "Inventory covers needs until the new contract. Put the run-out date in Status & Notes."),
        ("Unconfirmed", "At risk", "Coverage asked about but not confirmed (e.g. 'Can we use Exh B?')."),
        ("No way to buy", "Not covered", "Nothing in place. Escalate."),
        ("Not needed", "Closed", "Requirement ended; no coverage needed.")]
